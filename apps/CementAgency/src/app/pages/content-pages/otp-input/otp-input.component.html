@@ -1,0 +1,6 @@
+<div class="otp-container">
+  <input id="otp-0" type="text" maxlength="1" (input)="onInput($event, 0)" (keydown)="onKeyDown($event, 0)" [(ngModel)]="otp[0]">
+  <input id="otp-1" type="text" maxlength="1" (input)="onInput($event, 1)" (keydown)="onKeyDown($event, 1)" [(ngModel)]="otp[1]">
+  <input id="otp-2" type="text" maxlength="1" (input)="onInput($event, 2)" (keydown)="onKeyDown($event, 2)" [(ngModel)]="otp[2]">
+  <input id="otp-3" type="text" maxlength="1" (input)="onInput($event, 3)" (keydown)="onKeyDown($event, 3)" [(ngModel)]="otp[3]">
+</div>

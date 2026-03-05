@@ -1,0 +1,404 @@
+@page {
+  margin: 0;
+}
+
+body {
+  margin: 0;
+
+}
+
+h1 {
+  font-size: 22pt;
+  font-family: Georgia, 'Times New Roman', Times, serif;
+}
+
+h3 {
+  font-size: 16pt;
+  font-family: Georgia, 'Times New Roman', Times, serif;
+}
+
+p {
+  font-size: 10pt;
+  font-family: Arial, Helvetica, sans-serif
+}
+
+table {
+  color: #000000; /* Lighten up font color */
+  font-family: Helvetica, Arial, sans-serif; /* Nicer font */
+  font-size: 10pt;
+  width: 100%;
+  border-collapse:
+  collapse; border-spacing: 0;
+}
+
+table.table-border td, table.table-border th  { border: 1px solid #101010;  } /* Make cells a bit taller */
+
+th {
+  background: #692626; /* Light grey background */
+  font-weight: bold; /* Make sure they're bold */
+  padding: 5px;
+}
+@page {
+  margin: 0;
+}
+
+body {
+  margin: 0;
+
+}
+
+h1 {
+  font-size: 22pt;
+  font-family: Georgia, 'Times New Roman', Times, serif;
+}
+
+h3 {
+  font-size: 16pt;
+  font-family: Georgia, 'Times New Roman', Times, serif;
+}
+
+p {
+  font-size: 10pt;
+  font-family: Arial, Helvetica, sans-serif
+}
+
+table {
+  color: #000000; /* Lighten up font color */
+  font-family: Helvetica, Arial, sans-serif; /* Nicer font */
+  font-size: 10pt;
+  width: 100%;
+  border-collapse:
+  collapse; border-spacing: 0;
+}
+
+table.table-border td, table.table-border th  { border: 1px solid #101010;  } /* Make cells a bit taller */
+
+th {
+  background: #919191; /* Light grey background */
+  font-weight: bold; /* Make sure they're bold */
+  padding: 5px;
+}
+
+td {
+  background: #ffffff; /* Lighter grey background */
+  padding: 5px;
+}
+
+table  td.cellborder{
+  border: 2px solid #101010;
+}
+.sheet {
+  padding: 2mm;
+  height: auto;
+  overflow: auto;
+  position: relative;
+  box-sizing: border-box;
+
+  background: white;
+  color: #000;
+  font-weight: 600;
+  font-size: larger;
+}
+
+table>td>.sheet {
+  color: #000 !important;
+  font-weight: 600 !important;
+
+}
+
+/** Paper sizes **/
+body.A3.sheet {
+  width: 297mm;
+  height: 419mm;
+}
+
+body.A3.landscape .sheet {
+  width: 420mm;
+  height: 296mm;
+}
+
+body.A4 .sheet {
+  width: 210mm;
+}
+
+body.A4.landscape .sheet {
+  width: 297mm;
+  height: 209mm;
+}
+
+body.A5 .sheet {
+  width: 148mm;
+  height: 210mm;
+}
+
+body.A5.landscape .sheet {
+  width: 210mm;
+}
+
+body.CashMemo .sheet {
+  width: 80mm;
+}
+
+body.letter .sheet {
+  width: 216mm;
+  height: 279mm;
+}
+
+body.letter.landscape .sheet {
+  width: 280mm;
+  height: 215mm;
+}
+
+body.legal .sheet {
+  width: 216mm;
+  height: 356mm;
+}
+
+body.legal.landscape .sheet {
+  width: 357mm;
+  height: 215mm;
+}
+
+/** Padding area **/
+.sheet.padding-10mm {
+  padding: 10mm;
+}
+
+.sheet.padding-15mm {
+  padding: 15mm;
+}
+
+.sheet.padding-20mm {
+  padding: 20mm;
+}
+
+.sheet.padding-25mm {
+  padding: 25mm;
+}
+
+/** For screen preview **/
+@media screen {
+  body {
+    background: #e0e0e0;
+  }
+
+  .sheet {
+    background: white;
+    color: #000;
+    box-shadow: 0 0.5mm 2mm rgba(0, 0, 0, 0.3);
+    margin: 5mm auto;
+  }
+}
+
+/** Fix for Chrome issue #273306 **/
+@media print {
+  body.A3.landscape {
+    width: 420mm;
+  }
+
+  body.A3,
+  body.A4.landscape {
+    width: 297mm;
+  }
+
+  body.A4,
+  body.A5.landscape {
+    width: 210mm;
+  }
+
+  body.A5 {
+    width: 80mm;
+  }
+
+  body.CashMemo {
+    width: 80mm;
+  }
+
+  body.letter,
+  body.legal {
+    width: 216mm;
+  }
+
+  body.letter.landscape {
+    width: 280mm;
+  }
+
+  body.legal.landscape {
+    width: 357mm;
+  }
+
+  .no-print {
+    display: none;
+  }
+}
+
+@page {
+  size: A4;
+}
+
+td {
+  background: #ffffff; /* Lighter grey background */
+  padding: 5px;
+}
+
+table  td.cellborder{
+  border: 2px solid #101010;
+}
+.sheet {
+  padding: 2mm;
+  height: auto;
+  overflow: auto;
+  position: relative;
+  box-sizing: border-box;
+
+  background: white;
+  color: #000;
+  font-weight: 600;
+  font-size: larger;
+}
+
+table>td>.sheet {
+  color: #000 !important;
+  font-weight: 600 !important;
+
+}
+
+/** Paper sizes **/
+body.A3.sheet {
+  width: 297mm;
+  height: 419mm;
+}
+
+body.A3.landscape .sheet {
+  width: 420mm;
+  height: 296mm;
+}
+
+body.A4 .sheet {
+  width: 210mm;
+}
+
+body.A4.landscape .sheet {
+  width: 297mm;
+  height: 209mm;
+}
+
+body.A5 .sheet {
+  width: 148mm;
+  height: 210mm;
+}
+
+body.A5.landscape .sheet {
+  width: 210mm;
+}
+
+body.CashMemo .sheet {
+  width: 80mm;
+}
+
+body.letter .sheet {
+  width: 216mm;
+  height: 279mm;
+}
+
+body.letter.landscape .sheet {
+  width: 280mm;
+  height: 215mm;
+}
+
+body.legal .sheet {
+  width: 216mm;
+  height: 356mm;
+}
+
+body.legal.landscape .sheet {
+  width: 357mm;
+  height: 215mm;
+}
+
+/** Padding area **/
+.sheet.padding-10mm {
+  padding: 10mm;
+}
+
+.sheet.padding-15mm {
+  padding: 15mm;
+}
+
+.sheet.padding-20mm {
+  padding: 20mm;
+}
+
+.sheet.padding-25mm {
+  padding: 25mm;
+}
+
+/** For screen preview **/
+@media screen {
+  body {
+    background: #e0e0e0;
+  }
+
+  .sheet {
+    background: white;
+    color: #000;
+    box-shadow: 0 0.5mm 2mm rgba(0, 0, 0, 0.3);
+    margin: 5mm auto;
+  }
+}
+
+/** Fix for Chrome issue #273306 **/
+@media print {
+  body.A3.landscape {
+    width: 420mm;
+  }
+
+  body.A3,
+  body.A4.landscape {
+    width: 297mm;
+  }
+
+  body.A4,
+  body.A5.landscape {
+    width: 210mm;
+  }
+
+  body.A5 {
+    width: 80mm;
+  }
+
+  body.CashMemo {
+    width: 80mm;
+  }
+
+  body.letter,
+  body.legal {
+    width: 216mm;
+  }
+
+  body.letter.landscape {
+    width: 280mm;
+  }
+
+  body.legal.landscape {
+    width: 357mm;
+  }
+
+  .no-print {
+    display: none;
+  }
+}
+
+@page {
+  size: A4;
+}
+@media print {
+  #spacer {height: 2em;} /* height of footer + a little extra */
+  #footer {
+    position: fixed;
+    bottom: 0;
+  }
+  .buttonarea {
+    visibility: hidden;
+  }
+}

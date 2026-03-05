@@ -1,0 +1,111 @@
+<div class="p-2">
+  <div widget class="card border-0 box-shadow">
+    <div class="card-header transparent border-0 text-muted">
+      <h5 class="mb-3">Gate Pass Delivery</h5>
+    </div>
+    <div class="card-block widget-body">
+      <div class="row">
+        <div class="col-md-3">
+          <div class="form-group">
+            <label for="txtcustomer">Cusomer</label>
+            <input
+              type="text"
+              id="txtcustomer"
+              class="form-control"
+              name="txtcustomer"
+              [value]="GatePass.CustomerName"
+              readonly
+            />
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="form-group">
+            <label for="txtbno">Bill No:</label>
+            <input
+              type="text"
+              id="txtbno"
+              class="form-control"
+              name="txtbno"
+              [value]="GatePass.InvoiceID"
+              readonly
+            />
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="form-group">
+            <label for="txtbno">Gate Pas No:</label>
+            <input
+              type="text"
+              id="txtbno"
+              class="form-control"
+              name="txtbno"
+              [value]="GatePass.GPNo"
+              readonly
+            />
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="form-group">
+            <label for="txtbno">Store Name:</label>
+            <input
+              type="text"
+              id="txtbno"
+              class="form-control"
+              name="txtbno"
+              [value]="GatePass.StoreName"
+              readonly
+            />
+          </div>
+        </div>
+      </div>
+      <div class="row no-gutter" id="print-section">
+        <div class="col-md-12">
+          <table class="table table-sm table-warning">
+            <thead>
+              <tr>
+                <th>S. No</th>
+                <th>Produc Name</th>
+                <th>Qty</th>
+                <th>Delivered</th>
+                <th>Pending</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of GatePassItems; let i = index">
+                <td>{{ i + 1 }}</td>
+                <td>{{ item.ProductName }}</td>
+                <td>{{ item.Qty }}</td>
+                <td>
+                  <input
+                    class="form-control"
+                    type="number"
+                    name="Qty{{ i }}"
+                    style="width: 6em"
+                    [(ngModel)]="item.Delivered"
+                    (change)="DelChange($event, i)"
+                  />
+                </td>
+                <td>{{ item.Qty - item.Delivered }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-6"></div>
+        <div class="col-md-3">
+          <button class="btn btn-block btn-success" type="button" (click) = "SaveData()">
+            <i class="fa fa-save"></i>
+            Save
+          </button>
+        </div>
+        <div class="col-md-3">
+          <button class="btn btn-block btn-warning" type="button" (click) ="bsModalRef.hide()">
+            <i class="fa fa-cancel"></i>
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

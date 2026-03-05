@@ -1,0 +1,54 @@
+<div widget class="card border-0 box-shadow">
+  <div class="card-header transparent border-0 text-muted">
+    <h5 class="mb-3">Add Recovery</h5>
+
+  </div>
+  <div class="card-block widget-body">
+    <div class="container">
+      <div class="row no-gutter">
+        <div class="col-md-12">
+          <ft-crud-form [form] = "FilterForm" [formdata] = "Filter"
+          [CrudButtons] = "false"
+          >
+
+          </ft-crud-form>
+
+        </div>
+
+      </div>
+
+
+      <div class="row no-gutter">
+        <div class="col-md-12">
+          <table class="table table-stripped table-sm">
+            <thead>
+              <th> Customer ID </th>
+              <th> Customer Name </th>
+              <th> Address </th>
+              <th> City </th>
+              <th> Amount </th>
+              <th> Recovery </th>
+              <th> Balance </th>
+              <th> Action </th>
+            </thead>
+            <tbody>
+              <tr *ngFor="let c of VouchersList">
+                <td> {{ c.CustomerID}}</td>
+                <td> {{ c.CustomerName}}</td>
+                <td> {{ c.Address}}</td>
+                <td> {{ c.City}}</td>
+                <td> {{ c.Amount}}</td>
+                <td> <input type="number" style="max-width:100px" class="form-control" [(ngModel)]="c.Recovery"></td>
+                <td> {{ c.Amount - c.Recovery}}</td>
+                <td> <button class="btn btn-success" (click)="CashRecvd(c)">
+                    <i class="fa fa-check"></i>
+                  </button></td>
+              </tr>
+            </tbody>
+
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,50 @@
+<div class="row no-gutter">
+  <div class="col-md-12">
+    <div class="btn-group btn-group-justified" role="group" aria-label="b-btn">
+      <div class="btn-group" role="group">
+        <button
+          type="button"
+          class="btn btn-secondary btn-lg"
+          (click)="ButtonClicked(1)"
+          [disabled]="disabled"
+        >
+          <i class="fa fa-backward-fast"></i>
+        </button>
+      </div>
+
+      <div class="btn-group" role="group">
+        <button
+          type="button"
+          class="btn btn-secondary btn-lg"
+          (click)="ButtonClicked(2)"
+          [disabled]="disabled"
+        >
+          <i class="fa fa-backward"></i>
+        </button>
+      </div>
+
+      <div class="btn-group" role="group">
+        <button
+          type="button"
+          class="btn btn-secondary btn-lg"
+          (click)="ButtonClicked(3)"
+          [disabled]="disabled"
+        >
+          <i class="fa fa-forward"></i>
+        </button>
+      </div>
+
+      <div class="btn-group" role="group">
+        <button
+          type="button"
+          class="btn btn-secondary btn-lg"
+          (click)="ButtonClicked(4)"
+          [disabled]="disabled"
+        >
+          <i class="fa fa-forward-fast"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+

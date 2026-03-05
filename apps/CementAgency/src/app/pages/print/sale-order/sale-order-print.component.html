@@ -1,0 +1,182 @@
+<!-- Invoice template starts -->
+<div class="row buttonarea">
+  <div class="col-6">
+    <div class="content-header">Sale Order</div>
+  </div>
+    <div class="col-6 text-center text-sm-right">
+      <button type="button" class="btn btn-primary btn-print m-1 mt-md-1" (click)="Print()"><i class="ft-printer mr-1"></i>Print</button>
+      <button type="button" class="btn btn-primary btn-export m-1 mt-md-1" (click)="ExportPDF()"><i class="fa fa-file-pdf-o mr-1"></i>Export PDF</button>
+      <button type="button" class="btn btn-primary btn-export m-1 mt-md-1"><i class="fa fa-whatsapp mr-1"></i>Send</button>
+    </div>
+</div>
+<section #Invoice id="#invoice" class="invoice-template">
+  <div class="row no-gutter">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-content p-3">
+          <div id="invoice-template" class="card-body pb-0">
+            <!-- Invoice Company Details starts -->
+            <div id="invoice-company-details" class="row no-gutter">
+              <div class="col-md-6 col-12">
+                <div class="media">
+                  <img src="assets/img/logos/logo-invoice.png" alt="company logo" width="80" height="80">
+                  <div class="media-body ml-4">
+                    <ul class="m-0 list-unstyled">
+                      <li><h2>{{branch.branch_name}}</h2></li>
+                      <li class="text-bold-800">{{branch.address}}</li>
+                      <li>{{branch.address2}},</li>
+                      <li>{{branch.city}}, {{branch.country}}</li>
+                    </ul>
+                  </div>
+                </div>
+
+              </div>
+              <div class="col-md-6 col-12 text-right">
+                <h2 class="primary text-uppercase">SALE ORDER</h2>
+                <p class=""># SO-{{SaleOrder.order_id}}</p>
+                <p class="pb-3">S/O Date:  {{SaleOrder.date}}</p>
+
+              </div>
+            </div>
+            <!-- Invoice Company Details ends -->
+            <!-- Invoice Customer Details starts -->
+            <div id="invoice-customer-details" class="row no-gutter">
+              <div class="col-12 text-left">
+                <p class="text-muted mb-1">To</p>
+              </div>
+              <div class="col-md-6 col-12">
+                <ul class="m-0 list-unstyled">
+                  <li class="text-bold-800"><b>{{SaleOrder.customer_name}}</b></li>
+                  <li>{{SaleOrder.address}}</li>
+                  <li>{{SaleOrder.contact_no}},</li>
+                  <li>{{SaleOrder.city}}, {{SaleOrder.country}}</li>
+                </ul>
+              </div>
+              <div class="col-md-6 col-12 text-right">
+                Balance Due:
+                <P class="font-medium-2 text-bold-700">${{SaleOrder.customer_balance}}</P>
+
+              </div>
+            </div>
+            <!-- Invoice Customer Details ends -->
+            <!-- Invoice Items Details starts -->
+            <div id="invoice-items-details">
+              <div class="row no-gutter">
+                <div class="table-responsive col-12">
+                  <table class="table mt-3">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Item &amp; Description</th>
+                        <th class="text-right">Rate</th>
+                        <th class="text-right">Qty</th>
+                        <th class="text-right">Tax</th>
+                        <th class="text-right">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr *ngFor="let item of SaleOrder.details; index as i">
+                        <th scope="row no-gutter">{{i+1}}</th>
+                        <td>
+                        {{item.product_name}}
+                          <p class="text-muted">{{item.details}}</p>
+                        </td>
+                        <td class="text-right">${{item.price}}</td>
+                        <td class="text-right">{{item.qty}}</td>
+                        <td class="text-right">{{item.vat_amount}}
+                          <p class="text-muted">{{item.vat}}%</p>
+                        </td>
+                        <td class="text-right">${{item.net_amount}}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="row mt-3 mt-md-0">
+                <div class="col-md-6 col-12 text-left">
+                  <p class="text-bold-700 mb-1 ml-1">Payment Methods:</p>
+                  <div class="row no-gutter">
+                    <div class="col-12">
+                      <table class="table table-borderless table-sm">
+                        <tbody>
+                          <tr>
+                            <td>Bank name:</td>
+                            <td class="text-right">ABC Bank, USA</td>
+                          </tr>
+                          <tr>
+                            <td>Acc name:</td>
+                            <td class="text-right">Amanda Orton</td>
+                          </tr>
+                          <tr>
+                            <td>IBAN:</td>
+                            <td class="text-right">FGS165461646546AA</td>
+                          </tr>
+                          <tr>
+                            <td>SWIFT code:</td>
+                            <td class="text-right">BTNPP34</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-6 col-12">
+                  <p class="text-bold-700 mb-2 ml-4">Bill Amount</p>
+                  <div class="table-responsive">
+                    <table class="table">
+                      <tbody>
+                        <tr>
+                          <td>Sub Total</td>
+                          <td class="text-right">${{SaleOrder.amount}}</td>
+                        </tr>
+                        <tr>
+                          <td>TAX</td>
+                          <td class="text-right">${{SaleOrder.vat}}</td>
+                        </tr>
+                        <tr>
+                          <td class="text-bold-800">Total</td>
+                          <td class="text-bold-800 text-right"> ${{SaleOrder.net_amount}}</td>
+                        </tr>
+                        <tr>
+                          <td>Payment Made</td>
+                          <td class="danger text-right">(-) ${{SaleOrder.amount_received}}</td>
+                        </tr>
+                        <tr class="text-bold-500">
+                          <td>Balance Due</td>
+                          <td class="text-right">${{SaleOrder.net_amount - SaleOrder.amount_received}}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- Invoice Items Details ends -->
+            <!-- Invoice Footer starts -->
+            <div id="invoice-footer">
+              <div class="row mt-2 mt-sm-0">
+                <div class="col-md-6 col-12 d-flex align-items-center">
+                  <div class="terms-conditions mb-2">
+                    <h6>Terms & Condition</h6>
+                    <p>You know, being a test pilot isn't always the healthiest business in the world. We predict too much for the next year and yet far too little for the next 10.</p>
+                  </div>
+                </div>
+                <div class="col-md-6 col-12">
+                  <div class="signature text-center">
+                    <p>Authorized person</p>
+                    <img src="assets/img/pages/signature-scan.png" alt="signature" width="250">
+                    <h6 class="mt-4">Amanda Orton</h6>
+                    <p class="text-muted">Managing Director</p>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+            <!-- Invoice Footer ends -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<!-- Invoice template ends -->

@@ -1,0 +1,253 @@
+<div widget class="card border-0 box-shadow">
+  <div class="card-header transparent border-0 text-muted">
+  </div>
+  <div class="card-block widget-body">
+    <form #frmFilter="ngForm" (submit)="SaveData()">
+      <div class="container">
+        <div class="row no-gutter">
+          <div class="col-md-6">
+            <h5 class="mb-3">Amount Received From</h5>
+            <div class="form-group row">
+              <label for="dtFrom" class="col-sm-4 col-form-label">Date: </label>
+              <div class="col-md-8">
+                <div class="input-group">
+                  <input class="form-control" placeholder="yyyy-mm-dd" name="dtFrom" [(ngModel)]="Voucher.Date"
+                    ngbDatepicker #dtFrom="ngbDatepicker" required disabled />
+                  <div class="input-group-addon">
+                    <button type="button" class="btn btn-warning" (click)="dtFrom.toggle()">
+                      <i class="fa fa-calendar"> </i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6"></div>
+            </div>
+            <div class="form-group row">
+              <label for="cmbCustomer" class="form-label col-md-4">
+                Account Type:
+              </label>
+              <div class="col-md-8">
+                <ejs-combobox name="cmbAcctType" id="cmbAcctType" [dataSource]="AcctTypes"
+                  [fields]="{ text: 'AcctType', value: 'AcctTypeID' }" [(ngModel)]="AcctTypeID" required
+                  (change)="LoadCustomer($event, 1)">
+                </ejs-combobox>
+              </div>
+            </div>
+
+            <div class="form-group row">
+              <label for="cmbCustomer" class="form-label col-md-4">
+                Account
+              </label>
+              <div class="col-md-8">
+
+                <ng-select
+                  name="ng2select"
+                  class="custom"
+                  [items]="Customers"
+                  [virtualScroll]="true"
+                  bindLabel="CustomerName"
+                  bindValue="CustomerID"
+                  placeholder="Select Account"
+                  (change)="GetCustomer($event.CustomerID, 1)"
+                  required
+                  [(ngModel)]="Voucher.CustomerID"
+                >
+                  <ng-template ng-option-tmp let-item="item">
+                    <div class="row no-gutter">
+                      <div class="col-md-12">
+                        {{ item.CustomerName }}
+                      </div>
+                      <div class="col-md-9 text-italic font-small-2 mt-1">
+                        <small>
+                          {{ item.Address }}
+                        </small>
+                      </div>
+                      <div class="col-md-3 text-italic font-small-2 mt-1">
+                        <small>
+                          {{ item.Balance }}
+                        </small>
+                      </div>
+                    </div>
+                  </ng-template>
+                </ng-select>
+
+                <!-- <ejs-combobox name="cmbCustomer" id="cmbCustomer" [dataSource]="Customers"
+                  [fields]="{ text: 'CustomerName', value: 'CustomerID' }" [(ngModel)]="Voucher.CustomerID" required
+                  (change)="GetCustomer($event, 1)" #cmbCustomer>
+                </ejs-combobox> -->
+              </div>
+            </div>
+            <div class="row form-group">
+              <label for="description" class="col-md-4 form-label">Description
+              </label>
+              <div class="col-md-8">
+                <input name="description1" class="form-control" type="text" [(ngModel)]="Voucher.Description"
+                  id="description" />
+              </div>
+            </div>
+            <div class="row form-group">
+              <label for="description" class="col-md-4 form-label">Account Details
+              </label>
+              <div class="col-md-8">
+                <div class="row form-group">
+                  <label for="amount" class="col-md-4 form-label">Address: </label>
+                  <div class="col-md-8">
+                    <strong>
+                      {{ curCustomer.Address }}
+                    </strong>
+                  </div>
+                </div>
+                <div class="row form-group">
+                  <label for="amount" class="col-md-4 form-label">City: </label>
+                  <div class="col-md-8">
+                    <strong>
+                      {{ curCustomer.City }}
+                    </strong>
+                  </div>
+                </div>
+                <div class="row form-group">
+                  <label for="amount" class="col-md-4 form-label">Balance: </label>
+                  <div class="col-md-8">
+                    <strong>
+                      {{ Round(curCustomer.Balance) }}
+                    </strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="row form-group">
+              <label for="amountpaid" class="col-md-4 form-label">Amount
+              </label>
+              <div class="col-md-8">
+                <input name="Credit" class="form-control" type="text" [(ngModel)]="Voucher.Credit" id="Credit" />
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <h5 class="mb-3">Amount Paid/Deposited</h5>
+
+            <div class="form-group row">
+              <label for="dtFrom" class="col-sm-4 col-form-label">Date: </label>
+              <div class="col-md-8">
+                <div class="input-group">
+                  <input class="form-control" placeholder="yyyy-mm-dd" name="dtFrom" [(ngModel)]="Voucher1.Date"
+                    ngbDatepicker #dtFrom="ngbDatepicker" required />
+                  <div class="input-group-addon">
+                    <button type="button" class="btn btn-warning" (click)="dtFrom.toggle()">
+                      <i class="fa fa-calendar"> </i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6"></div>
+            </div>
+            <div class="form-group row">
+              <label for="cmbCustomer" class="form-label col-md-4">
+                Account Type:
+              </label>
+              <div class="col-md-8">
+                <ejs-combobox name="cmbAcctType1" id="cmbAcctType1" [dataSource]="AcctTypes"
+                  [fields]="{ text: 'AcctType', value: 'AcctTypeID' }" [(ngModel)]="AcctTypeID1" required
+                  (change)="LoadCustomer($event, 2)">
+                </ejs-combobox>
+              </div>
+            </div>
+
+            <div class="form-group row">
+              <label for="cmbCustomer" class="form-label col-md-4">
+                Customers
+              </label>
+              <div class="col-md-8">
+                <ng-select
+                  name="ng2select"
+                  class="custom"
+                  [items]="Customers1"
+                  [virtualScroll]="true"
+                  bindLabel="CustomerName"
+                  bindValue="CustomerID"
+                  placeholder="Select Account"
+                  (change)="GetCustomer($event.CustomerID,2)"
+                  required
+                  [(ngModel)]="Voucher1.CustomerID"
+                >
+                  <ng-template ng-option-tmp let-item="item">
+                    <div class="row no-gutter">
+                      <div class="col-md-12">
+                        {{ item.CustomerName }}
+                      </div>
+                      <div class="col-md-9 text-italic font-small-2 mt-1">
+                        <small>
+                          {{ item.Address }}
+                        </small>
+                      </div>
+                      <div class="col-md-3 text-italic font-small-2 mt-1">
+                        <small>
+                          {{ item.Balance }}
+                        </small>
+                      </div>
+                    </div>
+                  </ng-template>
+                </ng-select>
+              </div>
+            </div>
+            <div class="row form-group">
+              <label for="description" class="col-md-4 form-label">Description
+              </label>
+              <div class="col-md-8">
+                <input name="description1" class="form-control" type="text" [(ngModel)]="Voucher1.Description"
+                  id="description" />
+              </div>
+            </div>
+            <div class="row form-group">
+              <label for="description" class="col-md-4 form-label">Account Details
+              </label>
+              <div class="col-md-8">
+                <div class="row form-group">
+                  <label for="amount" class="col-md-4 form-label">Address: </label>
+                  <div class="col-md-8">
+                    <strong>
+                      {{ curCustomer1.Address }}
+                    </strong>
+                  </div>
+                </div>
+                <div class="row form-group">
+                  <label for="amount" class="col-md-4 form-label">City: </label>
+                  <div class="col-md-8">
+                    <strong>
+                      {{ curCustomer1.City }}
+                    </strong>
+                  </div>
+                </div>
+                <div class="row form-group">
+                  <label for="amount" class="col-md-4 form-label">Balance: </label>
+                  <div class="col-md-8">
+                    <strong>
+                      {{ Round(curCustomer1.Balance) }}
+                    </strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="row form-group">
+              <label for="amount" class="col-md-4 form-label">Amount
+              </label>
+              <div class="col-md-8">
+                <input class="form-control" type="number" name="amount" [(ngModel)]="Voucher1.Debit" id="amount"
+                  required />
+              </div>
+            </div>
+            <div class="row no-gutter">
+              <div class="form-group col-md-12">
+                <label>&nbsp;</label>
+                <button type="submit" class="btn btn-primary form-control" accesskey="s" [disabled]="!frmFilter.valid">
+                  <i class="fa fa-save"></i>
+                </button>
+              </div>
+            </div>
+            <div class="row no-gutter"></div>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>

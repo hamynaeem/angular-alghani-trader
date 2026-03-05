@@ -1,0 +1,17 @@
+.selected {
+  tr > td {
+    background-color: #ffaadd;
+  }
+}
+
+@media print {
+.screenOnly {
+  display: none;
+}
+}
+
+.link {
+  cursor:pointer;
+  color:blue;
+  text-decoration:underline;
+}

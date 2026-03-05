@@ -1,0 +1,22 @@
+.alert-light-danger {
+  background-color: #FEEFD0 !important;
+  color: #F55252  !important;
+  border-color: #FEEFD0;
+}
+
+.otp-input-group {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.otp-input {
+  font-size: 1.5rem;
+  text-align: center;
+  letter-spacing: 0.5rem;
+}
+
+.otp-input-group .btn-warning {
+  height: 100%;
+  font-size: 1.5rem;
+}

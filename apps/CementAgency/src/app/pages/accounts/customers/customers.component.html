@@ -1,0 +1,173 @@
+<!--table starts-->
+<section id="ng-tables">
+  <div class="row text-left">
+    <div class="col-12">
+      <div class="content-header">Accounts List</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-content">
+      <div class="card-body">
+        <div>
+          <form #frmFilter="ngForm">
+            <div class="row no-pad">
+              <div class="col-md-2">
+                <div class="form-group">
+                  <label>City</label>
+                  <select
+                    name="company"
+                    id="company"
+                    [(ngModel)]="Filter.City"
+                    class="form-control"
+                  >
+                    <option value="" selected>--Select City--</option>
+                    <option *ngFor="let comp of Cities" [value]="comp.City">
+                      {{ comp.City }}
+                    </option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-md-2">
+                <div class="form-group">
+                  <label>Account Types</label>
+                  <select
+                    name="AcctType"
+                    id="AcctType"
+                    [(ngModel)]="Filter.AcctTypeID"
+                    class="form-control"
+                  >
+                    <option value="" selected>--Select Acct Type--</option>
+                    <option *ngFor="let comp of AcctTypes| async" [value]="comp.AcctTypeID">
+                      {{ comp.AcctType }}
+                    </option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-md-1">
+                <div class="form-group">
+                  <label>Status</label>
+                  <select
+                    name="Status"
+                    id="Status"
+                    [(ngModel)]="Filter.StatusID"
+                    class="form-control"
+                  >
+                    <option value="1" selected>Active</option>
+                    <option value="0" selected>In-Active</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group col-md-2">
+                <div class="custom-control custom-radio">
+                  <input
+                    class="custom-control-input radio-inline"
+                    id="radioDefault"
+                    name="radio"
+                    type="radio"
+                    value="1"
+                    [(ngModel)]="Filter.What"
+                  /><label class="custom-control-label" for="radioDefault"
+                    >All</label
+                  >
+                </div>
+
+                <div class="custom-control custom-radio">
+                  <input
+                    class="custom-control-input radio-inline radio-primary"
+                    id="radioPrimary"
+                    name="radio"
+                    type="radio"
+                    value="2"
+                    [(ngModel)]="Filter.What"
+                  /><label class="custom-control-label" for="radioPrimary"
+                    >Credit Only</label
+                  >
+                </div>
+
+                <div class="custom-control custom-radio">
+                  <input
+                    checked=""
+                    class="custom-control-input radio-inline radio-inline radio-success"
+                    id="radioSuccess"
+                    name="radio"
+                    type="radio"
+                    value="3"
+                    [(ngModel)]="Filter.What"
+                  />
+                  <label class="custom-control-label" for="radioSuccess">
+                    Debit and Credit
+                  </label>
+                </div>
+              </div>
+              <div class="col-md-2 form-group">
+                <label for="">Search</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  name="search"
+                  [(ngModel)]="Filter.Search"
+                />
+              </div>
+              <div class="col-md-1">
+                <div class="form-group">
+                  <label>&nbsp;</label>
+                  <button
+                    type="submit"
+                    class="btn btn-primary form-control"
+                    (click)="FilterData()"
+                    accesskey="a"
+                  >
+                    <i class="fa fa-search"></i>
+                    Filter
+                  </button>
+                </div>
+              </div>
+              <div class="col-md-1">
+                <div class="form-group">
+                  <label>&nbsp;</label>
+                  <button
+                    type="submit"
+                    class="btn btn-warning form-control"
+                    (click)="PrintReport()"
+                    accesskey="p"
+                  >
+                    <i class="fa fa-print"></i>
+                    Print
+                  </button>
+                </div>
+              </div>
+              <div class="col-md-1">
+                <div class="form-group">
+                  <label>&nbsp;</label>
+                  <button
+                    type="submit"
+                    class="btn btn-warning form-control"
+                    (click)="Add()"
+                    accesskey="a"
+                  >
+                    <i class="fa fa-plus"></i>
+                    Add Account
+                  </button>
+                </div>
+              </div>
+            </div>
+          </form>
+          <div class="row no-gutter" id="print-section">
+            <div class="col-md-12">
+              {{Filter.Search}}
+              <ft-dynamic-table
+                [Settings]="list"
+                [Data]="data"
+                [Search]="Filter.Search"
+                (ClickAction)="Clicked($event)"
+                 [rowBackgroundConfig]="rowBackgroundConfig"
+        >
+              >
+              </ft-dynamic-table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,197 @@
+<div id="print-section">
+  <div class="container">
+    <div>
+      <section class="sheet">
+        <table style="width: 100%">
+          <tbody>
+            <tr>
+              <td colspan="4">
+                <table>
+                  <tr>
+                    <td class="text-left" style="width: 160px">
+                      <img
+                        [src]="IMAGE_URL + 'logo.png'"
+                        alt=""
+                        style="width: 100%"
+                      />
+                    </td>
+                    <td class="text-left">
+                      <div style="font-size: 30px">
+                        {{ Business.BusinessName }}
+                      </div>
+                      <h3>{{ Business.Address }}, {{ Business.City }}</h3>
+                      <p>Tel: {{ Business.Phone }}</p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td colspan="4" class="text-center" style="font-size: 20px">
+                <strong
+                  >{{
+                    Invoice.DtCr == 'CR'
+                      ? 'PURCHASE DETAILS '
+                      : 'PURCHASE RETURN'
+                  }}
+                </strong>
+              </td>
+            </tr>
+            <tr>
+              <td colspan="2" class="text-left" style="width: 50%">
+                <table class="table-bordered">
+                  <tr>
+                    <td>
+                      Supplier Name:<strong> {{ Invoice.CustomerName }}</strong>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      Address:<strong> {{ Invoice.Address }}</strong>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      Contact#:<strong>{{ Invoice.PhoneNo1 }}</strong>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <td></td>
+              <td colspan="2" class="text-left">
+                <table class="table-bordered">
+                  <tr>
+                    <td>
+                      Invoice No:
+                      <strong>{{ Invoice.InvoiceID }} </strong>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      Invoice Date:<strong>{{ Invoice.Date }}</strong>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      Account No:<strong>{{ Invoice.CustomerID }}</strong>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr></tr>
+            <tr>
+              <td colspan="4" class="text-right">
+                <table class="table-border">
+                  <thead class="">
+                    <tr>
+                      <th style="width: 5%">S No</th>
+                      <th class="text-left">ProductName</th>
+                      <th style="width: 10%">Qty</th>
+                      <th style="width: 10%">Rate</th>
+                      <th style="width: 15%">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let item of Invoice.Detail; let i = index">
+                      <td>{{ i + 1 }}</td>
+                      <td class="text-left">{{ item.ProductName }}</td>
+                      <td>{{ RoundIt(item.Qty, 0) }}</td>
+                      <td>{{ item.PPrice | number: '1.0-2' }}</td>
+                      <td>
+                        <strong>{{
+                          RoundIt(item.Amount, 0) | number: '1.0-2'
+                        }}</strong>
+                      </td>
+                    </tr>
+
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <th></th>
+                      <th class="text-center">Grand Total:</th>
+                      <th></th>
+                      <th></th>
+                      <th>{{ FindTotal('Amount') | number: '1.0-2' }}</th>
+                    </tr>
+                  </tfoot>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td colspan="3" style="vertical-align: top;">
+                Notes <br>
+                {{ Invoice.Notes }}</td>
+              <td>
+                <table style="width: 100%">
+                  <tr>
+                    <td>Invoice Amount:</td>
+                    <td class="text-right">
+                      <strong>{{ Invoice.Amount | number: '1.0-2' }}</strong>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td> Discount:</td>
+                    <td class="text-right">
+                      <strong>{{ Invoice.Discount | number: '1.0-2' }}</strong>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td> Net Amount:</td>
+                    <td class="text-right">
+                      <strong>{{ Invoice.NetAmount | number: '1.0-2' }}</strong>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td> Amount Paid:</td>
+                    <td class="text-right">
+                      <strong>{{ Invoice.AmountPaid | number: '1.0-2' }}</strong>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td> Balance:</td>
+                    <td class="text-right">
+                      <strong>{{ Invoice.Balance | number: '1.0-2' }}</strong>
+                    </td>
+                  </tr>
+
+                </table>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div id="footer">
+          <div class="text-center"></div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<section class="buttonarea">
+  <div class="row no-pad">
+    <div class="col-md-4">
+      <div class="form-group">
+        <button
+          class="btn btn-primary"
+          printSectionId="print-section"
+          type="button"
+          (click)="Print()"
+        >
+          <i class="fa fa-print"></i>
+        </button>
+
+        <button
+          style="margin: 5px"
+          class="btn btn-primary"
+          printSectionId="print-section"
+          type="button"
+          (click)="SaveAsPdf()"
+        >
+          Save as PDF
+        </button>
+      </div>
+    </div>
+  </div>
+</section>

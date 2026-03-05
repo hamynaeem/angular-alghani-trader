@@ -1,0 +1,64 @@
+ <ejs-combobox
+  #cmbMulti
+  [allowFiltering]="true"
+  [dataSource]="Data"
+  [fields]="fields"
+  placeholder="Select Item..."
+  required="required"
+  (change)="Selected($event)"
+  (filtering)="onFiltering($event)"
+  [itemTemplate]="itemTemplate"
+  [headerTemplate]="headerTemplate"
+  [(ngModel)]="value"
+  allowCustom=false
+>
+  <ng-template #headerTemplate let-data="">
+    <div class="container" *ngIf="Cols.length > 0">
+      <div class="row no-gutter">
+        <div class="col-sm-{{ col.size }}" *ngFor="let col of Cols">
+          {{ col.title }}
+        </div>
+      </div>
+    </div>
+  </ng-template>
+  <ng-template #itemTemplate let-data="">
+    <div class="row no-gutter">
+      <div class="col-sm-{{ col.size }}" *ngFor="let col of Cols">
+        {{ data[col.fldName] }}
+      </div>
+    </div>
+  </ng-template>
+</ejs-combobox>
+
+<!-- <ng-select
+[items]="Data"
+(change)="Selected()"
+bindLabel="{{fields.text}}"
+required   [searchable]="true"
+selectOnTab = "true"
+bindValue="{{fields.value}}"
+placeholder="Select Item..."
+[(ngModel)]="value">
+<ng-template ng-header-tmp>
+  <div class="row no-gutter">
+    <div class="col-sm-{{ col.size }}" *ngFor="let col of Cols">
+      {{ col.title }}
+    </div>
+  </div>
+</ng-template>
+<ng-template ng-label-tmp let-item="item" >
+  <div class="row no-gutter" style="padding-right: 0px !important;margin-right:0px !important;">
+    <div class="col-sm-{{ col.size }}" *ngFor="let col of Cols">
+      {{ item[col.fldName] }}
+    </div>
+</div>
+</ng-template>
+<ng-template ng-option-tmp let-item="item" let-index="index">
+  <div class="row no-gutter" >
+    <div class="col-sm-{{ col.size }}" *ngFor="let col of Cols">
+      {{ item[col.fldName] }}
+    </div>
+</div>
+</ng-template>
+
+</ng-select> -->

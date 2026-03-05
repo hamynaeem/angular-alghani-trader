@@ -1,0 +1,131 @@
+<div class="row no-pad">
+  <div class="col-md-12">
+    <div class="table-responsive">
+      <table class="table table-sm table-dyna table-hover" style="height: 100%">
+        <thead class="thead-light">
+          <tr>
+            <th
+              *ngFor="let c of settings.Columns"
+              [ngClass]="{
+                'text-right': c.type == 'number' || c.sum || c.align == 'right'
+              }"
+            >
+              {{ c.label }}
+            </th>
+
+            <th class="screenOnly"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <ng-container *ngFor="let g of Groups">
+            <tr>
+              <th [attr.colspan]="GetFldCounts() + 1" class="text-left">
+                <strong>{{ g }}</strong>
+              </th>
+            </tr>
+            <ng-container *ngIf="!OnlyGroups">
+              <tr *ngFor="let r of GroupedData[g]; let i = index">
+                <td
+                  *ngFor="let col of settings.Columns"
+                  [ngClass]="{
+                    'text-right':
+                      col.type == 'number' || col.sum || col.align == 'right'
+                  }"
+                >
+                  <span
+                    [ngClass]="{
+                      'btn btn-sm btn-primary': col.button.style !== 'link',
+                      link: col.button.style == 'link'
+                    }"
+                    (click)="col.button.callback(r)"
+                    *ngIf="col.button; else plain"
+                  >
+                    {{
+                      col.valueFormatter
+                        ? col.valueFormatter(r)
+                        :  formattedValue(r, col, r[col.fldName])
+                    }}
+                  </span>
+
+                  <ng-template #plain>{{
+                    col.valueFormatter ? col.valueFormatter(r) :  formattedValue(r, col, r[col.fldName])
+                  }}</ng-template>
+                </td>
+                <ng-container>
+                  <td class="screenOnly">
+                    <div
+                      class="text-right"
+                      ngbDropdown
+                      container="body"
+                      *ngIf="settings.Actions.length > 0"
+                    >
+                      <div *ngIf="settings.crud; else elseBlock">
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-{{ act.class || 'primary' }}"
+                          [title]="act.title"
+                          *ngFor="let act of settings.Actions"
+                          (click)="ClickActionEv(r, act.action)"
+                        >
+                          <i class="fa fa-{{ act.icon }}"></i>
+                        </button>
+                      </div>
+                      <ng-template #elseBlock>
+                        <button
+                          type="button"
+                          class="btn btn-sm caret-off"
+                          ngbDropdownToggle
+                        >
+                          <i
+                            class="ft-more-vertical text-primary cursor-pointer mr-2"
+                          >
+                          </i>
+                        </button>
+                        <div ngbDropdownMenu>
+                          <a
+                            href="#"
+                            ngbDropdownItem
+                            *ngFor="let act of settings.Actions"
+                            (click)="ClickActionEv(r, act.action)"
+                          >
+                            <i
+                              class="fa fa-{{ act.icon }} text-{{
+                                act.class || 'primary'
+                              }}"
+                              *ngIf="act.icon"
+                            >
+                            </i>
+                            {{ act.title }}
+                          </a>
+                        </div>
+                      </ng-template>
+                    </div>
+                  </td>
+                </ng-container>
+              </tr>
+            </ng-container>
+
+            <tr>
+              <th *ngFor="let c of settings.Columns"   [ngClass]="{ 'text-right': c.type == 'number' || c.sum || c.align == 'right' }">
+                <!-- {{ c.sum ? c.sumValue > 0 ? c.SumValue : FindTotal(c.fldName) : "" }} -->
+                {{ c.sum ? FindGroupTotal(c.fldName, g) : '' }}
+              </th>
+              <th></th>
+            </tr>
+          </ng-container>
+        </tbody>
+        <tfoot class="thead-light">
+          <tr>
+            <th *ngFor="let c of settings.Columns"
+            [ngClass]="{ 'text-right': c.type == 'number' || c.sum || c.align == 'right' }"
+            >
+              <!-- {{ c.sum ? c.sumValue > 0 ? c.SumValue : FindTotal(c.fldName) : "" }} -->
+              {{ c.sum ? FindTotal(c.fldName) : '' }}
+            </th>
+            <th></th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</div>

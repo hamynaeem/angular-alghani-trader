@@ -1,0 +1,28 @@
+{
+  "name": "modal-box-lib",
+  "projectType": "library",
+  "sourceRoot": "libs/modal-box-lib/src",
+  "prefix": "app",
+  "targets": {
+    "test": {
+      "executor": "@nrwl/jest:jest",
+      "outputs": [
+        "coverage/libs/modal-box-lib"
+      ],
+      "options": {
+        "jestConfig": "libs/modal-box-lib/jest.config.ts",
+        "passWithNoTests": true
+      }
+    },
+    "lint": {
+      "executor": "@nrwl/linter:eslint",
+      "options": {
+        "lintFilePatterns": [
+          "libs/modal-box-lib/**/*.ts",
+          "libs/modal-box-lib/**/*.html"
+        ]
+      }
+    }
+  },
+  "tags": []
+}

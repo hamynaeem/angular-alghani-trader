@@ -1,0 +1,88 @@
+<div class="control-section">
+  <div class="col-lg-9">
+    <ejs-grid
+      #normalgrid
+      id="Normalgrid"
+      [dataSource]="data"
+      allowPaging="true"
+      [pageSettings]="pageSettings"
+      [editSettings]="editSettings"
+      (actionComplete)="onActionComplete($event)"
+      (actionBegin)="actionBegin($event)"
+    >
+      <e-columns>
+        <e-column
+          field="OrderID"
+          headerText="Order ID"
+          width="140"
+          textAlign="Right"
+          isPrimaryKey="true"
+          [validationRules]="orderidrules"
+        ></e-column>
+        <e-column
+          field="CustomerID"
+          headerText="Customer ID"
+          width="140"
+          [validationRules]="customeridrules"
+        ></e-column>
+        <e-column
+          field="Freight"
+          headerText="Freight"
+          width="140"
+          format="C2"
+          textAlign="Right"
+          editType="numericedit"
+          [validationRules]="freightrules"
+        ></e-column>
+        <e-column
+          field="OrderDate"
+          headerText="Order Date"
+          width="120"
+          editType="datetimepickeredit"
+          [format]="formatoptions"
+          textAlign="Right"
+        ></e-column>
+        <e-column
+          field="ShipCountry"
+          headerText="Ship Country"
+          width="150"
+          editType="dropdownedit"
+          [edit]="editparams"
+        ></e-column>
+      </e-columns>
+    </ejs-grid>
+  </div>
+
+  <div class="col-lg-3 property-section">
+    <div class="property-panel-section">
+      <div class="property-panel-header">Properties</div>
+      <div class="property-panel-content">
+        <table
+          id="property"
+          title="Properties"
+          class="property-panel-table"
+          style="width: 100%"
+        >
+          <tr>
+            <td style="width: 100%">
+              <div style="padding-top: 7px">Add New Row Position</div>
+            </td>
+            <td style="width: 50%; padding-right: 10px">
+              <div id="typeddl">
+                <ejs-dropdownlist
+                  id="newRowPosition"
+                  #ddsample
+                  [dataSource]="newRowPosition"
+                  index="0"
+                  [fields]="localFields"
+                  (change)="onChange($event)"
+                >
+                </ejs-dropdownlist>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

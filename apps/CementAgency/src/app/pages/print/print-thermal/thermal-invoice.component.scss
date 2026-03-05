@@ -1,0 +1,113 @@
+@media print {
+  body * {
+    visibility: hidden;
+    // font-family: 'sans-serif';
+  }
+  html,
+  body {
+    height: 100%;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden;
+    font-family: 'sans-serif';
+  }
+}
+#print-content * {
+  visibility: visible;
+  // font-family: 'sans-serif';
+  table {
+    width: 100%;
+  }
+  tr {
+    width: 100%;
+  }
+
+  h1 {
+    text-align: center;
+    vertical-align: middle;
+  }
+  table > tr > td {
+    font-size: 14px;
+    color: black;
+    vertical-align: bottom;
+    padding: 2px;
+  }
+  p {
+    padding: 1px;
+    margin: 0;
+  }
+  section,
+  footer {
+    font-size: 14px;
+  }
+  .text-bill {
+    font-size: 14px;
+  }
+
+  span {
+    font-size: 14px;
+    font-weight: 600;
+  }
+}
+
+@page {
+  size: 2.4in 11in;
+  margin-top: 0cm;
+  margin-left: 0cm;
+  margin-right: 0cm;
+}
+
+header {
+  width: 100%;
+  text-align: center;
+  -webkit-align-content: center;
+  align-content: center;
+  vertical-align: middle;
+}
+
+.items thead {
+  text-align: center;
+}
+
+.center-align {
+  text-align: center;
+}
+
+.bill-details td,
+th {
+  font-size: 14px;
+  font-weight: 600;
+  color: black;
+}
+
+.receipt {
+  font-size: medium;
+}
+
+
+
+.sum-up {
+  text-align: right !important;
+}
+.total {
+  font-size: 14px;
+  border-bottom: 1px solid black !important;
+}
+
+.total.text,
+.total.price {
+  text-align: right;
+}
+
+.line {
+  border-top: 1px solid black !important;
+}
+.heading.rate {
+  width: 20%;
+}
+.heading.amount {
+  width: 25%;
+}
+.heading.qty {
+  width: 5%;
+}

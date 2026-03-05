@@ -1,0 +1,29 @@
+{
+  "name": "future-tech-lib",
+  "projectType": "library",
+  "sourceRoot": "libs/future-tech-lib/src",
+  "prefix": "app",
+  "targets": {
+    "test": {
+      "executor": "@nrwl/jest:jest",
+      "outputs": [
+        "coverage/libs/future-tech-lib"
+      ],
+      "options": {
+        "jestConfig": "libs/future-tech-lib/jest.config.ts",
+        "passWithNoTests": true
+
+      }
+    },
+    "lint": {
+      "executor": "@nrwl/linter:eslint",
+      "options": {
+        "lintFilePatterns": [
+          "libs/future-tech-lib/**/*.ts",
+          "libs/future-tech-lib/**/*.html"
+        ]
+      }
+    }
+  },
+  "tags": []
+}

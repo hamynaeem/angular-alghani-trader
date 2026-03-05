@@ -1,0 +1,92 @@
+<div class="row no-pad">
+  <div class="col-md-12">
+
+    <table class="table table-sm table-hover table-dyna">
+      <thead class="thead-light">
+        <tr>
+          <th *ngIf="settings.Checkbox" class="screenOnly">
+            <input type="checkbox" [checked]="isAllCheckBoxChecked()" (change)="checkAllCheckBox($event)" />
+          </th>
+          <th *ngIf="hasSubTable" class="screenOnly"></th>
+          <th *ngFor="let c of settings.Columns">{{ c.label }}</th>
+          <th class="screenOnly"></th>
+        </tr>
+      </thead>
+      <tbody>
+        <ng-template ngFor let-r [ngForOf]="Data" let-i="index">
+          <tr (click)="ExandRow($event, i)" [style.background-color]="Data[i].checked ? 'yellow' : 'white'">
+            <td *ngIf="settings.Checkbox" class="screenOnly">
+              <input type="checkbox" value="{{ Data[i].checked }}" [(ngModel)]="Data[i].checked" />
+            </td>
+            <td *ngIf="hasSubTable" class="screenOnly">
+              <i class="fa fa-plus" id="icon{{ i }}"></i>
+            </td>
+            <td *ngFor="let c of settings.Columns">
+              <ng-container *ngIf="c.badge; else checkHtml">
+                <span [class]="(Number(r.IsPosted) === 1 || String(r.IsPosted) === '1') ? 'badge badge-success' : 'badge badge-secondary'">
+                  {{ c.valueFormatter ? c.valueFormatter(r) : r[c.fldName] }}
+                </span>
+              </ng-container>
+              <ng-template #checkHtml>
+                <ng-container *ngIf="c.html; else plainText">
+                  <span [innerHTML]="c.valueFormatter ? c.valueFormatter(r) : (r[c.fldName] || '')"></span>
+                </ng-container>
+                <ng-template #plainText>
+                  {{ c.valueFormatter ? c.valueFormatter(r) : r[c.fldName] }}
+                </ng-template>
+              </ng-template>
+            </td>
+            <td class="screenOnly">
+              <div class="text-right" ngbDropdown container="body" *ngIf="settings.Actions.length > 0">
+                <button type="button" class="btn btn-sm caret-off" ngbDropdownToggle>
+                  <i class="ft-more-vertical text-primary cursor-pointer mr-2">
+                  </i>
+                </button>
+                <div ngbDropdownMenu>
+                  <ng-container *ngFor="let act of settings.Actions">
+                    <a href="#" ngbDropdownItem *ngIf="!(act.action === 'post' && (Number(r.IsPosted) === 1 || String(r.IsPosted) === '1'))"
+                      (click)="ClickActionEv(r, act.action)">
+                      <i class="fa fa-{{ act.icon }} text-{{ act.class || 'primary' }}" *ngIf="act.icon"></i>
+                      {{ act.title }}
+                    </a>
+                  </ng-container>
+                </div>
+              </div>
+            </td>
+          </tr>
+          <tr *ngIf="hasSubTable" [hidden]="!r.expanded" class="screenOnly" style="visibility: hidden" id="rsub{{ i }}">
+            <td [attr.colspan]="GetFldCounts() + 1" style="height: auto">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th *ngFor="let col of SubTable.Columns">
+                      {{ col.label }}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let rsub of r[SubTable.table]">
+                    <td *ngFor="let col of SubTable.Columns">
+                      {{ rsub[col.fldName] }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </td>
+          </tr>
+        </ng-template>
+      </tbody>
+      <tfoot class="thead-light">
+        <tr>
+          <th *ngIf="settings.Checkbox" class="screenOnly"></th>
+          <th *ngIf="hasSubTable" class="screenOnly"></th>
+          <th *ngFor="let c of settings.Columns">
+            <!-- {{ c.sum ? c.sumValue > 0 ? c.SumValue : FindTotal(c.fldName) : "" }} -->
+            {{ c.sum ? FindTotal(c.fldName) : '' }}
+          </th>
+          <th></th>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>

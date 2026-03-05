@@ -1,0 +1,52 @@
+    <ng-select
+      #ngSelect
+      class="custom"
+      [items]="data$ | async"
+      [bindLabel]="BindLabel"
+      [bindValue]="BindVal"
+      [trackByFn]="trackByFn"
+      [clearable]="true"
+      [minTermLength]="minLengthTerm"
+      [loading]="isLoading"
+      [(ngModel)]="value"
+      typeToSearchText="Please enter {{ minLengthTerm }} or more characters"
+      [typeahead]="dataInput$"
+      (change)="ItemSelected($event)"
+    >
+      <ng-template ng-header-tmp>
+        <div class="row">
+          <div class="col" *ngFor="let fld of Fields">
+            <strong>{{ fld.label }}</strong>
+          </div>
+        </div>
+      </ng-template>
+      <ng-template
+        ng-option-tmp
+        let-item="item"
+        let-index="index"
+        let-search="searchTerm"
+      >
+        <div class="row">
+          <div class="col" *ngFor="let fld of Fields">
+            {{ item[fld.fldName] }}
+          </div>
+        </div>
+      </ng-template>
+    </ng-select>
+
+
+<!-- <div class="container">
+  <div class="modal-header">
+    <h4 class="modal-title pull-left">Product Search</h4>
+    <button type="button" class="btn-close close pull-right" aria-label="Close">
+      <span aria-hidden="true" class="visually-hidden">&times;</span>
+    </button>
+  </div>
+  <div class="modal-body">
+    <ft-datatable #dataList [Settings]="Settings" (RowSelected)="Selected($event)"
+     (ClickAction) = "Clicked($event)"
+    >
+
+    </ft-datatable>
+  </div>
+</div> -->

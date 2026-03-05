@@ -1,0 +1,93 @@
+/* You can add global styles to this file, and also import other style files */
+/* @import "../../../node_modules/bootstrap/scss/bootstrap"; */
+// @import '~@swimlane/ngx-datatable/index.css';
+// @import '~@swimlane/ngx-datatable/themes/bootstrap.scss';
+// @import '~@swimlane/ngx-datatable/assets/icons.css';
+@import 'assets/sass/core/variables/_variables.scss';
+@import "../../../node_modules/@syncfusion/ej2-angular-navigations/styles/bootstrap.css";
+// @import "assets/sass/core/variables/app-variables";
+// @import "assets/sass/core/colors/palette-variables";
+// @import "assets/sass/libs/datatables.scss";
+
+html {
+  font-size: 0.875rem;
+}
+
+.row.no-pad {
+  margin-right: 2px;
+  margin-left: 2px;
+}
+.row.no-pad > [class*='col-'] {
+  padding-right: 2px;
+  padding-left: 2px;
+}
+
+.card-body {
+  padding: 4px;
+}
+.container {
+  padding-left: 5px;
+  padding-right: 5px;
+}
+.form-control {
+  height: calc(1.5em + 0.5rem);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  border-radius: 0.25rem;
+}
+
+.btn {
+  font-size: 0.875rem;
+  padding-right: 0.5rem;
+  padding-left: 0.5rem;
+}
+
+input.e-input,
+.e-input-group input,
+.e-input-group.e-control-wrapper input,
+.e-input-group input.e-input,
+.e-input-group.e-control-wrapper input.e-input {
+  height: 24px;
+  font-size: 0.875rem;
+}
+.e-input-group .e-clear-icon,
+.e-input-group.e-control-wrapper
+  .e-clear-icon
+  .e-input-group
+  .e-input-group-icon,
+.e-input-group.e-control-wrapper .e-input-group-icon {
+  min-height: 24px;
+}
+.cdk-overlay-container {
+  font-size: 0.875rem;
+}
+
+.row.no-gutter {
+  margin-right: 2px;
+  margin-left: 2px;
+}
+.row.no-gutter > [class*='col-'] {
+  padding-right: 2px;
+  padding-left: 2px;
+}
+
+.ng-select.custom {
+  min-height: 0px;
+
+  font-size: small;
+  height: 25px;
+}
+.ng-select.custom .ng-select-container {
+  min-height: 0px;
+
+  font-size: small;
+  height: 25px;
+}
+.ng-select.custom
+  .ng-dropdown-panel
+  .ng-dropdown-panel-items
+  .ng-option.ng-option-marked {
+  background-color: $info;
+  color: $light;
+}

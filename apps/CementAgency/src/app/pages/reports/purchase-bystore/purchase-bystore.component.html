@@ -1,0 +1,172 @@
+<div widget class="card border-0 box-shadow">
+  <div class="card-header transparent border-0 text-muted">
+    <h5 class="mb-3">Purchase Report By Store</h5>
+  </div>
+  <div class="card-block widget-body">
+    <form #frmFilter="ngForm">
+      <div class="row no-pad">
+        <div class="col-md-2">
+          <label for="dtFrom">From Date:</label>
+          <div class="input-group">
+            <input
+              class="form-control"
+              placeholder="yyyy-mm-dd"
+              name="dtFrom"
+              [(ngModel)]="Filter.FromDate"
+              ngbDatepicker
+              #dtFrom="ngbDatepicker"
+            />
+            <div class="input-group-addon">
+              <button
+                type="button"
+                class="btn btn-warning"
+                (click)="dtFrom.toggle()"
+              >
+                <i class="fa fa-calendar"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-2">
+          <label for="dtTo">To Date:</label>
+          <div class="input-group">
+            <input
+              class="form-control"
+              placeholder="yyyy-mm-dd"
+              name="dtTo"
+              [(ngModel)]="Filter.ToDate"
+              ngbDatepicker
+              #dtTo="ngbDatepicker"
+            />
+            <div class="input-group-addon">
+              <button
+                type="button"
+                class="btn btn-warning"
+                (click)="dtTo.toggle()"
+              >
+                <i class="fa fa-calendar"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-8">
+          <div class="row no-gutter">
+            <div class="form-group col-md-2">
+              <div class="custom-control mt-2 custom-radio">
+                <input
+                  class="custom-control-input radio-inline"
+                  id="rdByProduct"
+                  name="radio"
+                  type="radio"
+                  value="1"
+                  [(ngModel)]="Filter.nWhat"
+                />
+                <label class="custom-control-label" for="rdByProduct">
+                  Detail
+                </label>
+              </div>
+
+              <div class="custom-control custom-radio">
+                <input
+                  class="custom-control-input radio-inline radio-primary"
+                  id="rdByUnit"
+                  name="radio"
+                  type="radio"
+                  value="2"
+                  [(ngModel)]="Filter.nWhat"
+                />
+                <label class="custom-control-label" for="rdByUnit">
+                  Summary
+                </label>
+              </div>
+            </div>
+            <div class="form-group col-md-3">
+              <label for="customer"
+                >Select Store
+              </label>
+              <ng-select
+                #cmbStore
+                name="cmbStore"
+                id="cmbStore"
+                class="custom"
+                [items]="Stores | async"
+                bindLabel="StoreName"
+                bindValue="StoreID"
+                placeholder="Select Store"
+                [(ngModel)]="Filter.StoreID"
+              >
+              </ng-select>
+            </div>
+
+            <div class="form-group col-md-5">
+              <label for="customer">Account</label>
+              <ng-select
+                #cmbCustomers
+                name="ng2select"
+                class="custom"
+                [items]="Accounts | async"
+                [virtualScroll]="true"
+                bindLabel="CustomerName"
+                bindValue="CustomerID"
+                placeholder="Select Account"
+                [(ngModel)]="Filter.CustomerID"
+              >
+                <ng-template ng-option-tmp let-item="item">
+                  <div class="row no-gutter">
+                    <div class="col-md-9">
+                      {{ item.CustomerName }}
+                    </div>
+                    <div class="col-md-3 text-italic font-small-2 mt-1">
+                      <small>
+                        {{ item.City }}
+                      </small>
+                    </div>
+                  </div>
+                </ng-template>
+              </ng-select>
+            </div>
+
+            <div class="col-md-1">
+              <div class="form-group">
+                <label>&nbsp;</label>
+                <button
+                  type="submit"
+                  class="btn btn-primary form-control"
+                  (click)="FilterData()"
+                  accesskey="a"
+                >
+                  <i class="fa fa-search"></i>
+                  Filter
+                </button>
+              </div>
+            </div>
+            <div class="col-md-1">
+              <div class="form-group">
+                <label>&nbsp;</label>
+                <button
+                  type="button"
+                  class="btn btn-primary form-control"
+                  (click)="PrintReport()"
+                  accesskey="P"
+                >
+                  <i class="fa fa-print"></i>
+                  Print
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+    <div class="row no-gutter" id="print-section">
+      <div class="col-md-12">
+        <ft-dynamic-table
+          #RptTable
+          [Settings]="setting"
+          [Data]="data"
+          (ClickAction)="Clicked($event)"
+        ></ft-dynamic-table>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,37 @@
+<div class="container p-3">
+  <div class="row no-gutter">
+    <div class="col-md-12">
+      <input
+        type="text"
+        class="form-control"
+        [(ngModel)]="Search"
+        (keyup)="FilterData()"
+        #search
+      />
+      <ejs-grid
+        #grid
+        [selectedRowIndex]="0"
+        [selectionSettings]="{ mode: 'Row',  type: 'Single' }"
+        [dataSource]="data"
+        [height]="300"
+        [editSettings]="{ allowEditing: false, allowDeleting: false }"
+        (rowSelected)="RowClicked($event)"
+        (commandClick)="commandClick($event)"
+      >
+        <e-columns>
+          <e-column
+            [field]="fld.fldName"
+            [headerText]="fld.label"
+            *ngFor="let fld of Flds"
+          >
+          </e-column>
+          <e-column
+            headerText="Action"
+            width="140"
+            [commands]="commands"
+          ></e-column>
+        </e-columns>
+      </ejs-grid>
+    </div>
+  </div>
+</div>

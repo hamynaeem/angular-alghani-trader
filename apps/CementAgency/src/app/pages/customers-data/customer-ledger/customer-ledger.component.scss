@@ -1,0 +1,194 @@
+.container-fluid {
+  padding: 0;
+}
+
+.card {
+  border-radius: 0.5rem;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.card-header {
+  border-radius: 0.5rem 0.5rem 0 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+
+  &.bg-gradient-primary {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+  }
+}
+
+.balance-cards {
+  .card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    }
+
+    .opacity-75 {
+      opacity: 0.75;
+    }
+  }
+}
+
+.form-label {
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 0.5rem;
+}
+
+.input-group {
+  .btn {
+    border-left: 0;
+
+    &:focus {
+      box-shadow: none;
+      border-color: #80bdff;
+    }
+  }
+}
+
+.btn {
+  border-radius: 0.375rem;
+  font-weight: 500;
+  transition: all 0.15s ease-in-out;
+
+  &.btn-primary {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    border: none;
+
+    &:hover {
+      background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 0.25rem 0.5rem rgba(0, 123, 255, 0.25);
+    }
+
+    &:disabled {
+      background: #6c757d;
+      transform: none;
+      box-shadow: none;
+    }
+  }
+
+  &.btn-outline-secondary {
+    &:hover {
+      transform: translateY(-1px);
+    }
+  }
+}
+
+.table-responsive {
+  border-radius: 0.5rem;
+  overflow: hidden;
+
+  .table {
+    margin-bottom: 0;
+
+    th {
+      background-color: #f8f9fa;
+      border-top: none;
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+      color: #495057;
+    }
+
+    td {
+      vertical-align: middle;
+      border-color: #e9ecef;
+    }
+
+    .btn-link {
+      color: #007bff;
+      text-decoration: none;
+      font-weight: 500;
+
+      &:hover {
+        color: #0056b3;
+        text-decoration: underline;
+      }
+    }
+  }
+}
+
+.alert {
+  border: none;
+  border-radius: 0.5rem;
+
+  &.alert-info {
+    background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+    color: #0c5460;
+  }
+}
+
+.spinner-border {
+  &.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+  }
+}
+
+.empty-state {
+  padding: 3rem 1rem;
+  text-align: center;
+
+  .fa-3x {
+    font-size: 3rem;
+  }
+}
+
+// Balance card color variants
+.bg-info {
+  background: linear-gradient(135deg, #17a2b8 0%, #138496 100%) !important;
+}
+
+.bg-success {
+  background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%) !important;
+}
+
+.bg-warning {
+  background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%) !important;
+  color: #212529 !important;
+}
+
+.bg-danger {
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%) !important;
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  .row.mb-4 {
+    .col-md-3, .col-md-4 {
+      margin-bottom: 1rem;
+    }
+  }
+
+  .card-body {
+    padding: 1rem;
+  }
+
+  .balance-cards .card-body {
+    padding: 1rem;
+
+    h4 {
+      font-size: 1.25rem;
+    }
+
+    .fa-2x {
+      font-size: 1.5rem;
+    }
+  }
+}
+
+@media (max-width: 576px) {
+  .d-flex.justify-content-between {
+    flex-direction: column;
+    text-align: center;
+
+    .fa-2x {
+      margin-top: 0.5rem;
+      align-self: center;
+    }
+  }
+}

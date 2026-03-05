@@ -1,0 +1,9 @@
+<div class="form-group">
+  <label for="qty">{{caption}}</label>
+  <select name="cmbAgents" id="cmbAgents" [(ngModel)]="value" class="form-control">
+    <option value="" selected *ngIf="addlabel">--Select Store--</option>
+    <option *ngFor="let c of Stores" [value]="c.StoreID">
+      {{ c.StoreName }}
+    </option>
+  </select>
+</div>

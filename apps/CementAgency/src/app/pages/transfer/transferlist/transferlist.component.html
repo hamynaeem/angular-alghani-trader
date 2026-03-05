@@ -1,0 +1,61 @@
+<div widget class="card border-0 box-shadow">
+  <div class="card-header transparent border-0 text-muted">
+    <h5 class="mb-2">Transfer Details</h5>
+
+  </div>
+  <div widget class="card border-0 box-shadow">
+    <div class="card-header transparent border-0 text-muted">
+      <form #cashreportModel="ngForm">
+        <div class="form-group row">
+
+
+          <div class="form-group col-sm-3">
+            <label for="dp1">From Date</label>
+            <div class="input-group">
+
+              <input class="form-control" placeholder="yyyy-mm-dd" name="dp1" [(ngModel)]="dteFilter.dteFrom"
+                ngbDatepicker #d1="ngbDatepicker">
+
+              <div class="input-group-addon" (click)="d1.toggle()">
+                <i class="fa fa-calendar"></i>
+              </div>
+            </div>
+          </div>
+          <div class="form-group col-sm-3">
+            <label for="dp2">To Date</label>
+            <div class="input-group">
+
+              <input class="form-control" placeholder="yyyy-mm-dd" name="dp2" [(ngModel)]="dteFilter.dteTo"
+                ngbDatepicker #d2="ngbDatepicker">
+              <div class="input-group-addon" (click)="d2.toggle()">
+                <i class="fa fa-calendar"></i>
+              </div>
+            </div>
+          </div>
+          <div class="form-group col-sm-1">
+            <button type="button" style="margin-top:22px;" class="btn btn-success" (click)="LoadData()">Filter</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div class="card-block pt-0 widget-body">
+
+    <div class="row no-gutter">
+      <div class="col-md-8"><p class="text-left fs-13 text-danger">
+      Transfers.</p>
+        <div class="table-responsive">
+          <ng2-smart-table class="table table-hover" [settings]="settings" [source]="data"
+            (rowSelect)="onCustom($event)" (custom)="onCustom($event)" (edit)="onEdit($event)"></ng2-smart-table>
+        </div>
+      </div>
+      <div class="col-md-4"> <p class="text-left fs-13 text-warning">
+      Transfer Details.</p>
+        <div class="table-responsive">
+          <ng2-smart-table class="table table-hover" [settings]="settings1" [source]="detaildata">
+          </ng2-smart-table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

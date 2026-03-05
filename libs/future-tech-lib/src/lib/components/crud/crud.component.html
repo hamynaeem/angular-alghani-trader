@@ -1,0 +1,26 @@
+<div class="card">
+  <div class="card-header transparent border-0 text-muted">
+    <div class="row">
+      <div class="col-md-6"><h5 class="mb-4">{{ form.title }}</h5></div>
+      <div class="col-md-6"><div class="pull-right">
+        <button *ngIf="Actions.includes('add')" class="btn btn-primary mb-10" (click)="Add()">
+          <i class="fa fa-plus"></i>
+          Add
+        </button>
+      </div></div>
+    </div>
+
+  </div>
+  <div class="card-content">
+    <div class="card-body">
+      <div class="row" id="print-section">
+
+        <div class="col-md-12">
+          <div class="table table-responive">
+            <ft-datatable #dataList [Settings]="list" (ClickAction)="Clicked($event)"></ft-datatable>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

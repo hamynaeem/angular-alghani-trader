@@ -1,0 +1,119 @@
+<div widget class="card border-0 box-shadow">
+  <div class="card-header transparent border-0 text-muted">
+    <h5 class="mb-3">Stock Report</h5>
+  </div>
+  <div class="card-block widget-body">
+    <form #frmFilter="ngForm">
+      <div class="row no-pad">
+        <div class="form-group col-md-3">
+          <label for="customer">Select Store</label>
+          <select
+            name="cmbAgents"
+            id="cmbAgents"
+            [(ngModel)]="Filter.StoreID"
+            class="form-control"
+          >
+            <option value="" selected>--Select Store--</option>
+            <option *ngFor="let c of Stores$ | async" [value]="c.StoreID">
+              {{ c.StoreName }}
+            </option>
+          </select>
+        </div>
+        <div class="form-group col-md-2">
+          <div class="custom-control mt-2 custom-radio">
+            <input
+              class="custom-control-input radio-inline"
+              id="rdByProduct"
+              name="radio"
+              type="radio"
+              value="1"
+              [(ngModel)]="Filter.nWhat"
+            />
+            <label class="custom-control-label" for="rdByProduct">
+              Detail
+            </label>
+          </div>
+
+          <div class="custom-control custom-radio">
+            <input
+              class="custom-control-input radio-inline radio-primary"
+              id="rdByUnit"
+              name="radio"
+              type="radio"
+              value="2"
+              [(ngModel)]="Filter.nWhat"
+            />
+            <label class="custom-control-label" for="rdByUnit"> Summary </label>
+          </div>
+        </div>
+        <div class="form-group col-md-2">
+          <div class="custom-control custom-check">
+            <input
+              class="custom-control-input check-inline check-warning"
+              [(ngModel)]="Filter.Stock"
+              type="checkbox"
+              value=""
+              name="zerostock"
+              id="zerostock"
+            />
+            <label class="custom-control-label" for="zerostock">
+              Don't Show Zero Stock
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group col-md-2">
+          <label for="customer">Search</label>
+          <input
+            class="form-control"
+            #searchtxt
+            type="text"
+            name="searchproduct"
+          />
+        </div>
+
+        <div class="col-md-2">
+          <div class="form-group">
+            <label>&nbsp;</label>
+            <button
+              type="submit"
+              class="btn btn-primary form-control"
+              (click)="FilterData()"
+              accesskey="a"
+            >
+              <i class="fa fa-search"></i>
+              Filter
+            </button>
+          </div>
+        </div>
+        <div class="col-md-2">
+          <div class="form-group">
+            <label>&nbsp;</label>
+            <button
+              type="button"
+              class="btn btn-primary form-control"
+              accesskey="p"
+              ngxPrint
+              [printSectionId]="'print-section'"
+              [useExistingCss]="true"
+              [printTitle]="'Stock Report'"
+            >
+              <i class="fa fa-print"></i>
+              Print
+            </button>
+          </div>
+        </div>
+      </div>
+    </form>
+    <div class="row no-gutter" id="print-section">
+      <div class="col-md-12">
+        <ft-dynamic-table
+          [Settings]="setting"
+          [Data]="data"
+          (ClickAction)="Clicked($event)"
+          [Search]="searchtxt.value"
+        ></ft-dynamic-table>
+      </div>
+    </div>
+  </div>
+</div>

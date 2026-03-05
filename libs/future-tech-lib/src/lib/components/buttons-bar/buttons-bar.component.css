@@ -1,0 +1,6 @@
+.btn-lg {
+  height: 40px; /* or whatever height you want */
+  line-height: 40px; /* vertically center text */
+  padding: 0 24px;  /* optional: adjust horizontal padding */
+  font-size: 1rem; /* optional: control text size */
+}

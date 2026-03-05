@@ -1,0 +1,26 @@
+<div class="card {{Style}} h-75">
+  <div class="card-content">
+    <div class="card-body py-0">
+      <div class="media pb-1">
+        <div class="media-body white text-center">
+          <ng-container *ngIf="Size=='Medium'">
+            <h4 class="font-large-2 white">
+              {{ Value }}
+            </h4>
+            <h6 class="white">
+              {{ Caption }}
+            </h6>
+          </ng-container>
+          <ng-container *ngIf="Size=='Small'">
+            <h5 class="font-large-1 white">
+              {{ Value }}
+            </h5>
+            <h6 class="white">
+              {{ Caption }}
+            </h6>
+          </ng-container>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

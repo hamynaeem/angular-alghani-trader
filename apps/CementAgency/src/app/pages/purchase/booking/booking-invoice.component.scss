@@ -1,0 +1,114 @@
+.custom-table-height {
+  height: 170px; /* Adjust this value as needed */
+  overflow-y: auto; /* Adds a scrollbar if the content exceeds the height */
+  td {
+    padding: 0;
+  }
+}
+
+ft-input-control {
+  background-color: #fff !important;
+}
+
+/* Orders Modal Styles */
+.clickable-row {
+  cursor: pointer;
+}
+
+.clickable-row:hover {
+  background-color: #f8f9fa !important;
+}
+
+.modal-lg {
+  max-width: 900px;
+}
+
+.table-responsive {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.orders-modal .modal-body {
+  padding: 1.5rem;
+}
+
+.orders-modal .table th {
+  background-color: #f8f9fa;
+  border-top: none;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.orders-modal .btn-sm {
+  padding: 0.25rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: #6c757d;
+}
+
+.btn-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #6c757d;
+  cursor: pointer;
+  padding: 0;
+}
+
+.btn-close:hover {
+  color: #000;
+}
+
+/* Print styles - hide controls and UI not needed on printed invoice */
+@media print {
+  /* hide buttons and form controls */
+  .btn, .btn-group, .input-group, .input-group-append, .btn-close, button, .form-group .btn {
+    display: none !important;
+  }
+
+  /* hide interactive inputs and selects */
+  input, select, textarea, .form-control, ng-select, .custom .ng-select-container {
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    color: #000 !important;
+  }
+
+  /* hide action columns (delete/edit) */
+  th:nth-child(5), td:nth-child(5), th:nth-child(7), td:nth-child(7) {
+    display: none !important;
+  }
+
+  /* make table clean for printing */
+  .table, .table th, .table td {
+    color: #000 !important;
+    background: transparent !important;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /* hide modal overlays and other UI chrome */
+  .card-header, .card-block .form-control[ngbDatepicker], .no-pad .col-md-4 .form-group {
+    display: block !important;
+  }
+
+  /* force page breaks appropriately */
+  .no-print { display: none !important; }
+}

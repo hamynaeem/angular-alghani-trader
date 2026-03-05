@@ -1,0 +1,49 @@
+<div widget class="card border-0 box-shadow">
+  <div class="card-header transparent border-0 text-muted">
+    <h5 class="mb-3">Credit List</h5>
+  </div>
+  <div class="card-block widget-body">
+    <form #frmFilter="ngForm">
+      <div class="row no-pad">
+
+        <div class="col-md-2 offset-md-8">
+          <div class="form-group">
+            <label>&nbsp;</label>
+            <button
+              type="submit"
+              class="btn btn-primary form-control"
+              (click)="FilterData()"
+              accesskey="a"
+            >
+              <i class="fa fa-search"></i>
+              Filter
+            </button>
+          </div>
+        </div>
+        <div class="col-md-2">
+          <div class="form-group">
+            <label>&nbsp;</label>
+            <button
+              type="button"
+              class="btn btn-primary form-control"
+              (click)="PrintReport()"
+              accesskey="P"
+            >
+              <i class="fa fa-print"></i>
+              Print
+            </button>
+          </div>
+        </div>
+      </div>
+    </form>
+    <div class="row no-gutter" id="print-section">
+      <div class="col-md-12">
+        <ft-dynamic-table
+          #RptTable
+          [Settings]="setting"
+          [Data]="data"
+        ></ft-dynamic-table>
+      </div>
+    </div>
+  </div>
+</div>

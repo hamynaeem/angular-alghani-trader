@@ -1,0 +1,91 @@
+<div widget class="card border-0 box-shadow">
+  <div class="card-header transparent border-0 text-muted">
+    <h5 class="mb-3">Group Rights</h5>
+  </div>
+  <div class="card-block widget-body">
+    <div>
+      <tabset>
+        <tab heading="Groups" id="tab1">
+          <ft-crud [form]="form" [list]="list"> </ft-crud>
+        </tab>
+        <tab heading="Group Rights">
+          <form #formRights="ngForm">
+            <div class="row no-gutter">
+              <div class="col-md-1"></div>
+              <div class="col-md-3">
+                <div class="form-group">
+                  <label for="group">Select Group:</label>
+
+                  <ejs-combobox id="group" #group class="validation-field" required="required" name="group"
+                    [dataSource]="GroupData" [fields]="Groupfields" placeholder="Select Group..."
+                    [(ngModel)]="rightgroupid" (change)="GroupSelect($event)">
+                  </ejs-combobox>
+                </div>
+              </div>
+              <div class="col-md-2"></div>
+              <div class="col-lg-2">
+                <div class="form-group">
+                  <label for="dp2">&nbsp;</label>
+                  <button type="button" class="btn btn-success form-control" (click)="CheckAll()">
+                    Check All
+                  </button>
+                </div>
+              </div>
+              <div class="col-lg-2">
+                <div class="form-group">
+                  <label for="dp2">&nbsp;</label>
+                  <button type="button" class="btn btn-warning form-control" (click)="UnCheckAll()">
+                    UnCheck All
+                  </button>
+                </div>
+              </div>
+              <div class="col-lg-2">
+                <div class="form-group">
+                  <label for="dp2">&nbsp;</label>
+                  <button type="button" class="btn btn-danger form-control" id="expand" (click)="expandandColaps()">
+                    Expand Rights
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="col-me-6">
+              <div class="form-group">
+                <div id="treeparent">
+                  <ejs-treeview
+                    #treeview
+                    id="treeelement"
+                    [fields]="field"
+                    [showCheckBox]="true"
+                    (nodeChecked)="nodeChecked($event)"
+                  ></ejs-treeview>
+                </div>
+              </div>
+            </div>
+
+            <div class="row no-gutter">
+              <div class="col-lg-3"></div>
+              <div class="col-lg-3">
+                <div class="form-group">
+                  <label for="dp2">&nbsp;</label>
+                  <button type="button" *ngIf="btnsave" class="btn btn-success form-control"
+                    [disabled]="!formRights.form.valid" (click)="SaveData1()">
+                    Save
+                  </button>
+                </div>
+              </div>
+
+              <div class="col-lg-3">
+                <div class="form-group">
+                  <label for="dp2">&nbsp;</label>
+                  <button type="button" class="btn btn-danger form-control" (click)="cancel()">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </form>
+        </tab>
+      </tabset>
+    </div>
+  </div>
+</div>

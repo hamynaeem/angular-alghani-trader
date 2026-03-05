@@ -1,0 +1,19 @@
+<form class="needs-validation" (ngSubmit)="userForm.form.valid && SaveData()" #userForm="ngForm">
+  <div class="row no-pad">
+    <formly-form [model]="formdata" [fields]="form.fields" [options]="form.Options" [form]="formGrp"></formly-form>
+  </div>
+  <div class="row no-pad" >
+    <div class="col-md-6 col-sm-4"></div>
+    <div class="col-md-3 col-sm-4">
+      <button type="submit" class="btn btn-success btn-block">
+        {{ submitbutton }}
+      </button>
+    </div>
+
+    <div class="col-md-3 col-sm-4" *ngIf="iscancel">
+      <button type="button" class="btn btn-warning btn-block" (click)="closeModal()">
+        Cancel
+      </button>
+    </div>
+  </div>
+</form>

@@ -1,0 +1,137 @@
+<div widget class="card border-0 box-shadow">
+  <div class="card-header transparent border-0 text-muted">
+    <h5 class="mb-3">Transfer Items</h5>
+
+  </div>
+  <div class="card-block widget-body">
+
+    <form (ngSubmit)="SaveData()" #fromProducts="ngForm">
+      <div class="row no-gutter">
+
+        <div class="col-md-2">
+          <label for="dp1">Date:</label>
+          <div class="input-group">
+            <input
+              class="form-control"
+              placeholder="yyyy-mm-dd"
+              name="dp1"
+              [(ngModel)]="transfer.Date"
+              ngbDatepicker
+              #d1="ngbDatepicker"
+              required
+            />
+            <div class="input-group-addon">
+              <button type="button" class="btn btn-warning" (click)="d1.toggle()">
+                <i class="fa fa-calendar"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="form-group">
+            <label for="storeid">From Store</label>
+
+            <select class="form-control validation-field"
+            (change)="getproducts($event.target.value)" name="storeid"
+              id='storeid' required
+              [(ngModel)]="transfer.FromStore">
+              <option *ngFor='let Storesdata of Stores' value="{{Storesdata.StoreID}}">{{Storesdata.StoreName}}
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <div class="col-md-4">
+          <div class="form-group">
+            <label for="storeid1">To Store</label>
+
+            <select class="form-control validation-field" name="storeid1" id='storeid1' required
+              [(ngModel)]="transfer.ToStore">
+              <option *ngFor='let Storesdata of Stores' value="{{Storesdata.StoreID}}">{{Storesdata.StoreName}}
+              </option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <form #formqty="ngForm">
+        <div class="row no-gutter">
+
+          <div class="col-lg-4">
+            <div class="form-group">
+              <label for="supplier">Select Product:</label>
+              <ejs-combobox #prods id='prodcat' (filtering)='onFiltering($event)' [allowFiltering]='true' name="prods"
+                #cmbProd [dataSource]='Prods' [fields]="{text: 'ProductName', value: 'StockID'}"
+                placeholder="Select Item..." required="required" [(ngModel)]="productdetails.StockID"
+                (change)="ProductSelected($event)">
+              </ejs-combobox>
+            </div>
+          </div>
+          <div class="col-md-2">
+            <div class="form-group">
+              <label for="qty">Qty:</label>
+              <input type="text" class="form-control dation-field" required="required" id="qty" name="qty"
+                [(ngModel)]="productdetails.Qty" placeholder="0">
+            </div>
+          </div>
+          <div class="col-md-2">
+            <div class="form-group">
+              <label for="dp2">&nbsp;</label>
+              <button type="button" class="btn btn-primary form-control" [disabled]="!formqty.form.valid"
+                (click)="AddOrder()">Add</button>
+            </div>
+          </div>
+          <div class='col-lg-1'></div>
+          <div class="col-md-2">
+            <div class="form-group">
+              <label for="dp1">stock:</label>
+
+
+              <input type="text" readonly class="form-control" id="tqty" name="tqty" [(ngModel)]="tqty" placeholder="0">
+
+            </div>
+          </div>
+        </div>
+      </form>
+
+
+
+      <div class="card-block pt-0 widget-body">
+        <h5 class="mb-3">Transfer Items List</h5>
+        <div class="table-responsive">
+          <ng2-smart-table class="table table-hover" [settings]="settings" [source]="data"
+            (deleteConfirm)="onDeleteConfirm($event)" (rowSelect)="onRowSelect($event)"
+            (userRowSelect)="onUserRowSelect($event)" (editConfirm)="onEdit($event)"
+            (rowHover)="onRowHover($event)"></ng2-smart-table>
+        </div>
+      </div>
+
+
+      <div class="row no-gutter">
+        <div class='col-lg-1'></div>
+        <div class="col-lg-4">
+          <div class="form-group">
+            <label for="remarks">Remarks:</label>
+            <input type="text" class="form-control" id="remarks" name="remarks" [(ngModel)]="transferitems.Remarks"
+              placeholder="x">
+          </div>
+        </div>
+        <div class='col-lg-1'></div>
+        <div class="col-md-2">
+          <div class="form-group">
+            <label for="dp2">&nbsp;</label>
+            <button type="button" *ngIf="btnsave" class="btn btn-primary form-control"
+              [disabled]="!fromProducts.form.valid" (click)="SaveData()">Transfer</button>
+          </div>
+        </div>
+
+        <div class="col-md-2">
+          <div class="form-group">
+            <label for="dp2">&nbsp;</label>
+            <button type="button" class="btn btn-danger form-control" (click)='cancel()'>Cancel</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+</div>

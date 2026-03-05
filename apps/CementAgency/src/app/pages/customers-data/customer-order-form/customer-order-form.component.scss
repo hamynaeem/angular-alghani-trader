@@ -1,0 +1,80 @@
+/* Customer Order Form Styles */
+.card {
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.order-summary-card {
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+}
+
+.status-badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.status-pending {
+  background-color: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeaa7;
+}
+
+.status-approved {
+  background-color: #d1ecf1;
+  color: #0c5460;
+  border: 1px solid #b8daff;
+}
+
+.status-shipped {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.status-completed {
+  background-color: #d1ecf1;
+  color: #0c5460;
+  border: 1px solid #bee5eb;
+}
+
+.order-item-row {
+  padding: 1rem;
+  border: 1px solid #dee2e6;
+  border-radius: 0.25rem;
+  margin-bottom: 1rem;
+  background-color: #ffffff;
+}
+
+.order-item-row:hover {
+  background-color: #f8f9fa;
+}
+
+.btn-toggle {
+  min-width: 80px;
+}
+
+.orders-table-container {
+  margin-top: 2rem;
+}
+
+.modal-body .form-group {
+  margin-bottom: 1rem;
+}
+
+.modal-body .form-group:last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 768px) {
+  .order-item-row .col-md-2,
+  .order-item-row .col-md-4 {
+    margin-bottom: 0.5rem;
+  }
+
+  .btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+  }
+}

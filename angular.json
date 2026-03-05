@@ -1,0 +1,7 @@
+{
+  "version": 2,
+  "projects": {
+    "CementAgency": "apps/CementAgency",
+    "future-tech-lib": "libs/future-tech-lib"
+  }
+}

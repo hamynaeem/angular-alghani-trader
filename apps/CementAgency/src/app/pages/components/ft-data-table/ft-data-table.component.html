@@ -1,0 +1,72 @@
+<table
+  datatable
+  style="width: 100%"
+  [dtOptions]="dtOptions"
+  class="table table-sm table-hover table-striped"
+>
+  <thead>
+    <tr>
+      <th *ngFor="let col of Settings.columns">{{ col.label }}</th>
+
+      <th class="col-1" >Actions</th>
+    </tr>
+  </thead>
+  <tbody *ngIf="data?.length != 0">
+    <tr
+      *ngFor="let row of data"
+      (click)="selectRow(row)"
+      [ngStyle]="{ color: rowSelected(row) ? 'white' : 'black' }"
+      [ngClass]="{ 'bg-info': rowSelected(row) }"
+    >
+      <ng-container *ngFor="let col of Settings.columns">
+        <td *ngIf="col.visible != false">
+          {{ row[col.data] }}
+        </td>
+      </ng-container>
+
+      <td class="text-truncate">
+        <div *ngIf="Settings.crud">
+          <a href="javascript:;" class="success p-0">
+            <i class="ft-edit-2 font-medium-3 mr-2"></i>
+          </a>
+          <a href="javascript:;" class="danger p-0">
+            <i class="ft-x font-medium-3"></i>
+          </a>
+        </div>
+        <div
+          class="text-right"
+          ngbDropdown
+          container="body"
+          *ngIf="Settings.actions.length > 0"
+        >
+          <button type="button" class="btn btn-sm caret-off" ngbDropdownToggle>
+            <i class="ft-more-vertical text-primary cursor-pointer mr-2"> </i>
+          </button>
+          <div ngbDropdownMenu>
+            <a
+              href="#"
+              ngbDropdownItem
+              *ngFor="let act of Settings.actions"
+              (click)="ClickActionEv(row, act.action)"
+            >
+              <i
+                class="fa fa-{{ act.icon }} text-{{ act.class || 'primary' }}"
+                *ngIf="act.icon"
+              >
+              </i>
+              {{ act.title }}
+            </a>
+          </div>
+        </div>
+      </td>
+    </tr>
+  </tbody>
+  <tbody *ngIf="data?.length == 0">
+    <tr>
+      <td colspan="{{ Settings.columns.length + 1 }}" class="no-data-available">
+        No data!
+      </td>
+    </tr>
+  </tbody>
+</table>
+<!-- <table datatable [dtOptions]="dtOptions" class="table"></table> -->

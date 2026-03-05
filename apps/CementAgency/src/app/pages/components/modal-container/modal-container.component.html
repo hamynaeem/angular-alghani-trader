@@ -1,0 +1,22 @@
+<div class="container">
+  <div class="modal-header">
+    <h4 class="modal-title pull-left">{{ form.title }}</h4>
+    <button
+      type="button"
+      class="btn-close close pull-right"
+      aria-label="Close"
+      (click)="bsModalRef.hide()"
+    >
+      <span aria-hidden="true" class="visually-hidden">&times;</span>
+    </button>
+  </div>
+  <div class="modal-body">
+    <app-crud-form
+      [form]="form"
+      [formdata]="formdata"
+      (DataSaved)="Save()"
+      (Cancelled)="Cancel()"
+    >
+    </app-crud-form>
+  </div>
+</div>

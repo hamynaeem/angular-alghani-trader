@@ -1,0 +1,80 @@
+<div class="container buttonarea">
+  <div
+    class="btn-toolbar"
+    role="toolbar"
+    aria-label="Toolbar with button groups"
+  >
+    <div
+      class="btn-group btn-group-lg mr-2"
+      role="group"
+      aria-label="First group"
+    >
+      <button type="button" class="btn btn-primary" (click)="Print()">
+        <i class="fa fa-print"></i>
+      </button>
+      <button type="button" class="btn btn-warning" (click)="Export()">
+        <i i class="fa fa-file-pdf" aria-hidden="true"></i>
+      </button>
+    </div>
+  </div>
+</div>
+<section class="sheet">
+  <table class="table table-light">
+    <thead>
+      <tr>
+        <th>
+          <div class="Header">
+            <div>
+              <table>
+                <tr>
+                  <td class="text-left" style="width: 160px">
+                    <!-- <img
+                      [src]="IMAGE_URL + 'logo.png'"
+                      alt=""
+                      style="width: 100%"
+                    /> -->
+                  </td>
+                  <td class="text-left">
+                    <div style="font-size: 1.5rem">
+                      {{ Business.BusinessName }}
+                    </div>
+                    <div>{{ Business.Address }}, {{ Business.City }}</div>
+                    <p>Tel: {{ Business.Phone }}</p>
+                  </td>
+                </tr>
+              </table>
+            </div>
+            <h3
+              class="text-center"
+              style="font-weight: 600; font-size: 1.5rem"
+              *ngIf="printdata.CustomerName"
+            >
+              {{ printdata.CustomerName }}
+            </h3>
+            <h3
+              class="text-center"
+              style="font-weight: 600; font-size: 1.25rem"
+              *ngIf="printdata.Title"
+            >
+              {{ printdata.Title }}
+            </h3>
+            <h5
+              class="text-center"
+              style="font-weight: 600; font-size: 1rem"
+              *ngIf="printdata.SubTitle"
+            >
+              {{ printdata.SubTitle }}
+            </h5>
+          </div>
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>
+          <div id="main" style="margin-right: 80px"></div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</section>

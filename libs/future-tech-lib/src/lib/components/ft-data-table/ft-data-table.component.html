@@ -1,0 +1,53 @@
+<table datatable style="width: 100%" [dtOptions]="dtOptions" class="table table-sm table-hover table-striped">
+  <thead>
+    <tr>
+      <th *ngFor="let col of Settings.columns">{{ col.label }}</th>
+      <th class="col-1">Actions</th>
+    </tr>
+  </thead>
+  <tbody *ngIf="data?.length > 0">
+    <tr *ngFor="let row of data" (click)="selectRow(row)" [ngStyle]="{ color: rowSelected(row) ? 'white' : 'black' }"
+      [ngClass]="{ 'bg-info': rowSelected(row) }">
+      <ng-container *ngFor="let col of Settings.columns">
+        <td *ngIf="col.visible != false">
+          <button class="btn btn-sm btn-danger" (click)="col.button.callback(row)" *ngIf="col.button; else plain">{{
+            col.valueFormatter ? col.valueFormatter(row) : row[col.data] }}</button>
+          <ng-template #plain>{{ col.valueFormatter ? col.valueFormatter(row) : row[col.data] }}</ng-template>
+        </td>
+      </ng-container>
+
+      <td class="text-wrap">
+
+        <div class="text-right" ngbDropdown container="body" *ngIf="Settings.actions.length > 0">
+          <div *ngIf="Settings.crud; else elseBlock">
+            <button type="button" class="btn btn-sm btn-{{ act.class || 'primary' }}"
+            [title] = "act.title" *ngFor="let act of Settings.actions"
+              (click)="ClickActionEv(row, act.action)">
+              <i class="fa fa-{{ act.icon }}"></i>
+            </button>
+          </div>
+          <ng-template #elseBlock>
+            <button type="button" class="btn btn-sm caret-off" ngbDropdownToggle>
+              <i class="ft-more-vertical text-primary cursor-pointer mr-2"> </i>
+            </button>
+            <div ngbDropdownMenu>
+              <a href="#" ngbDropdownItem *ngFor="let act of Settings.actions" (click)="ClickActionEv(row, act.action)">
+                <i class="fa fa-{{ act.icon }} text-{{ act.class || 'primary' }}" *ngIf="act.icon">
+                </i>
+                {{ act.title }}
+              </a>
+            </div>
+          </ng-template>
+        </div>
+      </td>
+    </tr>
+  </tbody>
+  <tbody *ngIf="data?.length == 0">
+    <tr>
+      <td colspan="{{ Settings.columns.length + 1 }}" class="no-data-available">
+        No data!
+      </td>
+    </tr>
+  </tbody>
+</table>
+<!-- <table datatable [dtOptions]="dtOptions" class="table"></table> -->

@@ -1,0 +1,11 @@
+{
+  "/apis/*": {
+    "target": "http://localhost/rms/",
+    "secure": false,
+    "logLevel": "debug",
+    "pathRewrite": {
+      "^/apis": ""
+    },
+    "changeOrigin": true
+  }
+}

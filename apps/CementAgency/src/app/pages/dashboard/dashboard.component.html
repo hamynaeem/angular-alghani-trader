@@ -1,0 +1,45 @@
+<div class="container-fluid dashboard-container">
+  <!-- Summary Cards Row -->
+
+
+  <!-- Charts Row -->
+
+  <!-- Cash Flow Summary -->
+  <!-- Quick Access Menu -->
+  <div class="row mt-4">
+    <div class="col-md-12">
+      <div class="card quick-access-card">
+        <div class="card-header">
+          <h5 class="card-title">Quick Access</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-12" *ngFor="let menu of MenuItems">
+              <h6 class="menu-category"><i class="ft {{ menu.icon }}"></i> {{ menu.title }}</h6>
+              <div class="row no-gutter quick-access-buttons">
+                <a
+                  class="col-md-2 col-sm-4 btn btn-primary m-1"
+                  [routerLink]="['/' + c.path]"
+                  *ngFor="let c of menu.submenu"
+                >
+                  <div
+                    [ngStyle]="{ 'background-color': c.colorClass }"
+                    class="form-group BtnDiv"
+                  >
+                    <i
+                      style="font-size: 20px; margin-bottom: 2px"
+                      class="ft {{ c.icon }}"
+                    ></i>
+                    <p>
+                      <strong style="font-size: 12px"> {{ c.title }} </strong>
+                    </p>
+                  </div>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

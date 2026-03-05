@@ -1,0 +1,218 @@
+<div widget class="card border-0 box-shadow">
+  <div class="card-header transparent border-0 text-muted">
+    <div class="row">
+      <div class="col">
+        <h5 class="mb-3">Amount Receipts</h5>
+      </div>
+      <div class="col">
+        <div class="row">
+          <div class="col-md-6">
+            <input
+              class="form-control"
+              name="ino"
+              [(ngModel)]="Ino"
+              placeholder="Voucher No"
+            />
+          </div>
+
+          <div class="col-md-4">
+            <div class="form-group">
+              <button
+                type="submit"
+                class="btn btn-primary form-control"
+                (click)="FindINo()"
+                accesskey="F"
+              >
+                <i class="fa fa-search"></i>
+                Find
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="card-block widget-body">
+    <div class="container">
+      <form #frmFilter="ngForm" (submit)="SaveData()">
+        <div class="row no-gutter">
+          <div class="col-md-6">
+            <div class="form-group row">
+              <label for="dtFrom" class="col-sm-4 col-form-label">Date: </label>
+              <div class="col-md-8">
+                <div class="input-group">
+                  <input
+                    class="form-control"
+                    placeholder="yyyy-mm-dd"
+                    name="dtFrom"
+                    [(ngModel)]="Voucher.Date"
+                    ngbDatepicker
+                    #dtFrom="ngbDatepicker"
+                    required
+                  />
+                  <div class="input-group-addon">
+                    <button
+                      type="button"
+                      class="btn btn-warning"
+                      (click)="dtFrom.toggle()"
+                    >
+                      <i class="fa fa-calendar"> </i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6"></div>
+            </div>
+
+            <div class="form-group row">
+              <label for="cmbCustomer" class="form-label col-md-4">
+                Customers
+              </label>
+              <div class="col-md-8">
+                <ng-select
+                  name="ng2select"
+                  class="custom"
+                  [items]="Customers"
+                  [virtualScroll]="true"
+                  bindLabel="CustomerName"
+                  bindValue="CustomerID"
+                  placeholder="Select Account"
+                  (change)="GetCustomer($event.CustomerID)"
+                  required
+                  [(ngModel)]="Voucher.CustomerID"
+                >
+                  <ng-template ng-option-tmp let-item="item">
+                    <div class="row no-gutter">
+                      <div class="col-md-12">
+                        {{ item.CustomerName }}
+                      </div>
+                      <div class="col-md-9 text-italic font-small-2 mt-1">
+                        <small>
+                          {{ item.Address }}
+                        </small>
+                      </div>
+                      <div class="col-md-3 text-italic font-small-2 mt-1">
+                        <small>
+                          {{ item.CBalance }}
+                        </small>
+                      </div>
+                    </div>
+                  </ng-template>
+                </ng-select>
+              </div>
+            </div>
+            <div class="row form-group">
+              <label for="description" class="col-md-4 form-label"
+                >Description
+              </label>
+              <div class="col-md-8">
+                <input
+                  name="description"
+                  class="form-control"
+                  type="text"
+                  name="description"
+                  [(ngModel)]="Voucher.Description"
+                  id="description"
+                />
+              </div>
+            </div>
+            <div class="row form-group">
+              <label for="amount" class="col-md-4 form-label"
+                >Amount Recieved
+              </label>
+              <div class="col-md-8">
+                <input
+                  class="form-control"
+                  type="number"
+                  name="amount"
+                  [(ngModel)]="Voucher.Credit"
+                  id="amount"
+                  required
+                />
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="row form-group">
+              <label for="amount" class="col-md-4 form-label">Address: </label>
+              <div class="col-md-8">
+                <strong>
+                  {{ curCustomer.Address }}
+                </strong>
+              </div>
+            </div>
+            <div class="row form-group">
+              <label for="amount" class="col-md-4 form-label">City: </label>
+              <div class="col-md-8">
+                <strong>
+                  {{ curCustomer.City }}
+                </strong>
+              </div>
+            </div>
+            <div class="row form-group">
+              <label for="amount" class="col-md-4 form-label">Balance: </label>
+              <div class="col-md-8">
+                <strong>
+                  {{ Round(curCustomer.CBalance) }}
+                </strong>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="row no-gutter">
+          <div class="col-md-3">
+            <ft-navigator (ClickAction)="NavigatorClicked($event)">
+            </ft-navigator>
+          </div>
+          <div class="col-md-8">
+            <div class="row no-gutter">
+              <div class="form-group col-md-2">
+                <button
+                  type="button"
+                  class="btn btn-primary btn-block"
+                  accesskey="a"
+                  (click)="Add()"
+                >
+                  <i class="fa fa-plus"></i>
+                  New
+                </button>
+              </div>
+              <div class="form-group col-md-2">
+                <button
+                  type="submit"
+                  class="btn btn-success btn-block"
+                  accesskey="s"
+                  [disabled]="!frmFilter.valid"
+                >
+                  <i class="fa fa-save"></i>
+                  Save
+                </button>
+              </div>
+              <div class="form-group col-md-2">
+                <button
+                  type="button"
+                  class="btn btn-danger btn-block"
+                  accesskey="c"
+                  (click)="Cancel()"
+                >
+                  <i class="fa fa-cancel"></i>
+                  Cancel
+                </button>
+              </div>
+              <div class="form-group col-md-2">
+                <button
+                  type="button"
+                  class="btn btn-primary btn-block"
+                  accesskey="p"
+                >
+                  <i class="fa fa-print"></i>
+                  Print
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

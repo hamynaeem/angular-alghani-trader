@@ -1,0 +1,20 @@
+<div
+  class="btn-group btn-group-justified"
+  role="group"
+  aria-label="custom-btn-group"
+>
+  <div *ngFor="let button of buttons" class="btn-group" role="group">
+    <button
+      [type]="button.type ? button.type : 'button'"
+      class="btn btn-{{button.size ? button.size : 'md'}}"
+      [ngClass]="button.classes"
+      (click)="button.action()"
+      [disabled]="disabled || button.disabled"
+      [attr.accesskey]="button.shortcut"
+      [attr.tabindex]="button.shortcut ? -1 : null"
+    >
+      <i *ngIf="button.icon" class="{{ button.icon }}"></i>
+      {{ button.title }}
+    </button>
+  </div>
+</div>

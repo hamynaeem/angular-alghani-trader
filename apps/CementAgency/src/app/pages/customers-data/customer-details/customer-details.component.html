@@ -1,0 +1,155 @@
+<div class="container-fluid">
+  <!-- Login Section -->
+  <div *ngIf="!isLoggedIn" class="row justify-content-center">
+    <div class="col-md-6 col-lg-4">
+      <div class="card border-0 box-shadow">
+        <div class="card-header text-center bg-primary text-white">
+          <h4 class="mb-0">Customer Login</h4>
+          <small>Enter your mobile number and PIN</small>
+        </div>
+        <div class="card-body">
+          <form #loginForm="ngForm">
+            <div class="form-group">
+              <label for="mobileNo">Mobile Number:</label>
+              <input
+                type="tel"
+                id="mobileNo"
+                name="mobileNo"
+                class="form-control"
+                [(ngModel)]="Filter.MobileNo"
+                placeholder="Enter your mobile number"
+                required
+                maxlength="11"
+              />
+            </div>
+            <div class="form-group">
+              <label for="pin">PIN Code:</label>
+              <input
+                type="password"
+                id="pin"
+                name="pin"
+                class="form-control"
+                [(ngModel)]="Filter.PIN"
+                placeholder="Enter your PIN"
+                required
+                maxlength="6"
+              />
+            </div>
+            <button
+              type="button"
+              class="btn btn-primary btn-block"
+              (click)="FindCustomer()"
+              [disabled]="!Filter.MobileNo || !Filter.PIN"
+            >
+              <i class="fa fa-sign-in"></i>
+              Login
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Customer Dashboard -->
+  <div *ngIf="isLoggedIn">
+    <!-- Customer Info Header -->
+    <div class="row mb-3">
+      <div class="col-md-12">
+        <div class="card border-0 box-shadow">
+          <div class="card-body">
+            <div class="row align-items-center">
+              <div class="col-md-8">
+                <h4 class="mb-1">Welcome, {{ customer.CustomerName }}</h4>
+                <p class="text-muted mb-0">Customer ID: {{ customer.CustomerID }} | Mobile: {{ customer.PhoneNo1 }}</p>
+              </div>
+              <div class="col-md-4 text-right">
+                <button class="btn btn-outline-danger" (click)="logout()">
+                  <i class="fa fa-sign-out"></i> Logout
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="row">
+      <div class="col-md-12">
+        <ul class="nav nav-tabs" id="customerTabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              [class.active]="activeTab === 'accounts'"
+              id="accounts-tab"
+              (click)="setActiveTab('accounts')"
+              type="button"
+            >
+              <i class="fa fa-list-alt"></i> Account Details
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              [class.active]="activeTab === 'orders'"
+              id="orders-tab"
+              (click)="setActiveTab('orders')"
+              type="button"
+            >
+              <i class="fa fa-shopping-cart"></i> Place Order
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              [class.active]="activeTab === 'history'"
+              id="history-tab"
+              (click)="setActiveTab('history')"
+              type="button"
+            >
+              <i class="fa fa-history"></i> Order History
+            </button>
+          </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content" id="customerTabContent">
+          <!-- Account Details Tab -->
+          <div *ngIf="activeTab === 'accounts'" class="tab-pane fade show active">
+            <div class="card border-0">
+              <div class="card-body">
+                <app-customer-accounts
+                  [customerData]="customer"
+                  [showFilters]="true">
+                </app-customer-accounts>
+              </div>
+            </div>
+          </div>
+
+          <!-- Place Order Tab -->
+          <div *ngIf="activeTab === 'orders'" class="tab-pane fade show active">
+            <div class="card border-0">
+              <div class="card-body">
+                <app-customer-order-form
+                  [customer]="customer"
+                  (orderPlaced)="onOrderPlaced($event)">
+                </app-customer-order-form>
+              </div>
+            </div>
+          </div>
+
+          <!-- Order History Tab -->
+          <div *ngIf="activeTab === 'history'" class="tab-pane fade show active">
+            <div class="card border-0">
+              <div class="card-body">
+                <app-customer-order-history
+                  [customerId]="customer.CustomerID">
+                </app-customer-order-history>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

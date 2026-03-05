@@ -1,0 +1,37 @@
+<div class="pull-right">
+  <button class="btn btn-primary" (click)="Add(-1)">
+    <i class="fa fa-plus"></i>
+  </button>
+</div>
+<table datatable class="table table-stripped table-responsive">
+  <thead class="thead-light">
+    <tr>
+      <th *ngFor="let c of list.columns">{{ c.label }}</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let r of data; let i = index">
+
+      <td *ngFor="let c of list.columns">
+        <ng-template *ngIf="c.Type==='link'; else ElseTemplate">
+         {{ r[c.fldName] }}
+        </ng-template>
+        <ng-template #ElseTemplate>
+         {{ r[c.fldName] }}
+        </ng-template>
+
+      </td>
+      <td>
+        <div class="btn-group" role="group" aria-label="Crud Action">
+          <button type="button" class="btn btn-primary" (click)="Edit(i)">
+            <i class="fa fa-pencil"></i>
+          </button>
+          <button type="button" class="btn btn-danger" (click)="Delete(i)">
+            <i class="fa fa-trash"></i>
+          </button>
+        </div>
+      </td>
+    </tr>
+  </tbody>
+</table>

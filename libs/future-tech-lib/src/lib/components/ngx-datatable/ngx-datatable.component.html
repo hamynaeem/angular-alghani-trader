@@ -1,0 +1,92 @@
+<ngx-datatable
+  [rows]="Data"
+  class="bootstrap core-bootstrap header-height-50"
+  [limit]="50"
+ 
+  [headerHeight]="50"
+  [footerHeight]="50"
+  [columnMode]="ColumnMode.force"
+  [selectionType]="SelectionType.checkbox"
+  (select)="customChkboxOnSelect($event)"
+>
+  <ngx-datatable-column
+    name="Actions"
+    [width]="50"
+    [sortable]="false"
+    [canAutoResize]="false"
+    [draggable]="false"
+    [resizeable]="false"
+    *ngIf="settings.Actions.length > 0"
+  >
+    <ng-template ngx-datatable-cell-template let-row="row">
+      <div ngbDropdown  class="d-inline-block" container="body" style="top: -10px;">
+
+     
+      <button type="button" class="btn btn-sm caret-off" ngbDropdownToggle>
+       
+      </button>
+      <div ngbDropdownMenu>
+        <a
+          href="#"
+          ngbDropdownItem
+          *ngFor="let act of settings.Actions"
+          (click)="ClickActionEv(r, act.action)"
+        >
+          <i
+            class="fa fa-{{ act.icon }} text-{{ act.class || 'primary' }}"
+            *ngIf="act.icon"
+          >
+          </i>
+          {{ act.title }}
+        </a>
+      </div> </div>
+    </ng-template>
+  </ngx-datatable-column>
+
+  <ngx-datatable-column
+    [width]="50"
+    [sortable]="false"
+    [canAutoResize]="false"
+    [draggable]="false"
+    [resizeable]="false"
+    *ngIf="settings.Checkbox"
+  >
+    <ng-template
+      ngx-datatable-header-template
+      let-value="value"
+      let-allRowsSelected="allRowsSelected"
+      let-selectFn="selectFn"
+    >
+      <div class="custom-control custom-checkbox">
+        <input
+          type="checkbox"
+          [checked]="allRowsSelected"
+          (change)="selectFn(!allRowsSelected)"
+        />
+      </div>
+    </ng-template>
+    <ng-template
+      ngx-datatable-cell-template
+      let-value="value"
+      let-isSelected="isSelected"
+      let-onCheckboxChangeFn="onCheckboxChangeFn"
+    >
+      <div class="custom-control custom-checkbox">
+        <input
+          type="checkbox"
+          [checked]="isSelected"
+          (change)="onCheckboxChangeFn($event)"
+        />
+      </div>
+    </ng-template>
+  </ngx-datatable-column>
+  <ngx-datatable-column
+    *ngFor="let col of settings.Columns"
+    [name]="col.label"
+    [prop]="col.fldName"
+    [sortable]="true"
+    [canAutoResize]="true"
+    [draggable]="true"
+    [resizeable]="true"
+  ></ngx-datatable-column>
+</ngx-datatable>

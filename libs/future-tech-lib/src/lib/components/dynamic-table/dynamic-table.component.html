@@ -1,0 +1,233 @@
+<div class="row no-pad">
+  <div class="col-md-12">
+    <div class="table-responsive">
+      <table class="table table-sm table-dyna table-hover" style="height: 100%">
+        <thead class="thead-light">
+          <tr>
+            <th class="screenOnly" *ngIf="settings.ButtonsAtRight"></th>
+            <th *ngIf="settings.Checkbox" class="screenOnly">
+              <input
+                type="checkbox"
+                [checked]="isAllCheckBoxChecked()"
+                (change)="checkAllCheckBox($event)"
+              />
+            </th>
+            <th *ngIf="hasSubTable" class="screenOnly"></th>
+            <th
+              [ngClass]="{
+                'text-right': c.type == 'number' || c.sum || c.align == 'right'
+              }"
+              *ngFor="let c of settings.Columns"
+            >
+              {{ c.label }}
+            </th>
+
+            <th class="screenOnly" *ngIf="!settings.ButtonsAtRight"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <ng-container
+            *ngFor="
+              let r of Data | filter: Search:settings.Columns;
+              let i = index
+            "
+          >
+            <tr
+              (click)="ExandRow($event, i)"
+              [style.background-color]="getRowBackgroundColor(r, i)"
+            >
+              <ng-container *ngIf="settings.ButtonsAtRight">
+                <td class="screenOnly">
+                  <div
+                    class="text-right"
+                    ngbDropdown
+                    container="body"
+                    *ngIf="settings.Actions.length > 0"
+                  >
+                    <div *ngIf="settings.crud; else elseBlock">
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-{{ act.class || 'primary' }}"
+                        [title]="act.title || act.label"
+                        *ngFor="let act of settings.Actions"
+                        (click)="ClickActionEv(r, act.action)"
+                      >
+                        <i class="fa fa-{{ act.icon }}"></i>
+                      </button>
+                    </div>
+                    <ng-template #elseBlock>
+                      <button
+                        type="button"
+                        class="btn btn-sm caret-off"
+                        ngbDropdownToggle
+                      >
+                        <i
+                          class="ft-more-vertical text-primary cursor-pointer mr-2"
+                        >
+                        </i>
+                      </button>
+                      <div ngbDropdownMenu>
+                        <a
+                          href="#"
+                          ngbDropdownItem
+                          *ngFor="let act of settings.Actions"
+                          (click)="ClickActionEv(r, act.action)"
+                        >
+                          <i
+                            class="fa fa-{{ act.icon }} text-{{
+                              act.class || 'primary'
+                            }}"
+                            *ngIf="act.icon"
+                          >
+                          </i>
+                          {{ act.title || act.label}}
+                        </a>
+                      </div>
+                    </ng-template>
+                  </div>
+                </td>
+              </ng-container>
+              <td *ngIf="settings.Checkbox" class="screenOnly">
+                <input
+                  type="checkbox"
+                  value="{{ Data[i].checked }}"
+                  [(ngModel)]="Data[i].checked"
+                />
+              </td>
+              <td *ngIf="hasSubTable" class="screenOnly">
+                <i class="fa fa-plus" id="icon{{ i }}"></i>
+              </td>
+              <td
+                *ngFor="let col of settings.Columns"
+                [ngClass]="{
+                  'text-right':
+                    col.type == 'number' || col.sum || col.align == 'right'
+                }"
+              >
+                <span
+                  [ngClass]="{
+                    'btn btn-sm btn-primary': col.button.style !== 'link',
+                    link: col.button.style == 'link'
+                  }"
+                  (click)="col.button.callback(r)"
+                  *ngIf="col.button; else plain"
+                >
+                  {{ formattedValue(r, col, r[col.fldName]) }}
+                </span>
+
+                <ng-template #plain>
+                  {{ formattedValue(r, col, r[col.fldName]) }}
+              </ng-template>
+              </td>
+              <ng-container *ngIf="!settings.ButtonsAtRight">
+                <td class="screenOnly">
+                  <div
+                    class="text-right"
+                    ngbDropdown
+                    container="body"
+                    *ngIf="settings.Actions.length > 0"
+                  >
+                    <div *ngIf="settings.crud; else elseBlock">
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-{{ act.class || 'primary' }}"
+                        [title]="act.title || act.label"
+                        *ngFor="let act of settings.Actions"
+                        (click)="ClickActionEv(r, act.action)"
+                      >
+                        <i class="fa fa-{{ act.icon }}"></i>
+                      </button>
+                    </div>
+                    <ng-template #elseBlock>
+                      <button
+                        type="button"
+                        class="btn btn-sm caret-off"
+                        ngbDropdownToggle
+                      >
+                        <i
+                          class="ft-more-vertical text-primary cursor-pointer mr-2"
+                        >
+                        </i>
+                      </button>
+                      <div ngbDropdownMenu>
+                        <a
+                          href="#"
+                          ngbDropdownItem
+                          *ngFor="let act of settings.Actions"
+                          (click)="ClickActionEv(r, act.action)"
+                        >
+                          <i
+                            class="fa fa-{{ act.icon }} text-{{
+                              act.class || 'primary'
+                            }}"
+                            *ngIf="act.icon"
+                          >
+                          </i>
+                          {{ act.title || act.label }}
+                        </a>
+                      </div>
+                    </ng-template>
+                  </div>
+                </td>
+              </ng-container>
+            </tr>
+            <tr
+              *ngIf="hasSubTable"
+              [hidden]="!r.expanded"
+              class="screenOnly"
+              style="visibility: hidden"
+              id="rsub{{ i }}"
+            >
+              <td [attr.colspan]="GetFldCounts() + 1" style="height: auto">
+              <table class="table">
+                <thead>
+                <tr>
+                  <th *ngFor="let col of SubTable.Columns"
+                   [ngClass]="{ 'text-right': col.sum }"
+                  >
+                  {{ col.label }}
+                  </th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr
+                  *ngFor="let rsub of r[SubTable.table]; let j = index"
+                  [style.background-color]="getSubRowBackgroundColor(rsub, r, j, i)"
+                >
+                  <td
+                    *ngFor="let col of SubTable.Columns"
+                    [ngClass]="{ 'text-right': col.sum }"
+                  >
+                    {{ rsub[col.fldName] }}
+                  </td>
+                </tr>
+
+                <tr>
+                  <th *ngFor="let c of SubTable.Columns" class="text-right">
+                    {{ c.sum ? FindSubTotal(r[SubTable.table], c.fldName) : '' }}
+                  </th>
+                </tr>
+                </tbody>
+              </table>
+              </td>
+            </tr>
+          </ng-container>
+        </tbody>
+        <tfoot class="thead-light">
+          <tr>
+            <th *ngIf="settings.Checkbox" class="screenOnly"></th>
+            <th *ngIf="hasSubTable" class="screenOnly"></th>
+            <th
+              *ngFor="let c of settings.Columns"
+              [ngClass]="{ 'text-right': c.type == 'number' || c.sum }"
+            >
+              <!-- {{ c.sum ? c.sumValue > 0 ? c.SumValue : FindTotal(c.fldName) : "" }} -->
+              {{ c.sum ? FindTotal(c.fldName) : '' }}
+            </th>
+            <th class="screenOnly"></th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</div>

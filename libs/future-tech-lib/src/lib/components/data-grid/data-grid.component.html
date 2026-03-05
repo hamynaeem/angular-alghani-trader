@@ -1,0 +1,44 @@
+<div class="row no-gutter">
+  <div class="col-md-4">
+    <input
+      type="text"
+      class="form-control"
+      [(ngModel)]="Search"
+      (keyup)="FilterData()"
+      #search
+      *ngIf="ShowSearch"
+    />
+  </div>
+</div>
+<div class="row no-gutter">
+  <div class="col-md-12">
+    <!-- <ejs-grid [dataSource]="data" [columns]="columns"></ejs-grid> -->
+
+    <ejs-grid
+      #grid
+      [selectedRowIndex]="0"
+      [selectionSettings]="{ mode: 'Row', type: 'Single' }"
+      [dataSource]="data"
+      [height]="GridHeight"
+      [editSettings]="{ allowEditing: false, allowDeleting: false }"
+      (rowSelected)="GridRowClicked($event)"
+      (commandClick)="commandClick($event)"
+      (recordDoubleClick)="onRowDoubleClick($event)"
+      [columns]="columns"
+      allowScrolling="true"
+    >
+      <ng-template #template let-data>
+        <a
+          *ngIf="data.column?.Type == 'link'"
+          href="javascript:void(0)"
+          (click)="OnLinkClicked(data)"
+        >
+          {{ data[data.column.field] }}
+        </a>
+        <span *ngIf="data.column?.Type == 'text'">
+          {{ data[data.column.field] }}
+        </span>
+      </ng-template>
+    </ejs-grid>
+  </div>
+</div>

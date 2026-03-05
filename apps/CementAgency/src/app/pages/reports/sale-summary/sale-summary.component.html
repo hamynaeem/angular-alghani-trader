@@ -1,0 +1,137 @@
+<div widget class="card border-0 box-shadow">
+  <div class="card-header transparent border-0 text-muted d-flex align-items-center justify-content-between">
+    <h5 class="mb-3 mb-0">Sale Summary</h5>
+    <div *ngIf="SelectedCustomerName && SelectedCustomerName != ''" class="text-muted">
+      <small>Customer: {{ SelectedCustomerName }}</small>
+    </div>
+  </div>
+  <div class="card-block widget-body">
+    <form #frmFilter="ngForm">
+      <div class="row no-pad">
+        <div class="col-md-2">
+          <label for="dtFrom">From Date:</label>
+          <div class="input-group">
+            <input
+              class="form-control"
+              placeholder="yyyy-mm-dd"
+              name="dtFrom"
+              [(ngModel)]="Filter.FromDate"
+              ngbDatepicker
+              #dtFrom="ngbDatepicker"
+            />
+            <div class="input-group-addon">
+              <button
+                type="button"
+                class="btn btn-warning"
+                (click)="dtFrom.toggle()"
+              >
+                <i class="fa fa-calendar"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-2">
+          <label for="dtTo">To Date:</label>
+          <div class="input-group">
+            <input
+              class="form-control"
+              placeholder="yyyy-mm-dd"
+              name="dtTo"
+              [(ngModel)]="Filter.ToDate"
+              ngbDatepicker
+              #dtTo="ngbDatepicker"
+            />
+            <div class="input-group-addon">
+              <button
+                type="button"
+                class="btn btn-warning"
+                (click)="dtTo.toggle()"
+              >
+                <i class="fa fa-calendar"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="form-group col-md-3">
+          <label for="customer">Customer</label>
+          <ng-select
+            #cmbCustomers
+            name="cmbCustomers"
+            class="custom"
+            [items]="Accounts | async"
+            bindLabel="CustomerName"
+            bindValue="CustomerID"
+            placeholder="Select Customer"
+            [(ngModel)]="Filter.CustomerID"
+            (change)="CustomerSelected($event)"
+          >
+          </ng-select>
+        </div>
+
+        <div class="form-group col-md-3">
+          <label for="customer">Select Product </label>
+          <ng-select
+            #cmbProduct
+            name="cmbProduct"
+            id="cmbProduct"
+            class="custom"
+            [items]="Items | async"
+            bindLabel="ProductName"
+            bindValue="ProductID"
+            placeholder="Select Product"
+            [(ngModel)]="Filter.ProductID"
+          >
+          </ng-select>
+        </div>
+        <div class="col-md-1">
+          <div class="form-group">
+            <label>&nbsp;</label>
+            <button
+              type="submit"
+              class="btn btn-primary form-control"
+              (click)="FilterData()"
+              accesskey="a"
+            >
+              <i class="fa fa-search"></i>
+              Filter
+            </button>
+          </div>
+        </div>
+        <div class="col-md-1">
+          <div class="form-group">
+            <label>&nbsp;</label>
+            <button
+              type="button"
+              class="btn btn-primary form-control"
+              (click)="PrintReport()"
+              accesskey="P"
+            >
+              <i class="fa fa-print"></i>
+              Print
+            </button>
+          </div>
+        </div>
+      </div>
+    </form>
+    <div class="row no-gutter" id="print-section">
+      <div class="row mb-2" *ngIf="SelectedCustomerName && SelectedCustomerName != ''">
+        <div class="col-md-12">
+          <strong>Customer:</strong>
+          {{ SelectedCustomerName }}
+        </div>
+      </div>
+      <div class="col-md-12">
+        <ft-table-with-group *ngIf="Filter.ProductID == null || Filter.ProductID == ''"
+          #RptTable
+          [Settings]="sting"
+          [Data]="data"
+        ></ft-table-with-group>
+        <ft-dynamic-table *ngIf="Filter.ProductID != ''"
+          #RptTable2
+          [Settings]="sting"
+          [Data]="data"
+        ></ft-dynamic-table>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,91 @@
+<!--table starts-->
+<section id="ng-tables">
+  <div class="row no-gutter">
+    <div class="col-12">
+      <div class="content-header">{{ form.title }}</div>
+
+
+    </div>
+
+  </div>
+  <div class="row text-left">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-content">
+          <div class="card-body">
+            <div class="row no-gutter" id="print-section">
+              <div class="col-md-12">
+                <div class="pull-right">
+                  <button
+                    *ngIf="Actions.includes('add')"
+                    class="btn btn-primary mb-10"
+                    (click)="Add()"
+                  >
+                    <i class="fa fa-plus"></i>
+                    Add
+                  </button>
+                </div>
+              </div>
+              <div class="col-md-12">
+                <div class="table table-responive">
+                  <table
+                    datatable
+                    [dtOptions]="dtOptions"
+                    [dtTrigger]="dtTrigger"
+                    class="row-border hover"
+                  >
+                    <thead class="thead-light">
+                      <tr>
+                        <th *ngFor="let c of list.columns">{{ c.label }}</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr *ngFor="let r of data; let i = index">
+                        <td *ngFor="let c of list.columns">
+                          <img
+                            *ngIf="c.type === 'image'; else elseBlock"
+                            class="img-thumbnail"
+                            [src]="Upload_path + r[c.fldName]"
+                            alt=""
+                          />
+                          <ng-template #elseBlock>
+                            {{ r[c.fldName] }}
+                          </ng-template>
+                        </td>
+                        <td>
+                          <div
+                            class="btn-group"
+                            role="group"
+                            aria-label="Crud Action"
+                          >
+                            <button
+                              *ngIf="Actions.includes('edit')"
+                              type="button"
+                              class="btn btn-primary"
+                              (click)="Edit(i)"
+                            >
+                              <i class="fa fa-pencil"></i>
+                            </button>
+                            <button
+                              *ngIf="Actions.includes('delete')"
+                              type="button"
+                              class="btn btn-danger"
+                              (click)="Delete(i)"
+                            >
+                              <i class="fa fa-trash"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

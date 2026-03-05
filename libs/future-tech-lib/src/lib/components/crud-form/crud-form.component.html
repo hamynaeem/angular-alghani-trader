@@ -1,0 +1,295 @@
+<form
+  class="needs-validation"
+  (ngSubmit)="userForm.form.valid && SaveData()"
+  #userForm="ngForm"
+>
+  <div class="row no-gutter">
+    <div [class]="'px-* col-md-' + col.size" *ngFor="let col of form.columns">
+      <div class="form-group">
+        <label for="col.fldName">
+          {{
+            col.control === 'button' ||
+            col.control === 'hidden' ||
+            col.control === 'space' ||
+            col.visible == false
+              ? '&nbsp;'
+              : col.label
+              ? col.label
+              : ''
+          }}
+        </label>
+        <input
+          #inputRef
+          *ngIf="col.control === 'input'"
+          [type]="col.type"
+          class="form-control validation-field"
+          [required]="col.required"
+          [readonly]="col.readonly"
+          [(ngModel)]="formdata[col.fldName]"
+          [name]="col.fldName"
+          [value]="col.value"
+          [maxlength]="col.maxLength"
+          [ngClass]="{
+            'is-invalid':
+              userForm.submitted && userForm.controls[col.fldName].invalid,
+            'is-valid':
+              userForm.submitted && !userForm.controls[col.fldName].invalid
+          }"
+          (change)="Changed(col.fldName, $event.target.value)"
+          placeholder=""
+        />
+        <div
+          class="checkbox checkbox-{{ col.class }}"
+          *ngIf="col.control === 'checkbox'"
+        >
+          <input
+            type="checkbox"
+            [name]="col.fldName"
+            [(ngModel)]="formdata[col.fldName]"
+          />
+        </div>
+        <ejs-autocomplete
+          [name]="col.fldName"
+          [(ngModel)]="formdata[col.fldName]"
+          *ngIf="col.control === 'select' && col.type === 'autocomplete'"
+          [dataSource]="col.listData"
+          [fields]="{ value: col.displayFld }"
+          (change)="Changed(col.fldName, $event.value)"
+          [required]="col.required"
+        ></ejs-autocomplete>
+
+        <div *ngIf="col.control === 'select' && col.type === 'lookup'">
+          <ejs-combobox
+            #combosList
+            [name]="col.fldName"
+            [(ngModel)]="formdata[col.fldName]"
+            [dataSource]="col.listData"
+            [fields]="{ text: col.displayFld, value: col.valueFld }"
+            [placeholder]=""
+            (change)="Changed(col.fldName, $event.value)"
+            [required]="col.required"
+            [disabled]="col.disabled"
+            [allowFiltering]="col.filtering"
+            [ngClass]="{
+              'is-invalid':
+                userForm.submitted && userForm.controls[col.fldName].invalid,
+              'is-valid':
+                userForm.submitted && !userForm.controls[col.fldName].invalid
+            }"
+          ></ejs-combobox>
+          <div
+            class="text-small text-danger"
+            *ngIf="userForm.submitted && userForm.controls[col.fldName].invalid"
+          >
+            Please select a valid item.
+          </div>
+        </div>
+
+        <div *ngIf="col.control === 'select' && col.type === 'ngselect'">
+
+          <ng-select
+            #ngSelect
+            [name]="col.fldName"
+            class="custom"
+            [items]="col.listData"
+            [bindLabel]="col.displayFld"
+            [bindValue]="col.valueFld"
+            [(ngModel)]="formdata[col.fldName]"
+            [required]="col.required"
+            [disabled]="col.disabled"
+            selectOnTab="true"
+            [ngClass]="{
+
+              'is-invalid':
+                userForm.submitted && userForm.controls[col.fldName].invalid,
+              'is-valid':
+                userForm.submitted && !userForm.controls[col.fldName].invalid
+            }"
+
+
+            typeToSearchText="Please enter {{
+              minLengthTerm
+            }} or more characters"
+            [placeholder]="col.placeHolder"
+            (change)="Changed(col.fldName, $event)"
+            [searchable]="true"
+            [clearable]="true"
+          >
+          </ng-select>
+        </div>
+
+        <div *ngIf="col.control === 'select' && col.type === 'dropdown'">
+          <ejs-dropdownlist
+            #dropdownsList
+            [name]="col.fldName"
+            [(ngModel)]="formdata[col.fldName]"
+            [dataSource]="col.listData"
+            [fields]="{ text: col.displayFld, value: col.valueFld }"
+            [placeholder]="col.palceholder"
+            (change)="Changed(col.fldName, $event.value)"
+            [required]="col.required"
+            [disabled]="col.disabled"
+            [allowFiltering]="true"
+            [ngClass]="{
+              'is-invalid':
+                userForm.submitted && userForm.controls[col.fldName].invalid,
+              'is-valid':
+                userForm.submitted && !userForm.controls[col.fldName].invalid
+            }"
+          ></ejs-dropdownlist>
+          <div
+            class="text-small text-danger"
+            *ngIf="userForm.submitted && userForm.controls[col.fldName].invalid"
+          >
+            Please select a valid item.
+          </div>
+        </div>
+
+        <ft-multi-col-combobox-ng
+          [name]="col.fldName"
+          [(ngModel)]="formdata[col.fldName]"
+          *ngIf="col.control == 'select' && col.type == 'ng'"
+          [ApiEndPoint]="col.endPoint"
+          [BindLabel]="col.displayFld"
+          [BindVal]="col.valueFld"
+          [Fields]="col.flds"
+          [placeholder]=""
+          [ngClass]="{
+            'is-invalid':
+              userForm.submitted && userForm.controls[col.fldName].invalid,
+            'is-valid':
+              userForm.submitted && !userForm.controls[col.fldName].invalid
+          }"
+          (change)="Changed(col.fldName, $event.value)"
+          [required]="col.required"
+        >
+        </ft-multi-col-combobox-ng>
+        <ft-multi-col-combobox
+          *ngIf="col.control == 'select' && col.type == 'multi'"
+          [name]="col.fldName"
+          [(ngModel)]="formdata[col.fldName]"
+          [dataSource]="col.listData"
+          [fields]="{ text: col.displayFld, value: col.valueFld }"
+          [required]="col.required"
+          [Cols]="col.Cols"
+          (Change)="Changed(col.fldName, $event.value)"
+        >
+        </ft-multi-col-combobox>
+
+        <ft-multi-col-combobox-ng
+          [name]="col.fldName"
+          [(ngModel)]="formdata[col.fldName]"
+          *ngIf="col.control == 'select' && col.type == 'ng'"
+          [ApiEndPoint]="col.endPoint"
+          [BindLabel]="col.displayFld"
+          [BindVal]="col.valueFld"
+          [Fields]="col.flds"
+          [placeholder]=""
+          [ngClass]="{
+            'is-invalid':
+              userForm.submitted && userForm.controls[col.fldName].invalid,
+            'is-valid':
+              userForm.submitted && !userForm.controls[col.fldName].invalid
+          }"
+          (change)="Changed(col.fldName, $event.value)"
+          [required]="col.required"
+        >
+        </ft-multi-col-combobox-ng>
+        <select
+          [name]="col.fldName"
+          [(ngModel)]="formdata[col.fldName]"
+          class="form-control"
+          *ngIf="col.control === 'select' && col.type === 'list'"
+          (change)="Changed(col.fldName, $event.target.value)"
+          [ngClass]="{
+            'is-invalid':
+              userForm.submitted && userForm.controls[col.fldName].invalid,
+            'is-valid':
+              userForm.submitted && !userForm.controls[col.fldName].invalid
+          }"
+          [required]="col.required"
+        >
+          <option value="" selected>
+            {{ col.placeHolder || 'Please select' }}
+          </option>
+          <option [value]="d[col.valueFld]" *ngFor="let d of col.listData">
+            {{ d[col.displayFld] }}
+          </option>
+        </select>
+
+        <span *ngIf="col.control === 'file'">
+          <ngx-dropzone (change)="onSelect($event)" [expandable]="true">
+            <ngx-dropzone-label>{{ col.label }}</ngx-dropzone-label>
+            <ngx-dropzone-image-preview
+              ngProjectAs="ngx-dropzone-preview"
+              *ngIf="files"
+              [file]="files"
+              [removable]="true"
+              (removed)="onRemove(files)"
+            >
+              <ngx-dropzone-label
+                >{{ files.name }} ({{ files.type }})</ngx-dropzone-label
+              >
+            </ngx-dropzone-image-preview>
+          </ngx-dropzone>
+          <input
+            type="hidden"
+            [(ngModel)]="formdata[col.fldName]"
+            [name]="col.fldName"
+            placeholder=""
+          />
+        </span>
+
+        <textarea
+          *ngIf="col.control === 'textarea'"
+          class="form-control validation-field"
+          [required]="col.required"
+          [(ngModel)]="formdata[col.fldName]"
+          [name]="col.fldName"
+          placeholder=""
+          (change)="Changed(col.fldName, $event.target.value)"
+        ></textarea>
+        <quill-editor
+          *ngIf="col.control === 'html-editor'"
+          [(ngModel)]="formdata[col.fldName]"
+          [name]="col.fldName"
+          (change)="Changed(col.fldName, $event.target.value)"
+          [required]="col.required"
+        >
+        </quill-editor>
+
+        <button
+          *ngIf="col.control === 'button'"
+          [type]="col.type"
+          class="form-control btn btn-{{ col.cssClass }}"
+          (click)="
+            ButtonClickedEv({ ngform: userForm, data: formdata, col: col })
+          "
+        >
+          <i *ngIf="col.icon" class="fa fa-{{ col.icon }}"></i>
+
+          {{ col.label }}
+        </button>
+      </div>
+    </div>
+  </div>
+  <div class="row no-gutter" *ngIf="CrudButtons">
+    <div class="col-md-6 col-sm-4"></div>
+    <div class="col-md-3 col-sm-4">
+      <button type="submit" class="btn btn-success btn-block">
+        <!-- [disabled]="!userForm.form.valid" -->
+        {{ submitbutton }}
+      </button>
+    </div>
+
+    <div class="col-md-3 col-sm-4" *ngIf="iscancel">
+      <button
+        type="button"
+        class="btn btn-warning btn-block"
+        (click)="closeModal()"
+      >
+        Cancel
+      </button>
+    </div>
+  </div>
+</form>

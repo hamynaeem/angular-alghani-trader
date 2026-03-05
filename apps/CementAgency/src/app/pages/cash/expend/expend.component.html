@@ -1,0 +1,108 @@
+<div widget class="card border-0 box-shadow">
+  <div class="card-header transparent border-0 text-muted">
+    <h5 class="mb-3">Expense</h5>
+
+  </div>
+  <div class="card-block widget-body">
+    <div class="container">
+      <div class="row no-gutter">
+        <div class="col-md-6">
+          <form #frmFilter="ngForm" (submit)="SaveData()">
+            <div class="form-group row">
+              <label for="dtFrom" class="col-sm-4 col-form-label">Date: </label>
+              <div class="col-md-8">
+                <div class="input-group">
+                  <input
+                    class="form-control"
+                    placeholder="yyyy-mm-dd"
+                    name="dtFrom"
+                    [(ngModel)]="Voucher.Date"
+                    ngbDatepicker
+                    #dtFrom="ngbDatepicker"
+                    required
+                  />
+                  <div class="input-group-addon">
+                    <button
+                      type="button"
+                      class="btn btn-warning"
+                      (click)="dtFrom.toggle()"
+                    >
+                      <i class="fa fa-calendar"> </i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6"></div>
+            </div>
+            <div class="form-group row">
+              <label for="cmbCustomer" class="form-label col-md-4">
+                Expense Head
+              </label>
+              <div class="col-md-8">
+                <ng-select
+                  name="cmbHeads"
+                  id="cmbHeads"
+                  [items]="ExpenseHeads"
+                  bindLabel="Head"
+                  bindValue="HeadID"
+                  [(ngModel)]="Voucher.HeadID"
+                  required
+                  class="custom"
+                  [selectOnTab]="true"
+                  [searchable]="true"
+                  placeholder="Select Expense Head"
+                >
+                </ng-select>
+              </div>
+            </div>
+            <div class="row form-group">
+              <label for="description" class="col-md-4 form-label"
+                >Description
+              </label>
+              <div class="col-md-8">
+                <input
+                  name="description"
+                  class="form-control"
+                  type="text"
+                  name="description"
+                  [(ngModel)]="Voucher.Desc"
+                  id="description"
+                />
+              </div>
+            </div>
+            <div class="row form-group">
+              <label for="amount" class="col-md-4 form-label"
+                >Amount Paid
+              </label>
+              <div class="col-md-8">
+                <input
+                  class="form-control"
+                  type="number"
+                  name="amount"
+                  [(ngModel)]="Voucher.Amount"
+                  id="amount"
+                  required
+                />
+              </div>
+            </div>
+            <div class="row no-gutter">
+              <div class="form-group col-md-12">
+                <label>&nbsp;</label>
+                <button
+                  type="submit"
+                  class="btn btn-primary form-control"
+                  accesskey="s"
+                  [disabled]="!frmFilter.valid"
+                >
+                  <i class="fa fa-save"></i>
+                </button>
+              </div>
+            </div>
+            <div class="row no-gutter"></div>
+          </form>
+        </div>
+        <div class="col-md-6"></div>
+      </div>
+    </div>
+  </div>
+</div>

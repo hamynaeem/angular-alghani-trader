@@ -1,0 +1,582 @@
+<div widget class="card border-0 box-shadow">
+  <div class="card-header transparent border-0 text-muted">
+    <div class="row no-pad">
+      <div class="col-md-4">
+        <h5 class="mb-3">Booking</h5>
+      </div>
+      <div class="col-md-4">
+        <div *ngIf="isPosted" class="text-center btn btn-danger btn-sm">
+          POSTED INVOICE
+        </div>
+      </div>
+      <div class="col-md-4">
+        <form #frmFilter="ngForm">
+          <div class="row no-pad">
+            <div class="col-md-8">
+              <input
+                class="form-control"
+                name="ino"
+                [(ngModel)]="Ino"
+                placeholder="Invoice No"
+              />
+            </div>
+            <div class="col-md-4">
+              <div class="form-group">
+                <button
+                  type="submit"
+                  class="btn btn-primary form-control"
+                  (click)="FindINo()"
+                  accesskey="F"
+                >
+                  <i class="fa fa-search"></i>
+                  Find Invoice
+                </button>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="card-block widget-body">
+    <form (ngSubmit)="SaveData()" #fromBooking="ngForm">
+      <div class="row no-pad">
+        <div class="col-md-2">
+          <label for="dp1">Date:</label>
+          <div class="input-group">
+            <input
+              class="form-control"
+              placeholder="yyyy-mm-dd"
+              name="dp1"
+              [(ngModel)]="booking.Date"
+              ngbDatepicker
+              disabled
+              #d1="ngbDatepicker"
+            />
+
+            <div class="input-group-append">
+              <button
+                type="button"
+                class="btn btn-warning"
+                (click)="d1.toggle()"
+              >
+                <i class="fa fa-calendar"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-1">
+          <div class="form-group">
+            <label for="Type">Type:</label>
+            <select
+              class="form-control"
+              id="Type"
+              name="Type"
+              [(ngModel)]="booking.DtCr"
+              required
+            >
+              <option value="CR">Booking</option>
+              <option value="DT">Return</option>
+            </select>
+          </div>
+        </div>
+        <div class="col-md-1">
+          <ft-input-control
+            [label]="'Invoice No:'"
+            [(ngModel)]="booking.InvoiceNo"
+            name="InvoiceNo"
+          ></ft-input-control>
+        </div>
+        <div class="col-md-1">
+          <ft-input-control
+            [label]="'Vehicle No:'"
+            [(ngModel)]="booking.VehicleNo"
+            name="VehicleNo"
+          ></ft-input-control>
+        </div>
+        <div class="col-md-1">
+          <ft-input-control
+            [label]="'Cof No:'"
+            [(ngModel)]="booking.CofNo"
+            name="CofNo"
+          ></ft-input-control>
+        </div>
+        <div class="col-md-1">
+          <ft-input-control
+            [label]="'Receipt No:'"
+            [(ngModel)]="booking.ReceiptNo"
+            name="ReceiptNo"
+          ></ft-input-control>
+        </div>
+        <div class="col-md-1">
+          <ft-input-control
+            [label]="'Builty No:'"
+            [(ngModel)]="booking.BuiltyNo"
+            name="BuiltyNo"
+          ></ft-input-control>
+        </div>
+        <div class="col-md-2">
+          <ft-input-control
+            [label]="'Bags Purchase:'"
+            [value]="booking.BagsPurchase"
+            name="BagsPurchase"
+            [type]="'number'"
+            [readonly]="true"
+          ></ft-input-control>
+        </div>
+        <div class="col-md-2">
+          <ft-input-control
+            [label]="'Bags Sold:'"
+            [value]="booking.BagsSold"
+            name="BagsSold"
+            [type]="'number'"
+            [readonly]="true"
+          ></ft-input-control>
+        </div>
+      </div>
+      <div id="print-section">
+      <div class="row no-pad">
+        <div class="col-md-6 bg-light-primary">
+          <div class="row no-pad">
+            <div>
+              <h5 class="mt-2">Booking Details</h5>
+            </div>
+
+            <div class="col-md-12">
+              <label for="supplier">Supplier:</label>
+              <ng-select
+                [items]="Suppliers"
+                bindLabel="CustomerName"
+                bindValue="CustomerID"
+                class="custom"
+                [(ngModel)]="booking.SupplierID"
+                name="SupplierID"
+                placeholder="Select supplier"
+                [searchable]="true"
+                [clearable]="true"
+              >
+              </ng-select>
+            </div>
+
+            <div class="col-md-12">
+              <label for="product">Product:</label>
+              <ng-select
+                [items]="Products"
+                bindLabel="ProductName"
+                bindValue="ProductID"
+                class="custom"
+                [(ngModel)]="bookingDetail.ProductID"
+                name="ProductID"
+                placeholder="Select product"
+                [searchable]="true"
+                [clearable]="true"
+                (change)="selectedProduct = $event"
+              >
+              </ng-select>
+            </div>
+            <div class="col-md-3">
+              <ft-input-control
+                [label]="'Qty:'"
+                [(ngModel)]="bookingDetail.Qty"
+                name="Qty"
+                type="number"
+              ></ft-input-control>
+            </div>
+            <div class="col-md-3">
+              <ft-input-control
+                [label]="'Price:'"
+                [(ngModel)]="bookingDetail.Price"
+                name="Price"
+                type="number"
+              ></ft-input-control>
+            </div>
+            <div class="col-md-3">
+              <ft-input-control
+                [label]="'Amount:'"
+                [value]="bookingDetail.Qty * bookingDetail.Price"
+                name="Amount"
+                type="number"
+              ></ft-input-control>
+            </div>
+            <div class="col-md-3">
+              <button
+                type="button"
+                class="btn btn-primary btn-block mt-3"
+                (click)="addItem()"
+              >
+                <i class="fa fa-plus"></i>
+                Add Item
+              </button>
+            </div>
+          </div>
+          <div class="row no-pad">
+            <div class="col-md-12">
+              <table class="table table-sm table-bordered mt-3">
+                <thead class="thead-light">
+                  <tr>
+                    <th>Product Name</th>
+                    <th>Qty</th>
+                    <th>Rate</th>
+                    <th>Amount</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let item of bookData; let i = index">
+                    <td>{{ item.ProductName }}</td>
+                    <td>{{ item.Qty }}</td>
+                    <td>{{ item.Price }}</td>
+                    <td>{{ item.Amount }}</td>
+                    <td>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-danger"
+                        (click)="deleteItem(i)"
+                      >
+                        <i class="fa fa-trash"></i>
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="row no-pad">
+            <div class="col-md-4">
+              <ft-input-control
+                [label]="'Total Amount:'"
+                [value]="booking.Amount"
+                name="TotalAmount"
+                type="number"
+                readonly
+              ></ft-input-control>
+            </div>
+            <div class="col-md-4">
+              <ft-input-control
+                [label]="'Carriage:'"
+                [(ngModel)]="booking.Carriage"
+                name="Carriage"
+                type="number"
+                (ngModelChange)="calcBooking()"
+              ></ft-input-control>
+            </div>
+            <div class="col-md-4">
+              <ft-input-control
+                [label]="'Net Amount:'"
+                [value]="booking.NetAmount"
+                name="TotalAmountAfterCarriage"
+                type="number"
+                readonly
+              ></ft-input-control>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6 bg-light-success">
+          <div class="row no-pad">
+            <div class="col">
+              <h5 class="mt-2">Sales Details</h5>
+            </div>
+            <div class="col">
+              <button
+                type="button"
+                class="btn btn-info btn-sm float-right mt-2"
+                (click)="LoadOrders()"
+              >
+                <i class="fa fa-check"></i>
+                Select Order
+              </button>
+            </div>
+            <div class="col-md-12">
+              <label for="customer">Customer:</label>
+              <ng-select
+                [items]="Customers"
+                bindLabel="CustomerName"
+                bindValue="CustomerID"
+                class="custom"
+                [(ngModel)]="saleDetail.CustomerID"
+                name="CustomerID"
+                placeholder="Select customer"
+                [searchable]="true"
+                [clearable]="true"
+              >
+              </ng-select>
+            </div>
+          </div>
+          <div class="row no-pad">
+            <div class="col-md-12">
+              <label for="saleProduct">Product:</label>
+
+              <ng-select
+                [items]="Products"
+                bindLabel="ProductName"
+                bindValue="ProductID"
+                class="custom"
+                [(ngModel)]="saleDetail.ProductID"
+                name="SaleProductID"
+                placeholder="Select product"
+                [searchable]="true"
+                [clearable]="true"
+              >
+              </ng-select>
+            </div>
+            <div class="row no-pad">
+              <div class="col-md-3">
+                <ft-input-control
+                  [label]="'Qty:'"
+                  [(ngModel)]="saleDetail.Qty"
+                  name="SaleQty"
+                  type="number"
+                ></ft-input-control>
+              </div>
+              <div class="col-md-3">
+                <ft-input-control
+                  [label]="'Price:'"
+                  [(ngModel)]="saleDetail.Price"
+                  name="SalePrice"
+                  type="number"
+                ></ft-input-control>
+              </div>
+              <div class="flex-fill">
+                <ft-input-control
+                  [label]="'Amount:'"
+                  [value]="saleDetail.Qty * saleDetail.Price"
+                  name="SaleAmount"
+                  type="number"
+                  readonly
+                ></ft-input-control>
+              </div>
+              <div class="col-md-3">
+                <ft-input-control
+                  [label]="'Discount:'"
+                  [(ngModel)]="saleDetail.Discount"
+                  name="SaleDiscount"
+                  type="number"
+                ></ft-input-control>
+              </div>
+              <div class="col-md-3">
+                <ft-input-control
+                  [label]="'MRP:'"
+                  [(ngModel)]="saleDetail.MRP"
+                  name="SaleMRP"
+                  type="number"
+                ></ft-input-control>
+              </div>
+              <div class="col-md-3">
+                <ft-input-control
+                  [label]="'Received:'"
+                  [(ngModel)]="saleDetail.Received"
+                  name="SaleReceived"
+                  type="number"
+                ></ft-input-control>
+              </div>
+
+              <ft-input-control
+                [label]="'Received:'"
+                [(ngModel)]="saleDetail.OrderID"
+                name="OrderID"
+                type="hidding"
+              ></ft-input-control>
+
+              <div class="col-md-3">
+                <button
+                  type="button"
+                  class="btn btn-success btn-block mt-3"
+                  (click)="addSaleItem()"
+                >
+                  <i class="fa fa-plus"></i>
+                  Add
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="row no-pad mt-3">
+            <div class="col-md-12">
+              <div style="overflow-x: auto">
+                <table class="table table-sm table-bordered">
+                  <thead class="thead-light">
+                    <tr>
+                      <th>Customer</th>
+                      <th>Product Name</th>
+                      <th>Qty</th>
+                      <th>Rate</th>
+                      <th>Amount</th>
+                      <th>Received</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let item of saleData; let i = index">
+                      <td>{{ item.CustomerName }}</td>
+                      <td>{{ item.ProductName }}</td>
+                      <td>{{ item.Qty }}</td>
+                      <td>{{ item.Price }}</td>
+                      <td>{{ item.Amount }}</td>
+                      <td>{{ item.Received }}</td>
+                      <td>
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-danger"
+                          (click)="deleteSaleItem(i)"
+                        >
+                          <i class="fa fa-trash"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="row no-pad mt-3">
+            <div class="col-md-3">
+              <ft-input-control
+                [label]="'Total Amount:'"
+                [(ngModel)]="sale.TotalAmount"
+                name="SaleTotalAmount"
+                type="number"
+                readonly
+              ></ft-input-control>
+            </div>
+            <div class="col-md-3">
+              <ft-input-control
+                [label]="'Discount:'"
+                [(ngModel)]="sale.Discount"
+                name="SaleDiscount"
+                type="number"
+                readonly
+              ></ft-input-control>
+            </div>
+            <div class="col-md-3">
+              <ft-input-control
+                [label]="'Net Amount:'"
+                [(ngModel)]="sale.NetAmount"
+                name="SaleNetAmount"
+                type="number"
+                readonly
+              ></ft-input-control>
+            </div>
+            <div class="col-md-3">
+              <ft-input-control
+                [label]="'Received:'"
+                [(ngModel)]="sale.Received"
+                name="SaleReceived"
+                type="number"
+                readonly
+              ></ft-input-control>
+            </div>
+            <div class="col-md-3">
+              <ft-input-control
+                [label]="'Credit:'"
+                [(ngModel)]="sale.Credit"
+                name="SaleCredit"
+                type="number"
+                readonly
+              ></ft-input-control>
+            </div>
+          </div>
+        </div>
+      </div>
+      </div>
+      <div class="row no-pad p-3">
+        <div class="col-md-3"></div>
+        <div class="col-md-2">
+          <button type="submit" class="btn btn-primary btn-block">
+            <i class="fa fa-save"></i> Save
+          </button>
+        </div>
+        <div class="col-md-2">
+          <button
+            type="button"
+            class="btn btn-success btn-block"
+            (click)="saveAndPrint()"
+          >
+            <i class="fa fa-print"></i> Save and Print
+          </button>
+        </div>
+        <div class="col-md-2">
+          <button
+            type="button"
+            class="btn btn-secondary btn-block"
+            (click)="Cancel()"
+          >
+            <i class="fa fa-times"></i> Cancel
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Orders Selection Modal -->
+<ng-template #ordersModalTemplate>
+  <div class="modal-header">
+    <h4 class="modal-title">Select Pending Orders</h4>
+    <button
+      type="button"
+      class="btn-close"
+      aria-label="Close"
+      (click)="closeModal()"
+    >
+      <span aria-hidden="true">&times;</span>
+    </button>
+  </div>
+  <div class="modal-body">
+    <div *ngIf="loadingOrders" class="text-center p-4">
+      <i class="fa fa-spinner fa-spin fa-2x"></i>
+      <p class="mt-2">Loading orders...</p>
+    </div>
+
+    <div
+      *ngIf="!loadingOrders && confirmedOrders.length === 0"
+      class="text-center p-4"
+    >
+      <i class="fa fa-shopping-cart fa-3x text-muted"></i>
+      <p class="mt-3">No pending orders found</p>
+    </div>
+
+    <div *ngIf="!loadingOrders && confirmedOrders.length > 0">
+      <div class="table-responsive">
+        <table class="table table-striped table-hover">
+          <thead class="thead-light">
+            <tr>
+              <th>Order ID</th>
+              <th>Order Date</th>
+              <th>Customer</th>
+              <th>Product Name</th>
+              <th>Quantity</th>
+              <th>Rate</th>
+              <th>Total</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let order of confirmedOrders" class="clickable-row">
+              <td>{{ order.OrderID }}</td>
+              <td>{{ order.OrderDate | date: 'shortDate' }}</td>
+              <td>{{ order.CustomerName }}</td>
+              <td>{{ order.ProductName }}</td>
+              <td>{{ order.Quantity }}</td>
+              <td>{{ order.Rate | currency: 'PKR':'symbol':'1.2-2' }}</td>
+              <td>{{ order.Total | currency: 'PKR':'symbol':'1.2-2' }}</td>
+              <td>
+                <button
+                  type="button"
+                  class="btn btn-primary btn-sm"
+                  (click)="selectOrder(order)"
+                >
+                  <i class="fa fa-check"></i> Select
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button type="button" class="btn btn-secondary" (click)="closeModal()">
+      Close
+    </button>
+  </div>
+</ng-template>

@@ -1,0 +1,156 @@
+<section id="print-content">
+  <table style="width: 100%; height: 100%">
+    <tbody style="vertical-align: top">
+      <tr>
+        <td colspan="2" *ngIf="Invoice.Type != 3">
+          <app-print-title [Business]="Business"></app-print-title>
+        </td>
+      </tr>
+
+      <tr>
+        <td colspan="2" class="text-right" style="width: 100%">
+          <table>
+            <tr>
+              <td>{{ Invoice.InvoiceID }}</td>
+              <td>بل نمبر:</td>
+            </tr>
+            <tr>
+              <td>{{ Invoice.Date }}</td>
+              <td>تاریخ:</td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2" style="width: 100%">
+          <table class="text-right">
+            <tr>
+              <td>
+                <span style="font-size: 16pt; font-weight: 700">
+                  <strong>{{ Invoice.CustomerName }}</strong></span
+                >
+              </td>
+              <td style="width: 30%">خریدار کا نام:</td>
+            </tr>
+            <tr>
+              <td>{{ Invoice.CustomerAddress }}, {{ Invoice.CustomerCity }}</td>
+              <td>پتہ:</td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <tr>
+        <td colspan="2" class="text-right">
+          <table class="bill-details">
+            <thead class="">
+              <tr class="total line">
+                <th style="width: 15%">رقم</th>
+                <th style="width: 10%">ریٹ</th>
+                <th style="width: 10%">تعداد</th>
+                <th class="text-center">تفصیل</th>
+              </tr>
+            </thead>
+            <tbody style="height: 100%">
+              <tr
+                class="total"
+                *ngFor="let det of Invoice.Detail; let i = index"
+              >
+                <td>
+                  <strong>{{ RoundIt(det.Amount, 2) }}</strong>
+                </td>
+                <td>{{ RoundIt(det.SPrice, 2) }}</td>
+
+                <td>
+                  {{ RoundIt(det.Qty, 0) }}
+                </td>
+                <td class="text-r">
+                  <span style="font-size: 115%; font-weight: 600">
+                    <strong>{{ det.ProductName }}</strong>
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+            <tr class="total">
+              <th>
+                <strong>{{ FindTotal('Amount') | number: '1.0-0' }}</strong>
+              </th>
+              <th></th>
+              <th>
+                <strong>{{ FindTotal('Qty') }}</strong>
+              </th>
+
+              <th class="text-left"></th>
+            </tr>
+          </table>
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2" style="width: 100%; vertical-align: top">
+          <table style="width: 100%; vertical-align: top">
+            <tr class="total">
+              <td class="text-center">
+                <strong>{{ Invoice.Amount | number: '1.0-0' }}</strong>
+              </td>
+              <td class="text-right" style="width: 50%">کل رقم:</td>
+            </tr>
+            <tr class="total">
+              <td class="text-center">
+                <strong>{{ Invoice.Discount | number: '1.0-0' }}</strong>
+              </td>
+              <td class="text-right">رعائت:</td>
+            </tr>
+            <tr class="total">
+              <td class="text-center">
+                <strong>{{ Invoice.Labour | number: '1.0-0' }}</strong>
+              </td>
+              <td class="text-right">مزدوری:</td>
+            </tr>
+
+            <tr class="total">
+              <td class="text-center">
+                <strong>{{
+                  (Invoice.NetAmount < 0
+                    ? Invoice.NetAmount * -1
+                    : Invoice.NetAmount
+                  ) | number: '1.0-0'
+                }}</strong>
+              </td>
+              <td class="text-right"><strong>صافی رقم:</strong></td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2">
+          <table class="text-center">
+
+            <tr>
+              <td>
+                <p
+                  #txtNotes
+                  id="notes"
+                  class="text-right"
+                  style="font-weight: bold"
+                  *ngFor="let note of Notes"
+                >
+                  {{ note }}
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <div  class="total" style="min-height: 50px;">
+
+                </div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+      <tr>
+        <td></td>
+      </tr>
+    </tbody>
+  </table>
+</section>
