@@ -1,6 +1,8 @@
 import {
   Component,
   Input,
+  Output,
+  EventEmitter,
   OnChanges,
   OnInit,
   SimpleChanges,
@@ -8,6 +10,7 @@ import {
 import Swal from 'sweetalert2';
 import { HttpBase } from '../../../services/httpbase.service';
 import { MyToastService } from '../../../services/toaster.server';
+import { JSON2Date, getYMDDate } from '../../../factories/utilities';
 
 @Component({
   selector: 'app-customer-order-history',
@@ -16,6 +19,12 @@ import { MyToastService } from '../../../services/toaster.server';
 })
 export class CustomerOrderHistoryComponent implements OnInit, OnChanges {
   @Input() customerId: string = '';
+  @Input() selectedDate: any = null;
+  @Input() cardClass: string = 'border-0';
+  @Input() hideHeader: boolean = false;
+  @Input() headerTitle: string = 'Order History';
+  @Output() OrderSelected: EventEmitter<any> = new EventEmitter<any>();
+  @Output() OrdersTotal: EventEmitter<number> = new EventEmitter<number>();
 
   public orders: any[] = [];
   public loading: boolean = false;
@@ -56,33 +65,9 @@ export class CustomerOrderHistoryComponent implements OnInit, OnChanges {
         sum: true,
         type: 'currency',
       },
-      {
-        label: 'Status',
-        fldName: 'Status',
-        button: {
-          style: 'badge',
-          callback: this.getStatusBadgeClass.bind(this),
-        },
-      },
+      // Status column removed per UI request
     ],
-    Actions: [
-      {
-        action: 'cancel',
-        label: 'Cancel Order',
-        icon: 'fa fa-times-circle',
-        class: 'btn-warning btn-sm',
-        condition: (data: any) =>
-          data.Status?.toLowerCase() === 'pending' ||
-          data.Status?.toLowerCase() === 'approved'
-      },
-      {
-        action: 'delete',
-        label: 'Delete',
-        icon: 'fa fa-trash',
-        class: 'btn-danger btn-sm',
-        condition: (data: any) => data.Status?.toLowerCase() === 'pending'
-      },
-    ],
+    Actions: [],
     Data: [],
   };
 
@@ -95,8 +80,16 @@ export class CustomerOrderHistoryComponent implements OnInit, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges) {
-    if (changes['customerId'] && !changes['customerId'].firstChange) {
+    const customerChanged = changes['customerId'] && !changes['customerId'].firstChange;
+    const dateChanged = changes['selectedDate'] && !changes['selectedDate'].firstChange;
+    if (customerChanged || dateChanged) {
       this.loadOrders();
+    }
+  }
+
+  rowClicked(event: any) {
+    if (event && event.data) {
+      this.OrderSelected.emit(event.data);
     }
   }
 
@@ -107,12 +100,39 @@ export class CustomerOrderHistoryComponent implements OnInit, OnChanges {
     }
 
     this.loading = true;
-    const filter = `CustomerID=${this.customerId}`;
+    let filter = `CustomerID=${this.customerId}`;
+
+    // determine date filter: use selectedDate if provided, otherwise today
+    let dateStr: string | null = null;
+    if (this.selectedDate) {
+      if (typeof this.selectedDate === 'string') {
+        dateStr = this.selectedDate;
+      } else if (this.selectedDate.year && this.selectedDate.month && this.selectedDate.day) {
+        dateStr = JSON2Date(this.selectedDate);
+      } else {
+        dateStr = getYMDDate(this.selectedDate);
+      }
+    } else {
+      dateStr = getYMDDate();
+    }
+
+    if (dateStr) {
+      filter += ` and OrderDate='${dateStr}'`;
+    }
 
     this.http
       .getData(`qryorders?filter=${filter}&orderby=OrderDate desc`)
       .then((orders: any) => {
         this.orders = orders || [];
+        // compute total of orders and emit
+        try {
+          const total = (this.orders || []).reduce((s: number, o: any) => {
+            return s + Number(o.Amount || o.Total || o.OrderAmount || 0);
+          }, 0);
+          this.OrdersTotal.emit(total);
+        } catch (e) {
+          this.OrdersTotal.emit(0);
+        }
       })
       .catch((error) => {
         console.error('Error loading orders:', error);

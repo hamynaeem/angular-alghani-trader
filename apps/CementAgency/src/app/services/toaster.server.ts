@@ -3,6 +3,9 @@ import { ToastrService, ToastrConfig } from 'ngx-toastr';
 
 @Injectable()
 export class MyToastService {
+  confirm(arg0: string) {
+      throw new Error('Method not implemented.');
+  }
   options: ToastrConfig;
   title = '';
   type = 1;

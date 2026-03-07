@@ -93,7 +93,9 @@ const routes: any = [
     AccountsModule,
     RouterModule.forChild(routes),
   ],
-  exports: [],
+  exports: [
+    CustomerOrderHistoryComponent
+  ],
   declarations: [
     CustomerDetailsComponent,
     CustomerAccountsComponent,

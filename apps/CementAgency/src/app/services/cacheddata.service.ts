@@ -55,6 +55,11 @@ private _accounts$ = new BehaviorSubject<void>(undefined);
 public apiAccounts$: any;
 public Accounts$: any;
 
+//------ suppliers
+private _suppliers$ = new BehaviorSubject<void>(undefined);
+public apiSuppliers$: any;
+public Suppliers$: any;
+
 constructor(private http: HttpClient, private http2: HttpBase) {
   this.apiroutes$ = this.http.get<any[]>(this.api + 'routes?bid=' + this.http2.getBusinessID());
   this.routes$ = this._routesData$.pipe(
@@ -103,6 +108,12 @@ constructor(private http: HttpClient, private http2: HttpBase) {
     switchMap(() => this.apiAccounts$),
     shareReplay(1)
   );
+
+  this.apiSuppliers$ = this.http.get<any[]>(this.api + 'qrysuppliers?orderby=SupplierName&bid=' + this.http2.getBusinessID());
+  this.Suppliers$ = this._suppliers$.pipe(
+    switchMap(() => this.apiSuppliers$),
+    shareReplay(1)
+  );
 }
 
   public updateRoutes() {
@@ -125,6 +136,9 @@ constructor(private http: HttpClient, private http2: HttpBase) {
   }
   public updateAccounts() {
     this._accounts$.next();
+  }
+  public updateSuppliers() {
+    this._suppliers$.next();
   }
   public updateStock() {
     this._storesData$.next();

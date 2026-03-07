@@ -198,6 +198,12 @@ public rowBackgroundConfig = {
       color: '#ffcccc', // light red
       priority: 20,
     },
+    // Warning 1 month not sale and purchase 
+    // {
+    //   condition: (Row: any) => Row.LastSaleDate && Row.LastPurchaseDate && (new Date().getTime() - new Date(Row.LastSaleDate).getTime()) > 30 * 24 * 60 * 60 * 1000 && (new Date().getTime() - new Date(Row.LastPurchaseDate).getTime()) > 30 * 24 * 60 * 60 * 1000,
+    //   color: 'red', // light orange
+    //   priority: 15,
+    // },
     {
       // Warning: Balance >= 80% of Limit
       condition: (Row: any) =>
@@ -268,86 +274,77 @@ public rowBackgroundConfig = {
 
     // this.dataList.FilterTable(filter);
   }
-  Clicked(e:any) {
-    console.log(e);
-
-    if (e.action === 'edit') {
-      this.http.getData('customers/' + e.data.CustomerID).then((r: any) => {
-        this.Add(r);
-      });
-    } else if (e.action === 'delete') {
-      swal({
-        text: `Do you really want to delete this customer ${e.data.CustomerName} ?`,
-        icon: 'warning',
-        buttons: {
-          cancel: true,
-          confirm: true,
-        },
-      }).then((willDelete) => {
-        if (willDelete) {
-          this.http
-            .Delete('customers', e.data.CustomerID)
-            .then((r) => {
-              this.FilterData();
-              swal('Deleted!', 'Customer has been deleted', 'success');
-            })
-            .catch((er) => {
-              swal('Error!', 'Error while deleting customer', 'error');
-            });
-        }
-      });
-    } else if (e.action === 'pincode') {
-
-
-      swal({
-        text: `Do you really want to reset pincode of customer?`,
-        icon: 'warning',
-        buttons: {
-          cancel: true,
-          confirm: true,
-        },
-      }).then((willYes) => {
-        if (willYes) {
-          let sms: any = [];
-          let rndom = Math.floor(1000 + Math.random() * 9000);
-          this.http
-            .postData('customers/' + e.data.CustomerID, { PinCode: rndom })
-            .then(async (r) => {
-              sms.push({
-                mobile: e.data.PhoneNo,
-                message: `You PIN Code for login is ${rndom}, please open https://alghanitraders.etrademanager.com/#/customers/customers to login`,
+  Clicked(e: any) {
+      console.log(e);
+  
+      if (e.action === 'edit') {
+        this.http.getData('customers/' + e.data.CustomerID).then((r: any) => {
+          this.Add(r);
+        });
+      } else if (e.action === 'delete') {
+        swal({
+          text: `Do you really want to delete this product ${e.data.ProductName}  ?`,
+          icon: 'warning',
+          buttons: {
+            cancel: true,
+            confirm: true,
+          },
+        }).then((willDelete) => {
+          if (willDelete) {
+            this.http
+              .Delete('xxxxxx', e.data.CustomerID)
+              .then((r) => {
+                this.FilterData();
+                swal('Deleted!', 'Your product is deleted', 'success');
+              })
+              .catch((er) => {
+                swal('Error!', 'Error whie deleting', 'error');
               });
-              try {
-                let resp: any = await this.http.postData('sendwabulk', {
-                  mobile: '03424256584',
-                  message: JSON.stringify(sms),
+          }
+        });
+      } else if (e.action === 'pincode') {
+        swal({
+          text: `Do you really want to reset pincode of customer?`,
+          icon: 'warning',
+          buttons: {
+            cancel: true,
+            confirm: true,
+          },
+        }).then((willYes) => {
+          if (willYes) {
+            let sms: any = [];
+            let rndom = Math.floor(1000 + Math.random() * 9000);
+            this.http
+              .postData('customers/' + e.data.CustomerID, { PinCode: rndom })
+              .then(async (r) => {
+                sms.push({
+                  mobile: e.data.PhoneNo1,
+                  message: `You PIN Code for login is ${rndom}, please open https://at.etrademanager.com/#/open/customers to login`,
                 });
-                
-                // Open WhatsApp Web in new tab with pre-filled message
+                try {
+                  let resp: any = await this.http.postData('sendwabulk', {
+                    mobile: '03424256584',
+                    message: JSON.stringify(sms),
+                  });
+                    // Open WhatsApp Web in new tab with pre-filled message
                 const phoneNumber = e.data.PhoneNo.replace(/\D/g, ''); // Remove non-digits
                 const message = encodeURIComponent(`You PIN Code for login is ${rndom}, please open https://alghanitraders.etrademanager.com/#/customers/customers to login`);
                 const whatsappUrl = `https://web.whatsapp.com/send?phone=${phoneNumber}&text=${message}`;
                 window.open(whatsappUrl, '_blank');
-
-
-                
-                // console.log(resp);
-
-
-
-                // if (resp.success == 'false') {
-                //   swal('Error!', resp.results[0].error, 'error');
-                // } else {
-                //   swal('Success!', 'Pin Code for customer is reset', 'success');
-                // }
-              } catch (Err) {
-                swal('Error!', 'Error whie sending code', 'error');
-              }
-            });
-        }
-      });
+                  console.log(resp);
+                  if (resp.success == 'false') {
+                    swal('Error!', resp.results[0].error, 'error');
+                  } else {
+                    swal('Success!', 'Pin Code for customer is reset', 'success');
+                  }
+                } catch (Err) {
+                  swal('Error!', 'Error whie sending code', 'error');
+                }
+              });
+          }
+        });
+      }
     }
-  }
 
   Add(data: any = { Status: 1, Balance: 0 }) {
     this.http.openForm(this.form, data).then((r) => {

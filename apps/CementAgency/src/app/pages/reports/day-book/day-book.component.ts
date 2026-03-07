@@ -69,6 +69,7 @@ export class DayBookComponent implements OnInit {
   Salesman: Observable<any[]>;
   public Routes: Observable<any[]>;
   public Customers: Observable<any[]>;
+  public Suppliers: Observable<any[]>;
 
   public Filter = {
     FromDate: GetDateJSON(),
@@ -76,6 +77,7 @@ export class DayBookComponent implements OnInit {
     SalesmanID: '',
     RouteID: '',
     CustomerID: '',
+    SupplierID: '',
   };
   settings: any = BookingSetting;
   nWhat = '2';
@@ -92,9 +94,12 @@ export class DayBookComponent implements OnInit {
     this.Salesman = this.cachedData.Salesman$;
     this.Routes = this.cachedData.routes$;
     this.Customers = this.cachedData.Accounts$;
+    this.Suppliers = this.cachedData.Suppliers$;
   }
 
   ngOnInit() {
+    // Initialize cached data
+    this.cachedData.updateSuppliers();
     this.FilterData();
   }
 
@@ -143,6 +148,10 @@ export class DayBookComponent implements OnInit {
 
     if (!(this.Filter.CustomerID === '' || this.Filter.CustomerID === null)) {
       filter += ' and CustomerID=' + this.Filter.CustomerID;
+    }
+
+    if (!(this.Filter.SupplierID === '' || this.Filter.SupplierID === null)) {
+      filter += ' and (SupplierID=' + this.Filter.SupplierID + ' or CustomerID=' + this.Filter.SupplierID + ')';
     }
 
     if (this.nWhat === '1') {
@@ -298,22 +307,25 @@ export class DayBookComponent implements OnInit {
 
           // try cached suppliers first (from cachedData) then backend
           try {
-            const cached = (this.cachedData && (this.cachedData as any).Suppliers$) || null;
-            if (cached && typeof (cached.subscribe) === 'function') {
+            if (this.cachedData && this.cachedData.Suppliers$) {
               // if Suppliers$ observable exists, subscribe once to get list
-              const sub = (cached as Observable<any[]>).subscribe((list) => {
+              const sub = this.cachedData.Suppliers$.subscribe((list: any[]) => {
                 if (list && list.length) {
-                  mapAndSet(list as any[]);
+                  console.log('Using cached suppliers:', list.length, 'items');
+                  mapAndSet(list);
                 } else {
+                  console.log('No cached suppliers, fetching from backend');
                   this.http.getData('qrysuppliers').then((s: any) => mapAndSet(s)).catch(() => mapAndSet([]));
                 }
                 try { sub.unsubscribe(); } catch (e) {}
               });
             } else {
               // fallback to direct backend fetch
+              console.log('No cached suppliers service, fetching from backend');
               this.http.getData('qrysuppliers').then((s: any) => mapAndSet(s)).catch(() => mapAndSet([]));
             }
           } catch (e) {
+            console.log('Error accessing suppliers service, falling back to backend:', e);
             this.http.getData('qrysuppliers').then((s: any) => mapAndSet(s)).catch(() => mapAndSet([]));
           }
         } else {

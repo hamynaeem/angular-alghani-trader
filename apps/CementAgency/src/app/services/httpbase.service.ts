@@ -8,6 +8,9 @@ import { AuthenticationService } from './authentication.service';
 
 @Injectable()
 export class HttpBase {
+  DeleteData(arg0: string) {
+      throw new Error('Method not implemented.');
+  }
   apiUrl = environment.INSTANCE_URL;
   bsModalRef: BsModalRef;
   constructor(

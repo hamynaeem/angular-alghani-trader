@@ -939,18 +939,52 @@ class Tasks extends REST_Controller
 
     public function addtosupl_post()
     {
-        $post_data = $this->post();
-        $this->AddToAccount($post_data);
+        try {
+            $post_data = $this->post();
+            if (!isset($post_data['CustomerID'])) {
+                $this->response(['status' => false, 'msg' => 'CustomerID is required'], REST_Controller::HTTP_BAD_REQUEST);
+                return;
+            }
+            $this->AddToAccount($post_data);
+            $this->response(['status' => true, 'msg' => 'Saved'], REST_Controller::HTTP_OK);
+        } catch (Exception $e) {
+            $this->response(['status' => false, 'msg' => 'Error: ' . $e->getMessage()], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
     public function AddToAccount($data)
     {
         $this->db->where('CustomerID', $data['CustomerID']);
-        $cust            = $this->db->get('customers')->result_array()[0];
-        $newBal          = 0.0;
-        $newBal          = $cust['Balance'] + $data['Debit'] - $data['Credit'];
-        $data['Balance'] = $newBal;
-        $this->db->insert('customeraccts', $data);
+        $custRes = $this->db->get('customers')->result_array();
+        if (!isset($custRes[0])) {
+            throw new Exception('Customer not found');
+        }
+        $cust = $custRes[0];
+        $debit = isset($data['Debit']) ? floatval($data['Debit']) : 0.0;
+        $credit = isset($data['Credit']) ? floatval($data['Credit']) : 0.0;
+        $newBal = floatval($cust['Balance']) + $debit - $credit;
+
+        // Map incoming fields to actual customeraccts columns (avoid unknown columns like BusinessID)
+        $insert = [];
+        $insert['CustomerID'] = $cust['CustomerID'];
+        $insert['Date'] = isset($data['Date']) ? $data['Date'] : date('Y-m-d');
+        $insert['Description'] = isset($data['Description']) ? $data['Description'] : '';
+        // Map RefID to InvoiceID where applicable
+        $insert['InvoiceID'] = isset($data['RefID']) ? $data['RefID'] : 0;
+        // Determine debit/credit column names in customeraccts
+        if ($this->db->field_exists('Amount', 'customeraccts')) {
+            $insert['Amount'] = $debit;
+        } elseif ($this->db->field_exists('Debit', 'customeraccts')) {
+            $insert['Debit'] = $debit;
+        }
+        if ($this->db->field_exists('Recived', 'customeraccts')) {
+            $insert['Recived'] = $credit;
+        } elseif ($this->db->field_exists('Credit', 'customeraccts')) {
+            $insert['Credit'] = $credit;
+        }
+        $insert['Balance'] = $newBal;
+
+        $this->db->insert('customeraccts', $insert);
         $cust['Balance'] = $newBal;
         $this->db->where('CustomerID', $cust['CustomerID']);
         $this->db->update('customers', $cust);

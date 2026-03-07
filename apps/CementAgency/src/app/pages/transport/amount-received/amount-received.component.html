@@ -1,0 +1,192 @@
+<div widget class="card border-0 box-shadow">
+  <div class="card-header transparent border-0 text-muted">
+    <div class="row">
+      <div class="col">
+        <h5 class="mb-3">Amount Recovery </h5>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-block widget-body">
+    <div class="container-fluid p-3">
+      <form #frmFilter="ngForm" (ngSubmit)="SaveData()">
+        <div class="row no-gutter">
+          <!-- Left Column -->
+          <div class="col-md-6">
+            <!-- Date Selection -->
+            <div class="form-group row mb-3">
+              <label class="col-md-4 col-form-label form-label text-uppercase">Business Date <small>(Login Date)</small></label>
+              <div class="col-md-8">
+                <input
+                  class="form-control"
+                  type="date"
+                  name="selectedDate"
+                  [(ngModel)]="selectedDate"
+                  (ngModelChange)="onDateChange()"
+                />
+                <small class="form-text text-muted">Using application business date from login</small>
+              </div>
+            </div>
+
+            <!-- Account Selection -->
+            <div class="form-group row mb-3">
+              <label class="col-md-4 col-form-label form-label text-uppercase">Account</label>
+              <div class="col-md-8">
+                <ng-select
+                  #cmbCustomer
+                  name="ng2select"
+                  class="custom w-100"
+                  [items]="Customers"
+                  [virtualScroll]="true"
+                  bindLabel="CustomerName"
+                  bindValue="CustomerID"
+                  placeholder="Select Account"
+                  (change)="GetCustomer($event)"
+                  required
+                  [(ngModel)]="Voucher.CustomerID"
+                >
+                  <ng-template ng-option-tmp let-item="item">
+                    <div class="row no-gutter">
+                      <div class="col-md-12">{{ item.CustomerName }}</div>
+                      <div class="col-md-9 text-italic font-small-2 mt-1">
+                        <small>{{ item.Address }}</small>
+                      </div>
+                      <div class="col-md-3 text-italic font-small-2 mt-1" [ngClass]="{'text-danger': item.Balance < 0}">
+                        <small>{{ item.Balance | number:'1.2-2' }}</small>
+                      </div>
+                    </div>
+                  </ng-template>
+                </ng-select>
+              </div>
+            </div>
+
+            <!-- Total Amount -->
+            <div class="form-group row mb-3">
+              <label class="col-md-4 col-form-label form-label text-uppercase">Total Amount <small>(Business Date)</small></label>
+              <div class="col-md-8">
+                <input
+                  class="form-control"
+                  type="number"
+                  name="totalAmount"
+                  min="0"
+                  step="0.01"
+                  [(ngModel)]="totalAmount"
+                  (ngModelChange)="ComputeBalance()"
+                  readonly
+                  [class.text-success]="totalAmount > 0"
+                  [class.text-muted]="totalAmount === 0"
+                />
+                <small class="form-text text-muted" *ngIf="totalAmount > 0">
+                  Total orders amount for business date {{ selectedDate | date:'shortDate' }}
+                </small>
+                <small class="form-text text-warning" *ngIf="totalAmount === 0 && Voucher.CustomerID">
+                  No orders found for business date {{ selectedDate | date:'shortDate' }}
+                </small>
+                <small class="form-text text-muted" *ngIf="!Voucher.CustomerID">
+                  Select an account to view total for business date
+                </small>
+              </div>
+            </div>
+
+            <!-- Paid Amount -->
+            <div class="form-group row mb-3">
+              <label class="col-md-4 col-form-label form-label text-uppercase">Paid Amount</label>
+              <div class="col-md-8">
+                <input
+                  class="form-control"
+                  type="number"
+                  name="paidAmount"
+                  min="0"
+                  step="0.01"
+                  [(ngModel)]="Voucher.Credit"
+                  (ngModelChange)="ComputeBalance()"
+                />
+              </div>
+            </div>
+
+            <!-- Balance Amount -->
+            <div class="form-group row mb-3">
+              <label class="col-md-4 col-form-label form-label text-uppercase">Balance Amount</label>
+              <div class="col-md-8">
+                <input
+                  class="form-control"
+                  type="text"
+                  [value]="displayedBalance | number:'1.2-2'"
+                  [ngClass]="{'text-danger': displayedBalance < 0}"
+                  readonly
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column -->
+          <div class="col-md-6">
+            <!-- Address -->
+            <div class="form-group row mb-3">
+              <label class="col-md-4 col-form-label form-label text-uppercase">Address</label>
+              <div class="col-md-8">
+                <p class="form-control-plaintext mb-0">{{ curCustomer.Address }}</p>
+              </div>
+            </div>
+
+            <!-- City -->
+            <div class="form-group row mb-3">
+              <label class="col-md-4 col-form-label form-label text-uppercase">City</label>
+              <div class="col-md-8">
+                <p class="form-control-plaintext mb-0">{{ curCustomer.City }}</p>
+              </div>
+            </div>
+
+            <!-- Balance -->
+            <div class="form-group row mb-3">
+              <label class="col-md-4 col-form-label form-label text-uppercase">Balance</label>
+              <div class="col-md-8">
+                <p class="form-control-plaintext mb-0" [ngClass]="{'text-danger': displayedBalance < 0}">
+                  {{ displayedBalance | number:'1.2-2' }}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Buttons -->
+        <div class="row no-gutter mt-2">
+          <div class="col-md-2">
+            <button type="button" class="btn btn-primary btn-block" (click)="Reset()">
+              <i class="fa fa-plus"></i> New
+            </button>
+          </div>
+          <div class="col-md-2">
+            <button type="submit" class="btn btn-success btn-block" [disabled]="!frmFilter.valid">
+              <i class="fa fa-save"></i> Save
+            </button>
+          </div>
+          <div class="col-md-2">
+            <button type="button" class="btn btn-info btn-block" (click)="PrintReceipt()" [disabled]="!Voucher.CustomerID || !Voucher.Credit">
+              <i class="fa fa-print"></i> Print
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Hidden Print Section -->
+  <div id="print-section" style="display: none;">
+    <div class="print-content">
+      <div class="print-header">
+        <h3>TRANSPORT AMOUNT RECEIVED RECEIPT</h3>
+        <p>Date: {{ selectedDate | date:'shortDate' }}</p>
+      </div>
+      <div class="print-body" *ngIf="curCustomer && Voucher.CustomerID">
+        <p><strong>Customer:</strong> {{ curCustomer.CustomerName }}</p>
+        <p><strong>Address:</strong> {{ curCustomer.Address }}</p>
+        <p><strong>City:</strong> {{ curCustomer.City }}</p>
+        <hr>
+        <p><strong>Total Amount:</strong> Rs. {{ totalAmount | number:'1.2-2' }}</p>
+        <p><strong>Amount Received:</strong> Rs. {{ Voucher.Credit | number:'1.2-2' }}</p>
+        <p><strong>Balance:</strong> Rs. {{ displayedBalance | number:'1.2-2' }}</p>
+      </div>
+    </div>
+  </div>
+</div>

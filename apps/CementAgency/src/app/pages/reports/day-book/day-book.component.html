@@ -43,6 +43,20 @@
             </div>
           </div>
         </div>
+
+        <div class="col-md-2" *ngIf="nWhat === '5'">
+          <label for="supplierSelect">Supplier:</label>
+          <select
+            class="form-control"
+            name="supplierSelect"
+            [(ngModel)]="Filter.SupplierID"
+          >
+            <option value="">All Suppliers</option>
+            <option *ngFor="let supplier of Suppliers | async" [value]="supplier.SupplierID || supplier.CustomerID">
+              {{ supplier.SupplierName || supplier.CustomerName || supplier.AcctName || supplier.Name }}
+            </option>
+          </select>
+        </div>
       </div>
 
       <div class="row no-pad mt-2">

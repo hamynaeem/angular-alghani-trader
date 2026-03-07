@@ -123,6 +123,18 @@ export const ROUTES: RouteInfo[] = [
         group: [1, 2],
       },
       {
+        id: 315,
+        path: '/transport/amount-recived',
+        title: 'Amount Recived',
+        icon: 'ft-dollar-sign submenu-icon',
+        class: '',
+        badge: '',
+        badgeClass: '',
+        isExternalLink: false,
+        submenu: [],
+        group: [1, 2],
+      },
+      {
         id: 320,
         path: '/transport/income',
         title: 'Income',

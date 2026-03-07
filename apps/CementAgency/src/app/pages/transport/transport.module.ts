@@ -13,10 +13,13 @@ import { TransportExpenseComponent } from './transport-expense/transport-expense
 import { TransportIncomeComponent } from './transport-income/transport-income.component';
 import { TransportReportComponent } from './transport-report/transport-report.component';
 import { TransportsComponent } from './trasnport/transports.component';
+import { AmountReceivedComponent } from './amount-received/amount-received.component';
+import { CustomersModule } from '../customers-data/customers.module';
 
 const routes: any = [
   { path: '', redirectTo: 'invoice', pathMatch: 'full' },
   { path: 'transport', component: TransportsComponent },
+  { path: 'amount-recived', component: AmountReceivedComponent },
   { path: 'income', component: TransportIncomeComponent },
   { path: 'expense', component: TransportExpenseComponent },
   { path: 'report', component: TransportReportComponent }
@@ -25,6 +28,7 @@ const routes: any = [
 @NgModule({
   declarations: [
     TransportsComponent,
+    AmountReceivedComponent,
     TransportIncomeComponent,
     TransportExpenseComponent,
     TransportReportComponent
@@ -41,6 +45,7 @@ const routes: any = [
        TabsModule,
        ReactiveFormsModule,
        FormsModule,
+        CustomersModule,
        ModalModule.forRoot(),
        RouterModule.forChild(routes),
   ],
