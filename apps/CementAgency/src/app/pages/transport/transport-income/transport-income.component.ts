@@ -132,7 +132,7 @@ export class TransportIncomeComponent implements OnInit {
 
   Cancel() {
     this.Voucher = {
-      Date: GetDateJSON(new Date()),
+      Date: GetDateJSON(new Date(this.http.getClosingDate())),
       TransportID: 0,
       Details: null,
       Income: 0,

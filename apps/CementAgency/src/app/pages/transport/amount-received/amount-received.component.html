@@ -13,18 +13,35 @@
         <div class="row no-gutter">
           <!-- Left Column -->
           <div class="col-md-6">
-            <!-- Date Selection -->
+            <!-- Date Range Selection -->
             <div class="form-group row mb-3">
-              <label class="col-md-4 col-form-label form-label text-uppercase">Business Date <small>(Login Date)</small></label>
+              <label class="col-md-4 col-form-label form-label text-uppercase">Date Range</label>
               <div class="col-md-8">
-                <input
-                  class="form-control"
-                  type="date"
-                  name="selectedDate"
-                  [(ngModel)]="selectedDate"
-                  (ngModelChange)="onDateChange()"
-                />
-                <small class="form-text text-muted">Using application business date from login</small>
+                <div class="row">
+                  <div class="col-md-6">
+                    <label class="form-label text-sm">From Date</label>
+                    <input
+                      class="form-control"
+                      type="date"
+                      name="fromDate"
+                      [(ngModel)]="fromDate"
+                      (ngModelChange)="onFromDateChange()"
+                      required
+                    />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label text-sm">To Date</label>
+                    <input
+                      class="form-control"
+                      type="date"
+                      name="toDate"
+                      [(ngModel)]="toDate"
+                      (ngModelChange)="onToDateChange()"
+                      required
+                    />
+                  </div>
+                </div>
+                <small class="form-text text-muted">Select date range for loading orders</small>
               </div>
             </div>
 
@@ -62,7 +79,7 @@
 
             <!-- Total Amount -->
             <div class="form-group row mb-3">
-              <label class="col-md-4 col-form-label form-label text-uppercase">Total Amount <small>(Business Date)</small></label>
+              <label class="col-md-4 col-form-label form-label text-uppercase">Total Amount</label>
               <div class="col-md-8">
                 <input
                   class="form-control"
@@ -72,19 +89,9 @@
                   step="0.01"
                   [(ngModel)]="totalAmount"
                   (ngModelChange)="ComputeBalance()"
-                  readonly
                   [class.text-success]="totalAmount > 0"
                   [class.text-muted]="totalAmount === 0"
                 />
-                <small class="form-text text-muted" *ngIf="totalAmount > 0">
-                  Total orders amount for business date {{ selectedDate | date:'shortDate' }}
-                </small>
-                <small class="form-text text-warning" *ngIf="totalAmount === 0 && Voucher.CustomerID">
-                  No orders found for business date {{ selectedDate | date:'shortDate' }}
-                </small>
-                <small class="form-text text-muted" *ngIf="!Voucher.CustomerID">
-                  Select an account to view total for business date
-                </small>
               </div>
             </div>
 
@@ -104,17 +111,20 @@
               </div>
             </div>
 
-            <!-- Balance Amount -->
+            <!-- Balance Amount (Transaction Balance) -->
             <div class="form-group row mb-3">
               <label class="col-md-4 col-form-label form-label text-uppercase">Balance Amount</label>
               <div class="col-md-8">
                 <input
                   class="form-control"
                   type="text"
-                  [value]="displayedBalance | number:'1.2-2'"
-                  [ngClass]="{'text-danger': displayedBalance < 0}"
+                  [value]="transactionBalance | number:'1.2-2'"
+                  [ngClass]="{'text-danger': transactionBalance < 0, 'text-success': transactionBalance >= 0}"
                   readonly
                 />
+                <small class="form-text text-muted">
+                  Remaining balance for this transaction (Total + Previous Balance - Paid)
+                </small>
               </div>
             </div>
           </div>
@@ -137,13 +147,16 @@
               </div>
             </div>
 
-            <!-- Balance -->
+            <!-- Previous Account Balance -->
             <div class="form-group row mb-3">
-              <label class="col-md-4 col-form-label form-label text-uppercase">Balance</label>
+              <label class="col-md-4 col-form-label form-label text-uppercase">Previous Balance</label>
               <div class="col-md-8">
-                <p class="form-control-plaintext mb-0" [ngClass]="{'text-danger': displayedBalance < 0}">
-                  {{ displayedBalance | number:'1.2-2' }}
+                <p class="form-control-plaintext mb-0" [ngClass]="{'text-danger': (curCustomer.Balance || 0) < 0, 'text-success': (curCustomer.Balance || 0) >= 0}">
+                  {{ (curCustomer.Balance || 0) | number:'1.2-2' }}
                 </p>
+                <small class="form-text text-muted">
+                  Customer's previous account balance (before transaction)
+                </small>
               </div>
             </div>
           </div>
@@ -176,7 +189,7 @@
     <div class="print-content">
       <div class="print-header">
         <h3>TRANSPORT AMOUNT RECEIVED RECEIPT</h3>
-        <p>Date: {{ selectedDate | date:'shortDate' }}</p>
+        <p>Date Range: {{ fromDate === toDate ? (fromDate | date:'shortDate') : (fromDate | date:'shortDate') + ' to ' + (toDate | date:'shortDate') }}</p>
       </div>
       <div class="print-body" *ngIf="curCustomer && Voucher.CustomerID">
         <p><strong>Customer:</strong> {{ curCustomer.CustomerName }}</p>
@@ -185,7 +198,8 @@
         <hr>
         <p><strong>Total Amount:</strong> Rs. {{ totalAmount | number:'1.2-2' }}</p>
         <p><strong>Amount Received:</strong> Rs. {{ Voucher.Credit | number:'1.2-2' }}</p>
-        <p><strong>Balance:</strong> Rs. {{ displayedBalance | number:'1.2-2' }}</p>
+        <p><strong>Transaction Balance:</strong> Rs. {{ transactionBalance | number:'1.2-2' }}</p>
+        <p><strong>Previous Account Balance:</strong> Rs. {{ customerAccountBalance | number:'1.2-2' }}</p>
       </div>
     </div>
   </div>

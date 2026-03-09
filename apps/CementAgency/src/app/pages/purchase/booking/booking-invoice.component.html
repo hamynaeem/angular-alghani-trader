@@ -170,7 +170,7 @@
                 placeholder="Select product"
                 [searchable]="true"
                 [clearable]="true"
-                (change)="selectedProduct = $event"
+                (change)="onBookingProductChange($event)"
               >
               </ng-select>
             </div>
@@ -214,6 +214,7 @@
               <table class="table table-sm table-bordered mt-3">
                 <thead class="thead-light">
                   <tr>
+                    <th>Supplier</th>
                     <th>Product Name</th>
                     <th>Qty</th>
                     <th>Rate</th>
@@ -223,6 +224,7 @@
                 </thead>
                 <tbody>
                   <tr *ngFor="let item of bookData; let i = index">
+                    <td>{{ item.SupplierName || getSupplierName(item.SupplierID) }}</td>
                     <td>{{ item.ProductName }}</td>
                     <td>{{ item.Qty }}</td>
                     <td>{{ item.Price }}</td>
@@ -506,6 +508,64 @@
       </div>
     </form>
   </div>
+</div>
+
+<!-- Hidden Sale Invoice Print Section -->
+<div id="sale-print-section" style="display: none;">
+  <table style="width: 100%; margin-bottom: 10px; border: none;">
+    <tr>
+      <td style="text-align: left; padding: 2px 0;"><strong>Invoice No:</strong> {{ booking.InvoiceNo }}</td>
+      <td style="text-align: right; padding: 2px 0;"><strong>Date:</strong> {{ booking.Date?.year }}-{{ booking.Date?.month }}-{{ booking.Date?.day }}</td>
+    </tr>
+    <tr>
+      <td style="text-align: left; padding: 2px 0;"><strong>Vehicle No:</strong> {{ booking.VehicleNo }}</td>
+      <td></td>
+    </tr>
+  </table>
+  <table style="width: 100%; border-collapse: collapse; margin-top: 5px;" class="table-dyna">
+    <thead>
+      <tr style="background: #f0f0f0;">
+        <th style="border: 1px solid #333; padding: 6px 8px; text-align: left;">Customer</th>
+        <th style="border: 1px solid #333; padding: 6px 8px; text-align: left;">Product Name</th>
+        <th style="border: 1px solid #333; padding: 6px 8px; text-align: right;">Qty</th>
+        <th style="border: 1px solid #333; padding: 6px 8px; text-align: right;">Rate</th>
+        <th style="border: 1px solid #333; padding: 6px 8px; text-align: right;">Amount</th>
+        <th style="border: 1px solid #333; padding: 6px 8px; text-align: right;">Received</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let item of saleData">
+        <td style="border: 1px solid #333; padding: 6px 8px;">{{ item.CustomerName }}</td>
+        <td style="border: 1px solid #333; padding: 6px 8px;">{{ item.ProductName }}</td>
+        <td style="border: 1px solid #333; padding: 6px 8px; text-align: right;">{{ item.Qty }}</td>
+        <td style="border: 1px solid #333; padding: 6px 8px; text-align: right;">{{ item.Price }}</td>
+        <td style="border: 1px solid #333; padding: 6px 8px; text-align: right;">{{ item.Amount }}</td>
+        <td style="border: 1px solid #333; padding: 6px 8px; text-align: right;">{{ item.Received }}</td>
+      </tr>
+    </tbody>
+  </table>
+  <table style="width: 300px; margin-left: auto; margin-top: 15px; border-collapse: collapse;">
+    <tr>
+      <td style="padding: 4px 8px; text-align: left;"><strong>Total Amount:</strong></td>
+      <td style="padding: 4px 8px; text-align: right;">{{ sale.TotalAmount }}</td>
+    </tr>
+    <tr>
+      <td style="padding: 4px 8px; text-align: left;"><strong>Discount:</strong></td>
+      <td style="padding: 4px 8px; text-align: right;">{{ sale.Discount }}</td>
+    </tr>
+    <tr>
+      <td style="padding: 4px 8px; text-align: left;"><strong>Net Amount:</strong></td>
+      <td style="padding: 4px 8px; text-align: right;">{{ sale.NetAmount }}</td>
+    </tr>
+    <tr>
+      <td style="padding: 4px 8px; text-align: left;"><strong>Received:</strong></td>
+      <td style="padding: 4px 8px; text-align: right;">{{ sale.Received }}</td>
+    </tr>
+    <tr style="border-top: 2px solid #333;">
+      <td style="padding: 4px 8px; text-align: left;"><strong>Credit:</strong></td>
+      <td style="padding: 4px 8px; text-align: right; font-weight: bold;">{{ sale.Credit }}</td>
+    </tr>
+  </table>
 </div>
 
 <!-- Orders Selection Modal -->

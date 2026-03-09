@@ -17,13 +17,31 @@ import { CustomerAuthService } from '../services/customer-auth.service';
           </div>
         </div>
         <div class="card-body">
-          <!-- Customer Info -->
-          <div *ngIf="customer" class="row mb-4">
-            <div class="col-12">
-              <div class="alert alert-info">
-                <strong>{{ customer.CustomerName }}</strong>
-                <span class="ms-2 text-muted">{{ customer.ContactNo }}</span>
-              </div>
+          <!-- Customer Selection Dropdown -->
+          <div class="row mb-4">
+            <div class="col-md-6">
+              <label class="form-label">Select Customer:</label>
+              <ng-select
+                [items]="customersList"
+                bindLabel="CustomerName"
+                bindValue="CustomerID"
+                [(ngModel)]="selectedCustomerID"
+                (change)="onCustomerSelected($event)"
+                placeholder="Search and select a customer..."
+                [loading]="loadingCustomers"
+                [searchable]="true"
+                [clearable]="true"
+              >
+                <ng-template ng-label-tmp let-item="item">
+                  {{ item.CustomerName }} - {{ item.PhoneNo1 }}
+                </ng-template>
+                <ng-template ng-option-tmp let-item="item">
+                  <div>
+                    <strong>{{ item.CustomerName }}</strong>
+                    <span class="ms-2 text-muted">{{ item.PhoneNo1 }}</span>
+                  </div>
+                </ng-template>
+              </ng-select>
             </div>
           </div>
 
@@ -173,6 +191,9 @@ export class CustomerLedgerComponent implements OnInit, OnDestroy {
   public customer: any = null;
   public loading: boolean = false;
   public showAllLedger: boolean = false;
+  public customersList: any[] = [];
+  public selectedCustomerID: any = null;
+  public loadingCustomers: boolean = false;
 
   public Filter = {
     FromDate: GetDateJSON(),
@@ -240,12 +261,16 @@ export class CustomerLedgerComponent implements OnInit, OnDestroy {
     // Set filter to current month by default
     this.Filter.FromDate.day = 1;
 
+    // Load all customers for the dropdown
+    this.loadCustomers();
+
     // Subscribe to authentication state changes
     this.authService.authState$
       .pipe(takeUntil(this.destroy$))
       .subscribe(authState => {
         if (authState.isAuthenticated && authState.user) {
           this.customer = authState.user;
+          this.selectedCustomerID = authState.user.CustomerID;
           // Show full ledger when a customer is selected
           this.FilterData(true);
         } else {
@@ -253,6 +278,34 @@ export class CustomerLedgerComponent implements OnInit, OnDestroy {
           this.data = [];
         }
       });
+  }
+
+  loadCustomers() {
+    this.loadingCustomers = true;
+    this.http.getData('customers?orderby=CustomerName').then((r: any) => {
+      this.customersList = r || [];
+      this.loadingCustomers = false;
+    }).catch(error => {
+      console.error('Error loading customers:', error);
+      this.loadingCustomers = false;
+    });
+  }
+
+  onCustomerSelected(selectedCustomer: any) {
+    if (selectedCustomer) {
+      this.customer = {
+        CustomerID: selectedCustomer.CustomerID,
+        CustomerName: selectedCustomer.CustomerName,
+        PhoneNo1: selectedCustomer.PhoneNo1,
+        Address: selectedCustomer.Address,
+        Email: selectedCustomer.Email,
+        Balance: selectedCustomer.Balance,
+      };
+      this.FilterData(true);
+    } else {
+      this.customer = null;
+      this.data = [];
+    }
   }
 
   ngOnDestroy() {

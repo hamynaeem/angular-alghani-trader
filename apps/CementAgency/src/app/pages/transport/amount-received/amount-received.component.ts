@@ -19,12 +19,20 @@ export class AmountReceivedComponent implements OnInit {
   Customers: any[] = [];
   curCustomer: any = {};
 
+  // Transaction-related balances
+  transactionBalance: number = 0;  // Remaining balance for this transaction (total - paid)
+  totalAmount: number = 0;         // Total amount for selected date
+  
+  // Customer account balance
+  customerAccountBalance: number = 0;   // Customer's actual account balance
+  
+  // Date range filter properties
+  fromDate: string = '';
+  toDate: string = '';
+  
+  // Legacy properties (keeping for compatibility)
   displayedBalance: number = 0;
-  selectedOrderTotal: number = 0;
-  ordersTotal: number = 0;
-  totalAmount: number = 0;
-  remainingOrderBalance: number = 0;
-  selectedDate: string = '';
+  selectedDate: string = ''; // Keeping for backward compatibility
 
   constructor(
     private http: HttpBase,
@@ -40,35 +48,53 @@ export class AmountReceivedComponent implements OnInit {
   setTodayDate() {
     // Use application login date instead of system today's date
     const appDate = getCurDate() || new Date().toISOString().split('T')[0];
+    
+    // Initialize date range - default to current date for both from and to
+    this.fromDate = appDate;
+    this.toDate = appDate;
+    
+    // Keep selectedDate for backward compatibility
     this.selectedDate = appDate;
-    console.log('Using application business date:', appDate);
-    // Load today's total when date is set
-    if (this.Voucher.CustomerID) {
-      this.loadOrderTotal(this.Voucher.CustomerID);
-    }
+    
+    console.log('Using application business date range:', { fromDate: this.fromDate, toDate: this.toDate });
   }
 
   onDateChange() {
-    // Reload total amount when date changes
-    if (this.Voucher.CustomerID) {
-      this.loadOrderTotal(this.Voucher.CustomerID);
-    } else {
-      // If no customer selected yet, reset totals
-      this.totalAmount = 0;
-      this.ordersTotal = 0;
-      this.ComputeBalance();
+    // Validate date range
+    if (this.fromDate && this.toDate) {
+      if (new Date(this.fromDate) > new Date(this.toDate)) {
+        this.alert.Error('From Date cannot be greater than To Date', 'Date Range Error', 1);
+        return;
+      }
     }
+    
+    // Update selectedDate for backward compatibility (use fromDate as primary)
+    this.selectedDate = this.fromDate || this.toDate;
+    
+    // Reset total amount when date range changes
+    this.totalAmount = 0;
+    this.ComputeBalance();
+  }
+
+  onFromDateChange() {
+    this.onDateChange();
+  }
+
+  onToDateChange() {
+    this.onDateChange();
   }
 
   Reset() {
     this.Voucher = new VoucherModel();
+    
+    // Reset all balance-related properties
+    this.transactionBalance = 0;
+    this.customerAccountBalance = 0;
     this.displayedBalance = 0;
-    this.ordersTotal = 0;
-    this.selectedOrderTotal = 0;
     this.totalAmount = 0;
-    this.remainingOrderBalance = 0;
+    
     this.curCustomer = {};
-    this.setTodayDate(); // Uses application login date
+    this.setTodayDate(); // Uses application login date and sets date range
     this.ComputeBalance();
     
     // Clear customer selection in dropdown
@@ -85,8 +111,18 @@ export class AmountReceivedComponent implements OnInit {
     }
 
     this.Voucher.PrevBalance = this.curCustomer.Balance || 0;
-    // Set voucher date to the selected business date
-    this.Voucher.Date = this.selectedDate;
+    // Set voucher date to the selected business date (use fromDate as primary)
+    this.Voucher.Date = this.fromDate || this.selectedDate;
+    
+    // Add total amount to voucher for reference
+    this.Voucher.Debit = this.totalAmount; // Record the order total as debit
+    
+    // Create description with date range information
+    const dateRangeText = this.fromDate === this.toDate 
+      ? this.fromDate 
+      : `${this.fromDate} to ${this.toDate}`;
+      
+    this.Voucher.Description = `Amount Received: Rs.${this.Voucher.Credit} against Rs.${this.totalAmount} orders from ${dateRangeText}`;
 
     try {
 
@@ -94,10 +130,10 @@ export class AmountReceivedComponent implements OnInit {
 
       const acctPayload: any = {
         CustomerID: this.Voucher.CustomerID,
-        Debit: this.Voucher.Debit || 0,
-        Credit: this.Voucher.Credit || 0,
-        Date: this.selectedDate, // Use the selected business date
-        Description: this.Voucher.Description || 'Amount Received',
+        Debit: this.totalAmount || 0,  // Record order total as debit (amount owed)
+        Credit: this.Voucher.Credit || 0,  // Record payment as credit
+        Date: this.fromDate || this.selectedDate,
+        Description: `Orders: Rs.${this.totalAmount} (${dateRangeText}) | Payment: Rs.${this.Voucher.Credit} | Date: ${this.fromDate || this.selectedDate}`,
         RefID: r?.id || 0,
         RefType: this.Voucher.RefType || 0,
       };
@@ -106,27 +142,73 @@ export class AmountReceivedComponent implements OnInit {
 
       /* -------- BALANCE UPDATE LOGIC -------- */
 
-      const paid = Number(this.Voucher.Credit) || 0;
-      const oldBalance = Number(this.curCustomer.Balance) || 0;
-
-      const newBalance = oldBalance - paid;
-
-      this.curCustomer.Balance = newBalance;
-      this.displayedBalance = newBalance;
-
-      const idx = this.Customers.findIndex(
+      const paidAmount = Number(this.Voucher.Credit) || 0;
+      const totalOrderAmount = Number(this.totalAmount) || 0;
+      const previousBalance = Number(this.curCustomer.Balance) || 0;
+      
+      // Correct balance calculation: previous balance - total orders + payment received
+      const newCustomerBalance = previousBalance - totalOrderAmount + paidAmount;
+      
+      // Update customer balance in the database
+      const balanceUpdatePayload = {
+        CustomerID: this.Voucher.CustomerID,
+        Balance: newCustomerBalance
+      };
+      
+      try {
+        // Update customer balance in database
+        await this.http.postTask('updatecustomerbalance', balanceUpdatePayload);
+        console.log('Customer balance updated in database:', newCustomerBalance);
+      } catch (balanceError) {
+        console.warn('Balance update failed, using direct customer update:', balanceError);
+        // Fallback: try updating customer record directly using postTask 
+        try {
+          const customerUpdatePayload = {
+            CustomerID: this.Voucher.CustomerID,
+            Balance: newCustomerBalance,
+            UpdateType: 'balance'
+          };
+          await this.http.postTask('updatecustomer', customerUpdatePayload);
+        } catch (directUpdateError) {
+          console.error('Direct balance update also failed:', directUpdateError);
+          // If both fail, we'll rely on the local update only
+          console.log('Using local balance update only');
+        }
+      }
+      
+      // Update local customer object
+      this.curCustomer.Balance = newCustomerBalance;
+      this.customerAccountBalance = newCustomerBalance;
+      
+      // Update customers array for consistency
+      const customerIndex = this.Customers.findIndex(
         c => c.CustomerID == this.Voucher.CustomerID
       );
-
-      if (idx > -1) {
-        this.Customers[idx].Balance = newBalance;
+      
+      if (customerIndex > -1) {
+        this.Customers[customerIndex].Balance = newCustomerBalance;
       }
+      
+      // Reset transaction balance since payment is complete
+      this.transactionBalance = 0;
+      this.displayedBalance = newCustomerBalance;  // Show final customer balance
+      
+      console.log('Balance Updated:', {
+        previousBalance,
+        totalOrderAmount,
+        paidAmount,
+        newCustomerBalance: newCustomerBalance,
+        calculation: `${previousBalance} - ${totalOrderAmount} + ${paidAmount} = ${newCustomerBalance}`
+      });
 
       /* -------------------------------------- */
 
-      this.alert.Sucess('Receipt Saved', 'Save', 1);
+      this.alert.Sucess('Receipt Saved - Balance Updated to ' + newCustomerBalance.toFixed(2), 'Save', 1);
 
       this.Reset();
+
+      // Refresh customer list to ensure accounts list shows updated balance
+      await this.LoadCustomer(true);
 
       if (this.cmbCustomer?.focusIn) {
         this.cmbCustomer.focusIn();
@@ -146,28 +228,6 @@ export class AmountReceivedComponent implements OnInit {
     }
   }
 
-  onOrderSelected(order: any) {
-
-    if (!order) return;
-
-    const amt = order.Amount || order.Total || order.OrderAmount || 0;
-
-    this.selectedOrderTotal = Number(amt);
-    this.ordersTotal = this.selectedOrderTotal;
-
-    this.Voucher.Credit = 0;
-
-    this.ComputeBalance();
-  }
-
-  onOrdersTotal(total: number) {
-
-    this.ordersTotal = Number(total) || 0;
-    this.totalAmount = this.ordersTotal;
-
-    this.ComputeBalance();
-  }
-
   async LoadCustomer(refresh: boolean = false) {
 
     let url =
@@ -180,11 +240,27 @@ export class AmountReceivedComponent implements OnInit {
     try {
       const r: any = await this.http.getData(url);
       this.Customers = r;
+      console.log('Customers loaded:', r?.length, 'customers');
+      
+      // Emit event to notify other components about customer data refresh
+      this.notifyCustomerDataUpdated();
+      
       return r;
     } catch (err) {
       console.error('Load customer error', err);
       this.alert.Error('Failed to load accounts', 'Error', 1);
     }
+  }
+
+  // Method to notify other components about customer balance updates
+  private notifyCustomerDataUpdated() {
+    // Emit a custom event that can be listened to by the accounts list component
+    window.dispatchEvent(new CustomEvent('customerBalanceUpdated', { 
+      detail: { 
+        timestamp: Date.now(),
+        updatedCustomers: this.Customers
+      } 
+    }));
   }
 
   async GetCustomer(e: any) {
@@ -208,102 +284,42 @@ export class AmountReceivedComponent implements OnInit {
       );
 
       this.curCustomer = r[0] || {};
+      
+      // Update customer account balance
+      this.customerAccountBalance = Number(this.curCustomer.Balance) || 0;
 
       this.Voucher.AcctTypeID = this.curCustomer.AcctTypeID;
 
-      // Load order total for selected customer
-      await this.loadOrderTotal(CustomerID);
+      // Recompute balance to include previous balance
+      this.ComputeBalance();
 
     } catch (err) {
       console.error('Customer fetch error', err);
     }
   }
 
-  async loadOrderTotal(CustomerID: string) {
-    try {
-      let filter = `CustomerID=${CustomerID}`;
-      
-      // Add date filter - use selected date or today
-      if (this.selectedDate) {
-        filter += ` and OrderDate='${this.selectedDate}'`;
-      }
-      
-      console.log('Loading orders with filter:', filter);
-      
-      // Try different possible order table/endpoint names
-      const possibleEndpoints = [
-        `orders?filter=${filter}&orderby=OrderDate desc`,
-        `qryorders?filter=${filter}&orderby=OrderDate desc`,
-        `customerorders?filter=${filter}&orderby=OrderDate desc`,
-        `order?filter=${filter}&orderby=OrderDate desc`
-      ];
-      
-      let orders: any = null;
-      
-      for (const endpoint of possibleEndpoints) {
-        try {
-          console.log('Trying endpoint:', endpoint);
-          orders = await this.http.getData(endpoint);
-          if (orders && orders.length > 0) {
-            console.log('Success with endpoint:', endpoint);
-            break;
-          }
-        } catch (endpointError) {
-          console.log('Endpoint failed:', endpoint, endpointError);
-          continue;
-        }
-      }
-      
-      if (!orders) {
-        console.log('All endpoints failed, trying without date filter');
-        // Try without date filter to see if customer has any orders
-        const basicFilter = `CustomerID=${CustomerID}`;
-        try {
-          orders = await this.http.getData(`orders?filter=${basicFilter}`);
-          console.log('Orders without date filter:', orders?.length || 0);
-        } catch (e) {
-          orders = [];
-        }
-      }
-      
-      console.log('Orders found:', orders?.length || 0, orders);
-      
-      // Calculate total amount from orders for the specific date
-      const total = (orders || []).reduce((sum: number, order: any) => {
-        // Check if order matches our selected date
-        const orderDate = order.OrderDate || order.Date || order.order_date;
-        if (this.selectedDate && orderDate !== this.selectedDate) {
-          return sum; // Skip orders that don't match selected date
-        }
-        
-        const amount = Number(order.Amount || order.Total || order.OrderAmount || order.NetAmount || order.amount || 0);
-        console.log('Order date:', orderDate, 'Amount:', amount);
-        return sum + amount;
-      }, 0);
-      
-      console.log('Total calculated:', total);
-      
-      this.totalAmount = total;
-      this.ordersTotal = total;
-      this.ComputeBalance();
-      
-    } catch (err) {
-      console.error('Error loading order total:', err);
-      this.totalAmount = 0;
-      this.ordersTotal = 0;
-      this.ComputeBalance();
-    }
-  }
-
   ComputeBalance() {
-
     const paid = Number(this.Voucher.Credit) || 0;
     const total = Number(this.totalAmount) || 0;
+    const previousCustomerBalance = Number(this.curCustomer.Balance) || 0;
 
-    // Balance = Total Amount - Paid Amount
-    this.displayedBalance = total - paid;
-
-    this.remainingOrderBalance = this.displayedBalance;
+    // Calculate balance: Total Amount + Previous Balance - Paid Amount
+    this.transactionBalance = total + previousCustomerBalance - paid;
+    
+    // Customer balance should show the actual previous balance (before transaction)
+    this.customerAccountBalance = previousCustomerBalance;
+    
+    // Show transaction balance as the displayed balance amount
+    this.displayedBalance = this.transactionBalance;
+    
+    console.log('Balance Calculation:', {
+      totalAmount: total,
+      paidAmount: paid,
+      previousCustomerBalance: previousCustomerBalance,
+      transactionBalance: this.transactionBalance,
+      displayedBalance: this.displayedBalance,
+      calculation: `Transaction Balance: ${total} + ${previousCustomerBalance} - ${paid} = ${this.transactionBalance}`
+    });
   }
 
   Round(amnt: number) {
@@ -336,10 +352,13 @@ export class AmountReceivedComponent implements OnInit {
 
   private generateReceiptHTML(): string {
     const currentDate = new Date().toLocaleString();
-    const businessDate = this.selectedDate;
+    const dateRangeText = this.fromDate === this.toDate 
+      ? this.fromDate 
+      : `${this.fromDate} to ${this.toDate}`;
     const paidAmount = Number(this.Voucher.Credit) || 0;
     const totalAmount = Number(this.totalAmount) || 0;
-    const balanceAmount = Number(this.displayedBalance) || 0;
+    const transactionBalance = Number(this.transactionBalance) || 0;
+    const customerBalance = Number(this.customerAccountBalance) || 0;
 
     return `
 <!DOCTYPE html>
@@ -432,8 +451,8 @@ export class AmountReceivedComponent implements OnInit {
             <span class="value">${currentDate}</span>
         </div>
         <div class="row">
-            <span class="label">Business Date:</span>
-            <span class="value">${businessDate}</span>
+            <span class="label">Business Date Range:</span>
+            <span class="value">${dateRangeText}</span>
         </div>
         <div class="row">
             <span class="label">Customer Name:</span>
@@ -458,8 +477,12 @@ export class AmountReceivedComponent implements OnInit {
                 <span class="value amount">Rs. ${paidAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
             </div>
             <div class="row">
-                <span class="label">Balance Amount:</span>
-                <span class="value amount">Rs. ${balanceAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                <span class="label">Balance amount :</span>
+                <span class="value amount">Rs. ${transactionBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+            </div>
+            <div class="row">
+                <span class="label">Previous Account Balance:</span>
+                <span class="value amount">Rs. ${customerBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
             </div>
         </div>
     </div>

@@ -160,8 +160,9 @@ export class DayBookComponent implements OnInit {
     } else if (this.nWhat === '2') {
       this.settings = BookingSetting;
       // request CustomerName from backend so booking rows include customer/supplier name
-      // Note: `Description` does not exist in qrybooking, remove it to avoid SQL error
+      // Note: `Description` and `Posted` do not exist in qrybooking, remove to avoid SQL error
       table = 'qrybooking?orderby=BookingID&flds=BookingID,Date,CustomerName,InvoiceNo,VehicleNo,BuiltyNo,Amount,Discount,Carriage,NetAmount,DtCr,IsPosted';
+      console.log('Fetching booking data from:', table + '&filter=' + filter);
     } else if (this.nWhat === '3') {
       this.settings = VoucherSetting;
       table = 'qryvouchers?orderby=VoucherID ';
@@ -170,7 +171,7 @@ export class DayBookComponent implements OnInit {
       table = 'qrysalereport?orderby=Date,BookingID&flds=CustomerName,ProductName,SPrice,Qty as Qty,Amount as Amount ';
     } else if (this.nWhat === '5') {
       this.settings = PurchaseSetting;
-      table = 'qrypurchasereport?orderby=Date,BookingID&flds=ProductName,PPrice,Qty,Amount ';
+      table = 'qrypurchasereport?orderby=Date,BookingID&flds=BookingID,ProductName,PPrice,Qty,Amount ';
     } else if (this.nWhat === '6') {
       this.settings = TransportSetting;
       table = 'transportdetails?orderby=ID ';
@@ -181,9 +182,53 @@ export class DayBookComponent implements OnInit {
     const processResponse = (r: any) => {
       // normalize rows and ensure Posted flag exists
       const normalizePosted = (row: any) => {
-        if ('IsPosted' in row) {
-          row.IsPosted == '1' ? (row.Posted = 'Posted') : (row.Posted = 'Unposted');
+        // Only log first few rows to avoid console spam
+        const shouldLog = (r?.indexOf && r.indexOf(row) < 2) || false;
+        if (shouldLog) {
+          console.log('Normalizing row:', {
+            BookingID: row.BookingID,
+            IsPosted: row.IsPosted,
+            IsPostedType: typeof row.IsPosted,
+            keys: Object.keys(row)
+          });
         }
+        
+        if ('IsPosted' in row) {
+          // Handle multiple possible formats from backend
+          const isPostedValue = row.IsPosted;
+          const isPosted = (isPostedValue === '1' || 
+                          isPostedValue === 1 || 
+                          isPostedValue === true || 
+                          isPostedValue === 'true' ||
+                          isPostedValue === 'True' ||
+                          (typeof isPostedValue === 'string' && isPostedValue.toLowerCase() === 'posted'));
+          
+          row.Posted = isPosted ? 'Posted' : 'Unposted';
+          // Normalize IsPosted to string format for consistency
+          row.IsPosted = isPosted ? '1' : '0';
+        } else {
+          // Check for alternative field names that might contain posting status
+          const altFields = ['posted', 'is_posted', 'PostingStatus', 'Status'];
+          let found = false;
+          
+          for (const field of altFields) {
+            if (field in row) {
+              const val = row[field];
+              const isPosted = (val === '1' || val === 1 || val === true || val === 'true' || val === 'Posted');
+              row.IsPosted = isPosted ? '1' : '0';
+              row.Posted = isPosted ? 'Posted' : 'Unposted';
+              found = true;
+              break;
+            }
+          }
+          
+          if (!found) {
+            // Default to Unposted if no posting field exists
+            row.IsPosted = '0';
+            row.Posted = 'Unposted';
+          }
+        }
+        
         return row;
       };
 
@@ -218,6 +263,11 @@ export class DayBookComponent implements OnInit {
         });
       } else {
         const mapped = (r || []).map((x: any) => normalizePosted(x));
+        
+        // Debug: log the first few mapped entries to see the status detection
+        console.log('Raw data from backend:', (r || []).slice(0, 3));
+        console.log('Mapped data after normalization:', mapped.slice(0, 3));
+        
         // For bookings ensure common fields exist so table shows InvoiceNo/VehicleNo/BuiltyNo
         if (this.nWhat === '2') {
           const normalized = mapped.map((row: any) => {
@@ -275,8 +325,22 @@ export class DayBookComponent implements OnInit {
             console.log('Booking normalized sample:', normalized && normalized.length ? normalized.slice(0, 5) : normalized);
           } catch (e) {}
           this.data = normalized;
+          
+          // Debug: Check if any entries actually have Posted status from backend
+          const postedCount = normalized.filter((row: any) => row.Posted === 'Posted').length;
+          console.log(`Found ${postedCount} posted entries out of ${normalized.length} total entries`);
+          
+          // Temporary debugging: Log specific fields we're checking
+          normalized.slice(0, 2).forEach((row: any, index: number) => {
+            console.log(`Row ${index} debug:`, {
+              BookingID: row.BookingID,
+              IsPosted: row.IsPosted,
+              Posted: row.Posted,
+              allKeys: Object.keys(row)
+            });
+          });
         } else if (this.nWhat === '5') {
-          // For purchase report: ensure product exists and try to resolve supplier name
+          // For purchase report: resolve supplier names via qrybooking (which joins booking.SupplierID -> customers.CustomerName)
           const purchases = mapped.map((row: any) => {
             row.ProductName = this.firstAvailable(row, [
               'ProductName',
@@ -288,46 +352,47 @@ export class DayBookComponent implements OnInit {
             return row;
           });
 
-          // attempt to map suppliers from backend list (qrysuppliers)
-          const mapAndSet = (suppliers: any) => {
-            const supList = Array.isArray(suppliers) ? suppliers : (suppliers && suppliers.data) || [];
-            const mappedRows = (purchases || []).map((row: any) => {
-              // try several possible id fields to match supplier
-              const id = row.SupplierID || row.Supplier || row.AccountID || row.Account || row.CustomerID || row.CustID || row.Supplier_Id;
-              let name = '';
-              if (id !== undefined && id !== null && id !== '') {
-                const found = supList.find((s: any) => String(s.SupplierID || s.CustomerID || s.ID || s.Id) === String(id));
-                if (found) name = found.SupplierName || found.CustomerName || found.AcctName || found.Name || found.Acct || '';
-              }
-              row.SupplierName = name || this.firstAvailable(row, ['SupplierName', 'CustomerName', 'Customer', 'Supplier', 'CustName', 'AccountName', 'Account', 'CustomerID']);
-              return row;
-            });
-            this.data = mappedRows;
-          };
-
-          // try cached suppliers first (from cachedData) then backend
-          try {
-            if (this.cachedData && this.cachedData.Suppliers$) {
-              // if Suppliers$ observable exists, subscribe once to get list
-              const sub = this.cachedData.Suppliers$.subscribe((list: any[]) => {
-                if (list && list.length) {
-                  console.log('Using cached suppliers:', list.length, 'items');
-                  mapAndSet(list);
-                } else {
-                  console.log('No cached suppliers, fetching from backend');
-                  this.http.getData('qrysuppliers').then((s: any) => mapAndSet(s)).catch(() => mapAndSet([]));
+          // Fetch booking records to get supplier names (qrybooking.CustomerName = supplier name)
+          const bookingFilter = "Date between '" + JSON2Date(this.Filter.FromDate) + "' and '" + JSON2Date(this.Filter.ToDate) + "'";
+          this.http.getData('qrybooking?flds=BookingID,SupplierID,CustomerName&filter=' + bookingFilter)
+            .then((bookings: any) => {
+              const bookingMap: any = {};
+              (bookings || []).forEach((b: any) => {
+                if (b.BookingID) {
+                  bookingMap[String(b.BookingID)] = b.CustomerName || '';
                 }
+              });
+
+              const mappedRows = purchases.map((row: any) => {
+                // First try to get supplier name from booking map using BookingID
+                const bookingId = row.BookingID || row.bookingID;
+                if (bookingId && bookingMap[String(bookingId)]) {
+                  row.SupplierName = bookingMap[String(bookingId)];
+                } else {
+                  row.SupplierName = this.firstAvailable(row, ['SupplierName', 'CustomerName', 'Supplier', 'Customer']);
+                }
+                return row;
+              });
+              this.data = mappedRows;
+            })
+            .catch(() => {
+              // Fallback: try resolving from supplier list
+              const sub = this.cachedData.Suppliers$.subscribe((list: any[]) => {
+                const supList = list || [];
+                const mappedRows = purchases.map((row: any) => {
+                  const id = row.SupplierID || row.CustomerID;
+                  let name = '';
+                  if (id) {
+                    const found = supList.find((s: any) => String(s.CustomerID || s.SupplierID) === String(id));
+                    if (found) name = found.CustomerName || found.SupplierName || '';
+                  }
+                  row.SupplierName = name || this.firstAvailable(row, ['SupplierName', 'CustomerName', 'Supplier', 'Customer']);
+                  return row;
+                });
+                this.data = mappedRows;
                 try { sub.unsubscribe(); } catch (e) {}
               });
-            } else {
-              // fallback to direct backend fetch
-              console.log('No cached suppliers service, fetching from backend');
-              this.http.getData('qrysuppliers').then((s: any) => mapAndSet(s)).catch(() => mapAndSet([]));
-            }
-          } catch (e) {
-            console.log('Error accessing suppliers service, falling back to backend:', e);
-            this.http.getData('qrysuppliers').then((s: any) => mapAndSet(s)).catch(() => mapAndSet([]));
-          }
+            });
         } else {
           this.data = mapped;
         }
@@ -335,29 +400,26 @@ export class DayBookComponent implements OnInit {
       }
     };
 
-    // If purchase report, try to include SupplierID first (safe fallback if backend doesn't expose it)
-    if (this.nWhat === '5') {
-      const tryUrl = table.replace('flds=ProductName,PPrice,Qty,Amount', 'flds=SupplierID,ProductName,PPrice,Qty,Amount') + '&filter=' + filter;
-      this.http
-        .getData(tryUrl)
-        .catch(() => this.http.getData(queryUrl))
-        .then((r: any) => processResponse(r))
-        .catch((err: any) => {
-          console.error('Purchase fetch error', err);
-          processResponse([]);
+    this.http
+      .getData(queryUrl)
+      .then((r: any) => processResponse(r))
+      .catch((err: any) => {
+        console.error('Fetch error', err);
+        console.error('Error details:', {
+          message: err?.message,
+          status: err?.status,
+          statusText: err?.statusText,
+          error: err?.error,
+          url: queryUrl
         });
-    } else {
-      this.http
-        .getData(queryUrl)
-        .then((r: any) => processResponse(r))
-        .catch((err: any) => {
-          console.error('Fetch error', err);
-          try {
-            swal('Oops!', (err && err.error && err.error.message) || 'Server error while fetching report', 'error');
-          } catch (e) {}
-          this.data = [];
-        });
-    }
+        try {
+          const errorMsg = (err && err.error && err.error.message) || 
+                         (err && err.message) || 
+                         `Server error (${err?.status || 'Unknown'}): ${err?.statusText || 'Failed to fetch booking data'}`;
+          swal('Data Load Error', errorMsg, 'error');
+        } catch (e) {}
+        this.data = [];
+      });
   }
 
   computeTransportTotals(rows: any[]) {
@@ -401,6 +463,14 @@ export class DayBookComponent implements OnInit {
     let table: any = {};
     let url = '';
     console.log(e);
+    
+    // Validate event data
+    if (!e || !e.data || !e.action) {
+      console.error('Invalid event data:', e);
+      swal('Error', 'Invalid action data', 'error');
+      return;
+    }
+    
     if (e.action === 'delete') {
       console.log(e.action);
 
@@ -543,7 +613,23 @@ export class DayBookComponent implements OnInit {
         if (this.nWhat === '1') {
           url = 'postexpense/' + e.data.ExpendID;
         } else if (this.nWhat === '2') {
-          url = 'postbooking/' + e.data.BookingID;
+          // Try different booking post endpoints that might exist
+          const bookingId = e.data.BookingID;
+          if (!bookingId) {
+            swal('Error', 'Invalid BookingID for posting', 'error');
+            return;
+          }
+          
+          // Try the standard postbooking endpoint first, but prepare to try alternatives
+          url = 'postbooking/' + bookingId;
+          console.log('Attempting to post booking:', bookingId, 'URL:', url);
+          console.log('Full booking data:', e.data);
+          console.log('Available booking fields:', Object.keys(e.data));
+          console.log('BookingID existence check:', {
+            exists: !!bookingId,
+            value: bookingId,
+            type: typeof bookingId
+          });
         } else if (this.nWhat === '3') {
           url = 'postvouchers/' + e.data.VoucherID;
         } else if (this.nWhat === '6') {
@@ -551,24 +637,286 @@ export class DayBookComponent implements OnInit {
           if (id) url = 'posttransport/' + id;
         }
 
-        this.http.postTask(url, {}).then((_r) => {
-          e.data.IsPosted = '1';
-          e.data.Posted = 'Posted';
-          swal('Post!', 'Your data has been posted!', 'success');
-          this.FilterData();
-        }).catch((err) => {
-          console.error('Post error', err);
-          const msg = (err && err.error && err.error.message) || (err && err.message) || '';
-          // If server reports it's already posted, treat as success and update UI
-          if (typeof msg === 'string' && msg.toLowerCase().includes('post')) {
-            e.data.IsPosted = '1';
-            e.data.Posted = 'Posted';
-            swal('Info', 'Record already posted. Marked as Posted.', 'info');
-            this.FilterData();
-            return;
+        // Validate URL was set
+        if (!url) {
+          swal('Error', 'Unable to determine posting URL', 'error');
+          return;
+        }
+
+        // Prepare posting payload with required accounting fields
+        let postPayload: any = {};
+        
+        if (this.nWhat === '1') {
+          // For expenses, prepare debit payload
+          const amount = Number(e.data.Amount) || Number(e.data.NetAmount) || 0;
+          postPayload = {
+            ExpendID: e.data.ExpendID,
+            Debit: amount,
+            Credit: 0,
+            Amount: amount,
+            AccountID: e.data.AccountID || e.data.CustomerID || 0,
+            Description: e.data.Description || `Expense #${e.data.ExpendID}`,
+            Type: 'DR'
+          };
+        } else if (this.nWhat === '2') {
+          // For bookings, use empty payload since backend doesn't read POST data
+          // It only uses the ID from the URL parameter
+          postPayload = {};
+          
+          console.log('Booking post payload (empty - backend reads from URL):', postPayload);
+        } else if (this.nWhat === '3') {
+          // For vouchers, prepare debit/credit payload based on voucher type
+          const amount = Number(e.data.Amount) || Number(e.data.NetAmount) || 0;
+          const credit = Number(e.data.Credit) || 0;
+          const debit = Number(e.data.Debit) || 0;
+          
+          if (credit > 0) {
+            postPayload = {
+              VoucherID: e.data.VoucherID,
+              Debit: 0,
+              Credit: credit,
+              Amount: credit,
+              AccountID: e.data.AccountID || e.data.CustomerID || 0,
+              Description: e.data.Description || `Voucher #${e.data.VoucherID}`,
+              Type: 'CR'
+            };
+          } else {
+            postPayload = {
+              VoucherID: e.data.VoucherID,
+              Debit: debit || amount,
+              Credit: 0,
+              Amount: debit || amount,
+              AccountID: e.data.AccountID || e.data.CustomerID || 0,
+              Description: e.data.Description || `Voucher #${e.data.VoucherID}`,
+              Type: 'DR'
+            };
           }
-          swal('Oops!', msg || 'Error while posting', 'error');
+        } else if (this.nWhat === '6') {
+          // For transport, prepare payload
+          const income = Number(e.data.Income) || 0;
+          const expense = Number(e.data.Expense) || 0;
+          const amount = income || expense;
+          
+          postPayload = {
+            ID: e.data.ID || e.data.id,
+            Debit: expense,
+            Credit: income,
+            Amount: amount,
+            AccountID: e.data.TransportID || 0,
+            Description: e.data.Description || e.data.Details || `Transport #${e.data.ID || e.data.id}`,
+            Type: income > 0 ? 'CR' : 'DR'
+          };
+        }
+
+        // Show loading message
+        swal({
+          title: 'Posting...',
+          text: 'Please wait while we post your entry.',
+          icon: 'info',
+          buttons: false as any,
+          closeOnClickOutside: false,
+          closeOnEsc: false
         });
+
+        // Posting function with fallback for bookings
+        const attemptPost = (apiUrl: string, payload: any, isRetry = false) => {
+          console.log('=== POSTING DEBUG ===');
+          console.log('URL:', apiUrl);
+          console.log('Payload:', payload);
+          console.log('Is Retry:', isRetry);
+          console.log('BookingID:', e.data.BookingID);
+          
+          this.http.postTask(apiUrl, payload).then((response: any) => {
+            console.log('=== POST RESPONSE DEBUG ===');
+            console.log('Raw response:', response);
+            console.log('Response type:', typeof response);
+            console.log('Response keys:', response ? Object.keys(response) : 'No keys');
+            
+            // Check for various success/error indicators
+            const isError = response && (
+              response.error === true || 
+              response.status === 'error' || 
+              response.success === false ||
+              (response.message && typeof response.message === 'string' && 
+               (response.message.toLowerCase().includes('error') || 
+                response.message.toLowerCase().includes('failed') ||
+                response.message.toLowerCase().includes('exception')))
+            );
+            
+            const hasHttpError = response && response.statusCode && response.statusCode >= 400;
+            const isSuccess = !isError && !hasHttpError;
+            
+            console.log('Success determination:', { 
+              isError, 
+              hasHttpError, 
+              isSuccess, 
+              responseMsg: response?.msg || response?.message 
+            });
+            
+            if (isSuccess || (response && response.msg && response.msg.includes('posted'))) {
+              console.log('✅ Post successful, updating local data');
+              
+              // Update the local data immediately
+              e.data.IsPosted = '1';
+              e.data.Posted = 'Posted';
+              
+              // Also update in the main data array to ensure consistency
+              const dataIndex = this.data.findIndex((item: any) => {
+                if (this.nWhat === '1') return item.ExpendID === e.data.ExpendID;
+                if (this.nWhat === '2') return item.BookingID === e.data.BookingID;
+                if (this.nWhat === '3') return item.VoucherID === e.data.VoucherID;
+                if (this.nWhat === '6') return (item.ID || item.id) === (e.data.ID || e.data.id);
+                return false;
+              });
+              
+              if (dataIndex !== -1) {
+                (this.data as any[])[dataIndex].IsPosted = '1';
+                (this.data as any[])[dataIndex].Posted = 'Posted';
+                console.log('Updated local data at index:', dataIndex, 'New status:', (this.data as any[])[dataIndex].Posted);
+              }
+              
+              swal('Posted!', 'Your entry has been successfully posted!', 'success');
+              
+              // Refresh data to ensure server sync - with longer delay for server processing
+              setTimeout(() => {
+                console.log('Refreshing data after posting...');
+                this.FilterData();
+              }, 2000); // Increased delay
+            } else {
+              console.log('❌ Post response indicates failure:', response);
+              
+              // If this is the first attempt for a booking, try direct endpoint call
+              if (this.nWhat === '2' && !isRetry) {
+                console.log('Trying direct postbooking endpoint...');
+                attemptPost(`postbooking/${e.data.BookingID}`, {}, true);
+                return;
+              }
+              
+              swal('Warning', `Post request completed but may have failed. Server response: ${JSON.stringify(response)}`, 'warning');
+              
+              // Still refresh to see actual server state
+              setTimeout(() => {
+                this.FilterData();
+              }, 1500);
+            }
+          }).catch((err) => {
+            console.error('Post error', err);
+            
+            // For bookings, try alternative method on error
+            if (this.nWhat === '2' && !isRetry) {
+              console.log('Primary booking post failed, trying simpler payload...');
+              // Don't use putTask as it doesn't exist, try with empty payload instead
+              this.http.postTask(`postbooking/${e.data.BookingID}`, {}).then((altResponse: any) => {
+                console.log('Alternative post response:', altResponse);
+                e.data.IsPosted = '1';
+                e.data.Posted = 'Posted';
+                
+                const dataIndex = this.data.findIndex((item: any) => item.BookingID === e.data.BookingID);
+                if (dataIndex !== -1) {
+                  (this.data as any[])[dataIndex].IsPosted = '1';
+                  (this.data as any[])[dataIndex].Posted = 'Posted';
+                }
+                
+                swal('Posted!', 'Your entry has been successfully posted!', 'success');
+                setTimeout(() => this.FilterData(), 1000);
+              }).catch((altErr) => {
+                console.error('Alternative post also failed:', altErr);
+                
+                // Better error message extraction
+                let errorMessage = '';
+                if (err && err.error) {
+                  if (typeof err.error === 'string') {
+                    errorMessage = err.error;
+                  } else if (err.error.message) {
+                    errorMessage = err.error.message;
+                  } else {
+                    errorMessage = JSON.stringify(err.error);
+                  }
+                } else if (err && err.message) {
+                  errorMessage = err.message;
+                } else if (typeof err === 'string') {
+                  errorMessage = err;
+                } else {
+                  errorMessage = 'Unknown server error';
+                }
+                
+                // Check if error indicates it's already posted
+                if (errorMessage.toLowerCase().includes('already') && errorMessage.toLowerCase().includes('post')) {
+                  e.data.IsPosted = '1';
+                  e.data.Posted = 'Posted';
+                  
+                  // Update in main data array too
+                  const dataIndex = this.data.findIndex((item: any) => {
+                    if (this.nWhat === '1') return item.ExpendID === e.data.ExpendID;
+                    if (this.nWhat === '2') return item.BookingID === e.data.BookingID;
+                    if (this.nWhat === '3') return item.VoucherID === e.data.VoucherID;
+                    if (this.nWhat === '6') return (item.ID || item.id) === (e.data.ID || e.data.id);
+                    return false;
+                  });
+                  
+                  if (dataIndex !== -1) {
+                    (this.data as any[])[dataIndex].IsPosted = '1';
+                    (this.data as any[])[dataIndex].Posted = 'Posted';
+                  }
+                  
+                  swal('Posted!', 'Entry was already posted on server. Status updated.', 'success');
+                  this.FilterData();
+                  return;
+                }
+                
+                swal('Error!', `Failed to post entry: ${errorMessage}`, 'error');
+              });
+              return;
+            }
+            
+            // Standard error handling for non-booking types
+            let errorMessage = '';
+            if (err && err.error) {
+              if (typeof err.error === 'string') {
+                errorMessage = err.error;
+              } else if (err.error.message) {
+                errorMessage = err.error.message;
+              } else {
+                errorMessage = JSON.stringify(err.error);
+              }
+            } else if (err && err.message) {
+              errorMessage = err.message;
+            } else if (typeof err === 'string') {
+              errorMessage = err;
+            } else {
+              errorMessage = 'Unknown server error';
+            }
+            
+            // Check if error indicates it's already posted
+            if (errorMessage.toLowerCase().includes('already') && errorMessage.toLowerCase().includes('post')) {
+              e.data.IsPosted = '1';
+              e.data.Posted = 'Posted';
+              
+              // Update in main data array too
+              const dataIndex = this.data.findIndex((item: any) => {
+                if (this.nWhat === '1') return item.ExpendID === e.data.ExpendID;
+                if (this.nWhat === '2') return item.BookingID === e.data.BookingID;
+                if (this.nWhat === '3') return item.VoucherID === e.data.VoucherID;
+                if (this.nWhat === '6') return (item.ID || item.id) === (e.data.ID || e.data.id);
+                return false;
+              });
+              
+              if (dataIndex !== -1) {
+                (this.data as any[])[dataIndex].IsPosted = '1';
+                (this.data as any[])[dataIndex].Posted = 'Posted';
+              }
+              
+              swal('Posted!', 'Entry was already posted on server. Status updated.', 'success');
+              this.FilterData();
+              return;
+            }
+            
+            swal('Error!', `Failed to post entry: ${errorMessage}`, 'error');
+          });
+        };
+
+        // Start the posting attempt
+        attemptPost(url, postPayload);
       } else {
         // currently posted: ask to unpost
         swal({
@@ -582,6 +930,7 @@ export class DayBookComponent implements OnInit {
             uurl = 'unpostexpense/' + (e.data.ExpendID || e.data.ExpID || e.data.ID || e.data.id);
           } else if (this.nWhat === '2') {
             uurl = 'unpostbooking/' + e.data.BookingID;
+            console.log('Unposting booking with BookingID:', e.data.BookingID);
           } else if (this.nWhat === '3') {
             uurl = 'unpostvouchers/' + e.data.VoucherID;
           } else if (this.nWhat === '6') {
@@ -592,14 +941,69 @@ export class DayBookComponent implements OnInit {
             swal('Error', 'Unpost not supported for this type', 'error');
             return;
           }
-          this.http.postTask(uurl, {}).then((_r) => {
+          
+          // Prepare unpost payload with transaction ID
+          let unpostPayload: any = {};
+          if (this.nWhat === '1') {
+            unpostPayload = { ExpendID: e.data.ExpendID, ID: e.data.ExpendID };
+          } else if (this.nWhat === '2') {
+            unpostPayload = { BookingID: e.data.BookingID, ID: e.data.BookingID };
+          } else if (this.nWhat === '3') {
+            unpostPayload = { VoucherID: e.data.VoucherID, ID: e.data.VoucherID };
+          } else if (this.nWhat === '6') {
+            const id = e.data.ID || e.data.id;
+            unpostPayload = { ID: id, TransportID: id };
+          }
+          
+          this.http.postTask(uurl, unpostPayload).then((_r) => {
+            // Update the local data immediately
             e.data.IsPosted = '0';
             e.data.Posted = 'Unposted';
+            
+            // Also update in the main data array to ensure consistency
+            const dataIndex = this.data.findIndex((item: any) => {
+              if (this.nWhat === '1') return item.ExpendID === e.data.ExpendID;
+              if (this.nWhat === '2') return item.BookingID === e.data.BookingID;
+              if (this.nWhat === '3') return item.VoucherID === e.data.VoucherID;
+              if (this.nWhat === '6') return (item.ID || item.id) === (e.data.ID || e.data.id);
+              return false;
+            });
+            
+            if (dataIndex !== -1) {
+              (this.data as any[])[dataIndex].IsPosted = '0';
+              (this.data as any[])[dataIndex].Posted = 'Unposted';
+              console.log('Updated local data at index:', dataIndex, 'New status:', (this.data as any[])[dataIndex].Posted);
+            }
+            
             swal('Unpost!', 'Your data has been unposted!', 'success');
-            this.FilterData();
+            
+            // Refresh data to ensure server sync
+            setTimeout(() => {
+              console.log('Refreshing data after unposting...');
+              this.FilterData();
+            }, 500);
           }).catch((err) => {
             console.error('Unpost error', err);
-            swal('Oops!', (err && err.error && err.error.message) || 'Error while unposting', 'error');
+            
+            // Better error message extraction
+            let errorMessage = '';
+            if (err && err.error) {
+              if (typeof err.error === 'string') {
+                errorMessage = err.error;
+              } else if (err.error.message) {
+                errorMessage = err.error.message;
+              } else {
+                errorMessage = JSON.stringify(err.error);
+              }
+            } else if (err && err.message) {
+              errorMessage = err.message;
+            } else if (typeof err === 'string') {
+              errorMessage = err;
+            } else {
+              errorMessage = 'Unknown server error';
+            }
+            
+            swal('Oops!', `Failed to unpost entry: ${errorMessage}`, 'error');
           });
         });
       }

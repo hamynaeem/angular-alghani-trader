@@ -32,15 +32,15 @@ import { PInvoice, PInvoiceDetails } from './pinvoicedetails.model';
   styleUrls: ['./purchase-invoice.component.scss'],
 })
 export class PurchaseInvoiceComponent implements OnInit, OnChanges, AfterViewInit {
-  @Input() Type: string;
+  @Input() Type: string = '';
   @Input() EditID = '';
 
   selectedProduct: any;
-  @ViewChild('fromPurchase') fromPurchase;
-  @ViewChild('cmbProduct') cmbProd;
-  @ViewChild('qty') elQty;
-  @ViewChild('cmbCustomers') cmbCustomers;
-  @ViewChild('btnBar') btnBar: ButtonsBarComponent;
+  @ViewChild('fromPurchase') fromPurchase!: any;
+  @ViewChild('cmbProduct') cmbProd!: any;
+  @ViewChild('qty') elQty!: any;
+  @ViewChild('cmbCustomers') cmbCustomers!: any;
+  @ViewChild('btnBar') btnBar!: ButtonsBarComponent;
 
   public data = new LocalDataSource([]);
   Ino = '';
@@ -242,7 +242,7 @@ export class PurchaseInvoiceComponent implements OnInit, OnChanges, AfterViewIni
       });
     }
   }
-  ProductSearchFn(term: any, item) {
+  ProductSearchFn(term: any, item: any) {
     if (isNaN(term)) {
       return (
         item.ProductName.toLocaleLowerCase().indexOf(
@@ -271,11 +271,11 @@ export class PurchaseInvoiceComponent implements OnInit, OnChanges, AfterViewIni
     };
     this.data.prepend(obj);
   }
-  CustomerSelected(event) {
+  CustomerSelected(event: any) {
     console.log(event);
 
     if (event.CustomerID) {
-      this.SelectCust = this.Accounts.find((x) => {
+      this.SelectCust = this.Accounts.find((x: any) => {
         return x.CustomerID == event.CustomerID;
       });
     }
@@ -313,7 +313,7 @@ export class PurchaseInvoiceComponent implements OnInit, OnChanges, AfterViewIni
     this.pdetails = new PInvoiceDetails();
     this.pdetails.StoreID = storeid;
   }
-  ProductSelected($event) {
+  ProductSelected($event: any) {
     if ($event && $event.ProductID !== '') {
       this.selectedProduct = $event;
       this.pdetails.Packing = this.selectedProduct.Packing;
@@ -378,7 +378,7 @@ export class PurchaseInvoiceComponent implements OnInit, OnChanges, AfterViewIni
       }
     });
   }
-  public onDeleteConfirm(event): void {
+  public onDeleteConfirm(event: any): void {
     if (window.confirm('Are you sure you want to delete?')) {
       event.confirm.resolve();
       setTimeout(() => {
@@ -389,7 +389,7 @@ export class PurchaseInvoiceComponent implements OnInit, OnChanges, AfterViewIni
       event.confirm.reject();
     }
   }
-  public onEdit(event) {
+  public onEdit(event: any) {
     event.newData.Amount =
       ((event.newData.Qty * event.newData.Packing + 1 * event.newData.KGs) *
         event.newData.PPrice) /
@@ -408,7 +408,7 @@ export class PurchaseInvoiceComponent implements OnInit, OnChanges, AfterViewIni
       //  console.log(prop === 'CustomerName'? this.Accounts: this.Prods);
       let filtered = (
         prop === 'CustomerName' ? this.Accounts : this.Prods
-      ).filter((f) => {
+      ).filter((f: any) => {
         return f[prop].toLowerCase().indexOf(e.text.toLowerCase()) >= 0;
       });
       console.log(filtered);
@@ -417,15 +417,15 @@ export class PurchaseInvoiceComponent implements OnInit, OnChanges, AfterViewIni
     }
   };
 
-  public onRowSelect(e) {
+  public onRowSelect(_e: any) {
     // console.log(event);
   }
 
-  public onUserRowSelect(e) {
+  public onUserRowSelect(_e: any) {
     // console.log(event);   //this select return only one page rows
   }
 
-  public onRowHover(e) {
+  public onRowHover(_e: any) {
     // console.log(event);
   }
 
@@ -470,8 +470,7 @@ export class PurchaseInvoiceComponent implements OnInit, OnChanges, AfterViewIni
   FindINo() {
     this.router.navigate(['/purchase/invoice/', this.Ino]);
   }
-  NavigatorClicked(e) {
-    let dt = GetDateJSON();
+  NavigatorClicked(e: any) {
     let billNo: any = '5023500';
     // let billNo:any = '5027897';
     switch (Number(e.Button)) {

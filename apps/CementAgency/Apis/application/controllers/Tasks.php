@@ -1298,7 +1298,7 @@ class Tasks extends REST_Controller
         foreach ($bookings as $booking) {
 
             $supplierID = isset($booking['SupplierID']) ? $booking['SupplierID'] : 0;
-            if ($supplierID = 0) {
+            if ($supplierID == 0) {
                 $this->response([
                     'status' => 'error',
                     'msg'    => 'Supplier not found'], REST_Controller::HTTP_NOT_FOUND);

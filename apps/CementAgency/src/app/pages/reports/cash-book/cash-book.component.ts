@@ -17,6 +17,9 @@ import { PrintDataService } from '../../../services/print.data.services';
 export class CashBookComponent implements OnInit {
   @ViewChild('RptTable') RptTable!: ElementRef;
   public data: any = [];
+  public saleData: any[] = [];
+  public purchaseData: any[] = [];
+  public viewMode = 'sale';
 
   public Filter = {
     Date: GetDateJSON(),
@@ -35,6 +38,34 @@ export class CashBookComponent implements OnInit {
     ],
     Actions: [],
     Data: [],
+  };
+
+  saleSetting = {
+    Checkbox: false,
+    Columns: [
+      { label: 'Ref No', fldName: 'RefID' },
+      { label: 'Customer', fldName: 'Customer', type: 'text' },
+      { label: 'Product Name', fldName: 'ProductName' },
+      { label: 'Price', fldName: 'Price', sum: true },
+      { label: 'Qty', fldName: 'Qty', sum: true },
+      { label: 'Amount', fldName: 'Amount', sum: true },
+    ],
+    Actions: [],
+    Data: [] as any[],
+  };
+
+  purchaseSetting = {
+    Checkbox: false,
+    Columns: [
+      { label: 'Ref No', fldName: 'RefID' },
+      { label: 'Supplier', fldName: 'SupplierName', type: 'text' },
+      { label: 'Product Name', fldName: 'ProductName' },
+      { label: 'Price', fldName: 'Price', sum: true },
+      { label: 'Qty', fldName: 'Qty', sum: true },
+      { label: 'Amount', fldName: 'Amount', sum: true },
+    ],
+    Actions: [],
+    Data: [] as any[],
   };
 
   open_balance = 0;
@@ -77,8 +108,10 @@ export class CashBookComponent implements OnInit {
     const customersPromise = this.http.getData('qrycustomers?flds=CustomerID,CustomerName');
     const expensesPromise = this.http.getData('qryexpenses?filter=' + dateFilter + '&orderby=Date')
       .catch(() => this.http.getData('expend?filter=' + dateFilter + '&orderby=Date'));
+    const salePromise = this.http.getData('qrysalereport?orderby=Date,BookingID&flds=CustomerName,ProductName,SPrice,Qty,Amount&filter=' + dateFilter).catch(() => []);
+    const purchasePromise = this.http.getData('qrypurchasereport?orderby=Date,BookingID&flds=BookingID,ProductName,PPrice,Qty,Amount&filter=' + dateFilter).catch(() => []);
 
-    Promise.all([openBalPromise, cashPromise, vouchersPromise, transportPromise, bookingPromise, expensesPromise, customersPromise])
+    Promise.all([openBalPromise, cashPromise, vouchersPromise, transportPromise, bookingPromise, expensesPromise, customersPromise, salePromise, purchasePromise])
       .then((res: any[]) => {
         // opening balance
         try {
@@ -129,6 +162,7 @@ export class CashBookComponent implements OnInit {
             Date: r.Date,
             RefModule: 'Cashbook',
             RefID: r.ID || r.CashID || 0,
+            Customer: r.CustomerName || r.AcctName || '',
             Head: r.Head || r.AcctID || r.AcctName || '',
             Details: r.Details || r.Description || r.InvoiceNo || '',
             Recvd: Number(r.Recvd) || 0,
@@ -143,6 +177,7 @@ export class CashBookComponent implements OnInit {
             Date: v.Date,
             RefModule: 'Voucher',
             RefID: v.VoucherID || 0,
+            Customer: v.CustomerName || '',
             Head: v.CustomerName || v.CustomerID || '',
             Details: v.Description || v.CustomerName || '',
             Recvd: Number(v.Credit) || 0,
@@ -157,6 +192,7 @@ export class CashBookComponent implements OnInit {
             Date: t.Date,
             RefModule: 'Transport',
             RefID: t.ID || t.TransportID || 0,
+            Customer: t.TransportName || '',
             Head: t.TransportName || t.VehicleNo || '',
             Details: t.Description || t.Type || '',
             Recvd: Number(t.Income) || 0,
@@ -183,6 +219,7 @@ export class CashBookComponent implements OnInit {
               Date: b.Date,
               RefModule: 'Booking',
               RefID: b.BookingID || 0,
+              Customer: b.CustomerName || '',
               Head: b.CustomerName || b.SupplierID || '',
               Details: b.InvoiceNo || b.ReceiptNo || 'Booking',
               Recvd: amount,
@@ -194,6 +231,7 @@ export class CashBookComponent implements OnInit {
               Date: b.Date,
               RefModule: 'Booking',
               RefID: b.BookingID || 0,
+              Customer: b.CustomerName || '',
               Head: b.CustomerName || b.SupplierID || '',
               Details: b.InvoiceNo || b.ReceiptNo || 'Booking',
               Recvd: 0,
@@ -207,6 +245,7 @@ export class CashBookComponent implements OnInit {
               Date: b.Date,
               RefModule: 'Booking-Carriage',
               RefID: b.BookingID || 0,
+              Customer: b.CustomerName || '',
               Head: b.CustomerName || b.SupplierID || '',
               Details: 'Carriage Charges',
               Recvd: 0,
@@ -222,6 +261,7 @@ export class CashBookComponent implements OnInit {
             Date: e.Date,
             RefModule: 'Expense',
             RefID: e.ID || e.ExpID || 0,
+            Customer: '',
             Head: e.HeadName || e.HeadID || '',
             Details: e.Description || e.Desc || e.Details || '',
             Recvd: 0,
@@ -249,6 +289,38 @@ export class CashBookComponent implements OnInit {
 
         this.data = merged;
         this.setting.Data = this.data;
+
+        // --- Sale data ---
+        const saleRows = Array.isArray(res[7]) ? res[7] : [];
+        this.saleData = saleRows.map((row: any) => ({
+          RefID: row.BookingID || row.InvoiceID || row.invoiceID || '',
+          Customer: row.CustomerName || '',
+          ProductName: row.ProductName || '',
+          Price: Number(row.SPrice) || 0,
+          Qty: Number(row.Qty) || 0,
+          Amount: Number(row.Amount) || 0,
+        }));
+        this.saleSetting.Data = this.saleData;
+
+        // --- Purchase data ---
+        const purchaseRows = Array.isArray(res[8]) ? res[8] : [];
+        // Build booking->supplier map from bookingRows already fetched
+        const supplierMap: any = {};
+        for (const b of bookingRows) {
+          if (b.BookingID) supplierMap[String(b.BookingID)] = b.CustomerName || '';
+        }
+        this.purchaseData = purchaseRows.map((row: any) => {
+          const bookingId = row.BookingID || '';
+          return {
+            RefID: bookingId,
+            SupplierName: supplierMap[String(bookingId)] || row.SupplierName || row.CustomerName || '',
+            ProductName: row.ProductName || '',
+            Price: Number(row.PPrice) || 0,
+            Qty: Number(row.Qty) || 0,
+            Amount: Number(row.Amount) || 0,
+          };
+        });
+        this.purchaseSetting.Data = this.purchaseData;
       })
       .catch((err) => {
         console.error('Error loading cashbook related data', err);

@@ -135,6 +135,12 @@ export class BookingInvoiceComponent
     this.$Companies = this.cachedData.Stores$;
   }
 
+  getSupplierName(supplierID: any): string {
+    if (!supplierID) return '';
+    const s = this.Suppliers.find((x: any) => x.CustomerID == supplierID);
+    return s ? s.CustomerName : '';
+  }
+
   ngOnInit() {
     this.Cancel();
     this.cachedData.Products$.subscribe((products: any[]) => {
@@ -275,6 +281,10 @@ export class BookingInvoiceComponent
         this.Products.find(
           (p: any) => p.ProductID === this.bookingDetail.ProductID
         )?.ProductName || '',
+      SupplierID: this.booking?.SupplierID || '',
+      SupplierName:
+        this.Suppliers.find((s: any) => s.CustomerID === this.booking?.SupplierID)
+          ?.CustomerName || '',
       Qty: this.bookingDetail.Qty,
       Price: this.bookingDetail.Price,
       Packing: this.selectedProduct?.Packing || 1,
@@ -286,6 +296,36 @@ export class BookingInvoiceComponent
     this.bookingDetail.Qty = 0;
     this.bookingDetail.Price = 0;
     this.cmbProd.focus();
+  }
+  
+  onBookingProductChange(event: any) {
+    // event from ng-select is usually the selected item object; if bindValue
+    // was used and a primitive arrives, try to resolve it from Products.
+    const product =
+      event && event.ProductID
+        ? event
+        : this.Products.find((p: any) => p.ProductID === event) || {};
+    this.selectedProduct = product || {};
+
+    // ensure saleDetail exists
+    if (!this.saleDetail) {
+      this.saleDetail = {
+        Qty: 0,
+        Price: 0,
+        Discount: 0,
+        MRP: 0,
+        Received: 0,
+        Amount: 0,
+      } as SaleDetail;
+    }
+
+    // sync selected product into sale form for convenience
+    this.saleDetail.ProductID = product?.ProductID;
+    this.saleDetail.ProductName = product?.ProductName;
+    // prefer explicit product price if present
+    if (product && product.Price != null) {
+      this.saleDetail.Price = product.Price;
+    }
   }
   removeItem() {
     if (this.bookData.length > 0) {
@@ -389,19 +429,27 @@ export class BookingInvoiceComponent
     this.booking.BagsSold = this.booking.BagsPurchase;
   }
   saveAndPrint() {
+    // Clone the print section BEFORE saving (SaveData clears data and navigates away)
+    const salePrintEl = document.getElementById('sale-print-section');
+    let clone: HTMLElement | null = null;
+    if (salePrintEl) {
+      clone = salePrintEl.cloneNode(true) as HTMLElement;
+      clone.style.display = 'block';
+    }
+    const printTitle = 'Sale Invoice';
+    const printSubTitle = this.booking.InvoiceNo || '';
+    const printSaleDetails = [...this.saleData];
+
     this.SaveData()
       .then(() => {
-        // prepare print data and navigate to unified print page
-        this.ps.PrintData.HTMLData = document.getElementById('print-section');
-        this.ps.PrintData.Title = 'Booking';
-        this.ps.PrintData.SubTitle = this.booking.InvoiceNo || '';
-        this.ps.PrintData.Booking = this.booking;
-        this.ps.PrintData.BookingDetails = this.bookData;
-        this.ps.PrintData.SaleDetails = this.saleData;
+        this.ps.PrintData.HTMLData = clone;
+        this.ps.PrintData.Title = printTitle;
+        this.ps.PrintData.SubTitle = printSubTitle;
+        this.ps.PrintData.SaleDetails = printSaleDetails;
         this.router.navigateByUrl('/print/print-html');
       })
       .catch((err) => {
-        // already handled in SaveData; optionally show
+        // already handled in SaveData
       });
   }
   LoadInvoice() {
@@ -423,7 +471,15 @@ export class BookingInvoiceComponent
           })
           .then((d: any) => {
             if (d) {
-              this.bookData = d;
+                  // ensure supplier name is present on each item for display
+                  this.bookData = (d || []).map((it: any) => ({
+                    ...it,
+                    SupplierID: it.SupplierID || this.booking?.SupplierID || '',
+                    SupplierName:
+                      it.SupplierName ||
+                      this.Suppliers.find((s: any) => s.CustomerID == (it.SupplierID || this.booking?.SupplierID))?.CustomerName ||
+                      '',
+                  }));
               this.calcBooking();
             }
           });

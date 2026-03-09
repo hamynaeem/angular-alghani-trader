@@ -90,5 +90,39 @@
       </div>
 
     </div>
+
+    <!-- Sale / Purchase Section -->
+    <div class="row mt-4 mb-2">
+      <div class="col-md-2">
+        <div class="custom-control custom-radio">
+          <input class="custom-control-input" id="radioSale" name="viewMode" type="radio" value="sale" [(ngModel)]="viewMode" />
+          <label class="custom-control-label" for="radioSale">SALES</label>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <div class="custom-control custom-radio">
+          <input class="custom-control-input" id="radioPurchase" name="viewMode" type="radio" value="purchase" [(ngModel)]="viewMode" />
+          <label class="custom-control-label" for="radioPurchase">PURCHASE</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="row no-gutter" *ngIf="viewMode === 'sale'">
+      <div class="col-md-12">
+        <ft-dynamic-table
+          [Settings]="saleSetting"
+          [Data]="saleData"
+        ></ft-dynamic-table>
+      </div>
+    </div>
+
+    <div class="row no-gutter" *ngIf="viewMode === 'purchase'">
+      <div class="col-md-12">
+        <ft-dynamic-table
+          [Settings]="purchaseSetting"
+          [Data]="purchaseData"
+        ></ft-dynamic-table>
+      </div>
+    </div>
   </div>
 </div>
