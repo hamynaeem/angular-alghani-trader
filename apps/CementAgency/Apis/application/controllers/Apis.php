@@ -1018,90 +1018,89 @@ class Apis extends REST_Controller
     {
         $post_data = $this->post();
 
-        // Validate input
-        if (! isset($post_data['message'])) {
-            $this->response([
-                "status" => false,
-                "error"  => "Missing 'message' field in payload",
-            ], REST_Controller::HTTP_BAD_REQUEST);
-            return;
-        }
 
-        $url     = "https://etrademanager.com/wa/send.php";
-        $timeout = 30;
-        $results = [];
+// print_r($post_data);
 
-        // Initialize cURL once
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($ch, CURLOPT_HEADER, 0);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
-        curl_setopt($ch, CURLOPT_POST, 1);
-        curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
+    if (!isset($post_data['message'])) {
+      $this->response(array('result' => 'Error', 'message' => 'no bulksms data given'), REST_Controller::HTTP_BAD_REQUEST);
+      return;
+    }
+    // $bulksms = json_decode($post_data['messages'], true);
+    $curl = curl_init();
 
-        $messages = json_decode($post_data['message'], true);
+    curl_setopt_array($curl, [
+      CURLOPT_URL => 'https://api.whiztext.com/v1/bulk/personalized',
+      CURLOPT_RETURNTRANSFER => true,
+      CURLOPT_CUSTOMREQUEST => 'POST',
+      CURLOPT_POSTFIELDS => json_encode([
+        'messages' => json_decode($post_data['message'], true)
+      ]),
+      CURLOPT_HTTPHEADER => [
+        'Content-Type: application/json',
+        'X-API-Key: sk_dec8cc920c3f139997396f8d6188fb2812095aa683a641715d6759f59dd9e0a1'
+      ],
+      CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+      CURLOPT_ENCODING => '',
+      CURLOPT_TIMEOUT => 30,
+    ]);
 
-        if (! is_array($messages)) {
-            $this->response([
-                "status" => false,
-                "error"  => "Invalid 'message' JSON format",
-            ], REST_Controller::HTTP_BAD_REQUEST);
-            curl_close($ch);
-            return;
-        }
+    $response = curl_exec($curl);
 
-        foreach ($messages as $item) {
-            if (empty($item['mobile']) || empty($item['message'])) {
-                $results[] = [
-                    "status" => false,
-                    "error"  => "Missing mobile or message",
-                    "data"   => $item,
-                ];
-                continue;
-            }
 
-            $parameters = [
-                "phone"        => $item['mobile'],
-                "message"      => $item['message'],
-                "priority"     => "10",
-                "personalized" => 1,
-                "type"         => 0,
-            ];
+    // print_r ($response);
+    if (curl_errno($curl)) {
+      $error = curl_error($curl);
+      curl_close($curl);
+      $this->response([
+        'success' => false,
+        'message' => 'Curl error: ' . $error,
+        'raw'     => null
+      ], REST_Controller::HTTP_BAD_REQUEST);
+      return;
+    }
 
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $parameters);
+    curl_close($curl);
 
-            $response = curl_exec($ch);
+    $data = json_decode($response, true);
 
-            if (curl_errno($ch)) {
-                $results[] = [
-                    "status" => false,
-                    "error"  => curl_error($ch),
-                    "data"   => $item,
-                ];
-            } else {
-                $decoded = json_decode($response, true);
-                if (json_last_error() === JSON_ERROR_NONE && isset($decoded['status'])) {
-                    $results[] = [
-                        "status"  => (bool) $decoded['status'],
-                        "message" => $decoded['message'] ?? "Processed",
-                        "data"    => $item,
-                    ];
-                } else {
-                    $results[] = [
-                        "status" => false,
-                        "error"  => "Invalid API response",
-                        "raw"    => $response,
-                        "data"   => $item,
-                    ];
-                }
-            }
-        }
+    if (!is_array($data)) {
+      $this->response([
+      'success' => false,
+      'message' => 'Invalid API response',
+      'raw'     => $response
+      ], REST_Controller::HTTP_BAD_REQUEST);
+      return;
+    }
 
-        curl_close($ch);
+    // Process only success and failure details
+    $results = [
+      'success' => [],
+      'failed'  => []
+    ];
 
-        $this->response($results, REST_Controller::HTTP_OK);
+    if (isset($data['results']['details']) && is_array($data['results']['details'])) {
+      foreach ($data['results']['details'] as $item) {
+      if (isset($item['status']) && $item['status'] === 'sent') {
+        $results['success'][] = [
+        'mobile'    => $item['mobile'] ?? null,
+        'messageId' => $item['messageId'] ?? null
+        ];
+      } else {
+        $results['failed'][] = [
+        'mobile' => $item['mobile'] ?? null,
+        'error'  => $item['error'] ?? 'Unknown error'
+        ];
+      }
+      }
+    }
+
+    $responseArr = [
+      'success' => true,
+      'results' => $results,
+      'quota'   => $data['quota'] ?? null
+    ];
+
+    $this->response($responseArr, REST_Controller::HTTP_OK);
     }
     public function makepdf_get()
     {

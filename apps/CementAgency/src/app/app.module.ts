@@ -34,6 +34,7 @@ import { PrintDataService } from './services/print.data.services';
 import { MyToastService } from './services/toaster.server';
 import { TokenService } from './services/token.service';
 import { DashboardService } from './services/dashboard.service';
+import { WhatsAppService } from './services/whatsapp.service';
 import { WINDOW_PROVIDERS } from './shared/services/window.service';
 import { SharedModule } from './shared/shared.module';
 
@@ -102,6 +103,7 @@ export function createTranslateLoader(http: HttpClient) {
     JwtHelperService,
     PrintDataService,
     DashboardService,
+    WhatsAppService,
 
     {
       provide: PERFECT_SCROLLBAR_CONFIG,

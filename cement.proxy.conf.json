@@ -7,5 +7,14 @@
       "^/apis": ""
     },
     "changeOrigin": true
+  },
+  "/whiztext-api/*": {
+    "target": "https://api.whiztext.com/",
+    "secure": true,
+    "logLevel": "debug",
+    "pathRewrite": {
+      "^/whiztext-api": ""
+    },
+    "changeOrigin": true
   }
 }

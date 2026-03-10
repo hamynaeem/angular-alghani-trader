@@ -5,6 +5,8 @@ import { Status } from '../../../factories/constants';
 import { CachedDataService } from '../../../services/cacheddata.service';
 import { HttpBase } from '../../../services/httpbase.service';
 import { PrintDataService } from '../../../services/print.data.services';
+import { WhatsAppService } from '../../../services/whatsapp.service';
+import { json } from 'stream/consumers';
 
 @Component({
   selector: 'app-customers',
@@ -238,7 +240,8 @@ export class CustomersComponent implements OnInit {
     private http: HttpBase,
     private router: Router,
     private cached: CachedDataService,
-    private ps: PrintDataService
+    private ps: PrintDataService,
+    private whatsApp: WhatsAppService
   ) { }
 
   ngOnInit() {
@@ -283,7 +286,7 @@ export class CustomersComponent implements OnInit {
       });
     } else if (e.action === 'delete') {
       swal({
-        text: `Do you really want to delete this product ${e.data.ProductName}  ?`,
+        text: `Do you really want to delete this customer ${e.data.CustomerName}  ?`,
         icon: 'warning',
         buttons: {
           cancel: true,
@@ -292,10 +295,10 @@ export class CustomersComponent implements OnInit {
       }).then((willDelete) => {
         if (willDelete) {
           this.http
-            .Delete('xxxxxx', e.data.CustomerID)
+            .Delete('customers', e.data.CustomerID)
             .then((r) => {
               this.FilterData();
-              swal('Deleted!', 'Your product is deleted', 'success');
+              swal('Deleted!', 'Customer has been deleted', 'success');
             })
             .catch((er) => {
               swal('Error!', 'Error whie deleting', 'error');
@@ -312,25 +315,41 @@ export class CustomersComponent implements OnInit {
         },
       }).then(async (willYes) => {
         if (willYes) {
-          let sms: any = [];
           let rndom = Math.floor(1000 + Math.random() * 9000);
-          sms.push({
-            mobile: e.data.PhoneNo,
-            message: `You PIN Code for login is ${rndom}, please open https://alghanitraders.etrademanager.com/#/customers/auth/login to login`,
-          });
-          try {
-            let resp: any = await this.http.postData('sendwabulk', {
-              mobile: '03424256584',
-              message: JSON.stringify(sms),
-            });
-            console.log(resp);
-            if (resp.success == 'false') {
-              swal('Error!', resp.results[0].error, 'error');
-            } else {
-              swal('Success!', 'Pin Code for customer is reset', 'success');
+          if (!e.data.PhoneNo) {
+            swal('Error!', 'Customer does not have phone number', 'error');
+            return;
+          }
+          if (e.data.PhoneNo.length < 10) {
+            swal('Error!', 'Invalid phone number', 'error');
+            return;
+          }
+          if (e.data.PhoneNo) {
+            let mobile = e.data.PhoneNo.toString().trim();
+
+            // remove spaces, dashes, etc
+            mobile = mobile.replace(/\D/g, '');
+
+            if (mobile.startsWith('03')) {
+              mobile = '92' + mobile.substring(1);
             }
+
+            e.data.MobileNo = mobile;
+          }
+          let messages = [
+            {
+              mobile: e.data.MobileNo, // e.data.MobileNo,
+              message: `You PIN Code for login is ${rndom}, please open https://alghani.etrademanager.com/#/customers/auth/login to login`,
+            },
+          ];
+          try {
+            await this.http.postData('customers/' + e.data.CustomerID, { CustomerID: e.data.CustomerID, PinCode: rndom });
+
+            this.http.postData('sendwabulk', { message: JSON.stringify(messages) }).then((r) => {
+              swal('Success!', 'Pin code sent successfully', 'success');
+            });
           } catch (Err) {
-            swal('Error!', 'Error whie sending code', 'error');
+            swal('Error!', 'Error while sending code', 'error');
           }
         }
       });

@@ -71,7 +71,7 @@ export class CustomerAuthService {
         const user: CustomerUser = {
           CustomerID: result[0].CustomerID,
           CustomerName: result[0].CustomerName,
-          PhoneNo1: result[0].PhoneNo1,
+          PhoneNo1: result[0].PhoneNo,
           Address: result[0].Address,
           Email: result[0].Email,
           Balance: result[0].Balance
