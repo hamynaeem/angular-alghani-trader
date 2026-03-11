@@ -60,20 +60,24 @@ export class PrintHtmlComponent implements OnInit, AfterViewInit {
     doc.text('Tel: ' + this.Business.Phone, 105, 20, {
       align: 'center',
     });
+    doc.setFontSize(12);
+    doc.text('Alghani Traders', 105, 25, { align: 'center' });
+    doc.setFontSize(10);
+    doc.text('+92 300 7749830', 105, 30, { align: 'center' });
 
     doc.setFontSize(16);
-    doc.text(this.pdata.PrintData.Title, 105, 27, {
+    doc.text(this.pdata.PrintData.Title, 105, 37, {
       align: 'center',
     });
 
     doc.setFontSize(11);
-    doc.text(this.pdata.PrintData.SubTitle, 105, 32, {
+    doc.text(this.pdata.PrintData.SubTitle, 105, 42, {
       align: 'center',
     });
-    let tableY = 37;
+    let tableY = 47;
     if (this.pdata.PrintData.Title == 'Customer Accounts Report') {
       doc.setFontSize(14);
-      doc.text(this.pdata.PrintData.CustomerName, 105, 37, {
+      doc.text(this.pdata.PrintData.CustomerName, 105, 47, {
         align: 'center',
       });
       tableY += 5;

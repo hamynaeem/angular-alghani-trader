@@ -41,7 +41,7 @@
                     />
                   </div>
                 </div>
-                <small class="form-text text-muted">Select date range for loading orders</small>
+                
               </div>
             </div>
 
@@ -189,6 +189,8 @@
     <div class="print-content">
       <div class="print-header">
         <h3>TRANSPORT AMOUNT RECEIVED RECEIPT</h3>
+        <div style="font-size: 14px; font-weight: 600;">Alghani Traders</div>
+        <div style="font-size: 12px;">+92 300 7749830</div>
         <p>Date Range: {{ fromDate === toDate ? (fromDate | date:'shortDate') : (fromDate | date:'shortDate') + ' to ' + (toDate | date:'shortDate') }}</p>
       </div>
       <div class="print-body" *ngIf="curCustomer && Voucher.CustomerID">

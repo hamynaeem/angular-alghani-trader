@@ -25,7 +25,11 @@
           "ngx-quill",
           "lodash",
           "css-element-queries",
-          "chart.js"
+          "chart.js",
+          "core-js/modules/web.dom-collections.iterator.js",
+          "raf",
+          "rgbcolor",
+          "quill"
         ],
         "outputPath": "dist/apps/CementAgency",
         "index": "apps/CementAgency/src/index.html",
