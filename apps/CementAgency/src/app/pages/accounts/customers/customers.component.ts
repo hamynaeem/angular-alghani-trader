@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import swal from 'sweetalert';
 import { Status } from '../../../factories/constants';
 import { CachedDataService } from '../../../services/cacheddata.service';
+import { GetDateJSON, JSON2Date } from '../../../factories/utilities';
 import { HttpBase } from '../../../services/httpbase.service';
 import { PrintDataService } from '../../../services/print.data.services';
 import { WhatsAppService } from '../../../services/whatsapp.service';
@@ -353,6 +354,18 @@ export class CustomersComponent implements OnInit {
           }
         }
       });
+    } else if (e && e.data) {
+      // Open account ledger for the clicked customer (default row click)
+      try {
+        const from = GetDateJSON();
+        from.day = 1; // start from first day of current month
+        const fromStr = JSON2Date(from);
+        const toStr = JSON2Date(GetDateJSON());
+        // Navigate to the account ledger route with query params
+        this.router.navigate(['/accounts/accountledger'], { queryParams: { from: fromStr, to: toStr, customerId: e.data.CustomerID } });
+      } catch (err) {
+        console.error('Error navigating to account details', err);
+      }
     }
   }
 

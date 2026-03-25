@@ -79,9 +79,13 @@ export function getDMYDate(dte: Date | null = null) {
 }
 
 export function JSON2Date(d) {
-  return (
-    d.year + '-' + pad(d.month, 2, '0') + '-' + pad(d.day, 2, '0')
-  );
+  if (!d) return '';
+  // if d already a string or Date-like, return as-is
+  if (typeof d === 'string') return d;
+  if (d instanceof Date) {
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1, 2, '0') + '-' + pad(d.getDate(), 2, '0');
+  }
+  return d.year + '-' + pad(d.month, 2, '0') + '-' + pad(d.day, 2, '0');
 }
 
 export function GetDateJSON(dte: Date|null= null) {

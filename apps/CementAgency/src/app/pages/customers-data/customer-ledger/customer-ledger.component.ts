@@ -203,6 +203,21 @@ export class CustomerLedgerComponent implements OnInit, OnDestroy {
   setting = {
     Columns: [
       {
+        label: 'Type',
+        fldName: 'TypeLabel',
+        html: true,
+        valueFormatter: (r: any) => {
+          const t = (r.TypeLabel || '').toString();
+          if (!t) return '';
+          let cls = 'badge bg-secondary';
+          if (t.toLowerCase() === 'purchase') cls = 'badge bg-danger';
+          if (t.toLowerCase() === 'sale') cls = 'badge bg-success';
+          if (t.toLowerCase() === 'received' || t.toLowerCase() === 'paid') cls = 'badge bg-warning text-dark';
+          if (t.toLowerCase() === 'expense') cls = 'badge bg-danger';
+          return '<span class="' + cls + '">' + t + '</span>';
+        }
+      },
+      {
         label: 'Date',
         fldName: 'Date',
         type: 'date'
@@ -337,6 +352,9 @@ export class CustomerLedgerComponent implements OnInit, OnDestroy {
       this.data = (r || []).map((row: any) => {
         // normalize booking field to `Booking` so table can always show it
         row.Booking = row.Booking || row.BookingNo || row.BookingID || row.BookingRef || '';
+        // determine human-friendly type label and row class (purchase/sale/received/expense)
+        row.TypeLabel = this.determineTypeLabel(row);
+        row.rowClass = this.determineRowClass(row);
         return row;
       });
       console.log('Customer ledger rows sample:', this.data && this.data.length ? this.data.slice(0,5) : this.data);
@@ -423,13 +441,49 @@ export class CustomerLedgerComponent implements OnInit, OnDestroy {
         const exists = this.setting.Columns.some((c: any) => c.fldName === key);
         if (!exists) {
           const idx = this.setting.Columns.findIndex((c: any) => c.fldName === 'RefID');
-          const col = { label: 'Booking', fldName: key };
+          const col = {
+            label: 'Booking',
+            fldName: key,
+            html: true,
+            valueFormatter: (r: any) => {
+              const val = r[key] || '';
+              if (!val) return '';
+              return '<a href="/#/print/print-booking/' + val + '" target="_blank">' + val + '</a>';
+            }
+          };
           if (idx >= 0) this.setting.Columns.splice(idx + 1, 0, col);
           else this.setting.Columns.push(col);
         }
         break;
       }
     }
+  }
+
+  private determineTypeLabel(row: any): string {
+    try {
+      if (row.RefType === 1) return 'Sale';
+      if (row.RefType === 2) return 'Purchase';
+      // Received / payment
+      if (row.Credit && Number(row.Credit) > 0) return 'Received';
+      // Expense or charge without RefID
+      if (row.Debit && Number(row.Debit) > 0 && (!row.RefID || Number(row.RefID) === 0)) return 'Expense';
+      // fallback to Description keywords
+      const desc = (row.Description || '').toString().toLowerCase();
+      if (desc.includes('expense')) return 'Expense';
+      if (desc.includes('paid') || desc.includes('received')) return 'Received';
+      return '';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  private determineRowClass(row: any): string {
+    const t = (row.TypeLabel || '').toString().toLowerCase();
+    if (t === 'sale') return 'row-sale';
+    if (t === 'purchase') return 'row-purchase';
+    if (t === 'received' || t === 'paid') return 'row-received';
+    if (t === 'expense') return 'row-expense';
+    return '';
   }
 
   InvNoClicked(e: any) {

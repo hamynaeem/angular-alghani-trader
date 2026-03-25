@@ -15,6 +15,20 @@ export class OrdersReportComponent implements OnInit {
   @ViewChild('RptTable') RptTable;
   public loadingOrders: boolean = false;
 
+  // For Add Order Form
+  public showAddOrderForm = false;
+  public newOrder: any = {
+    OrderID: '',
+    OrderDate: '',
+    DeliveryDate: '',
+    CustomerName: '',
+    DeliveryAddress: '',
+    ProductName: '',
+    Quantity: null,
+    Total: null,
+    Status: ''
+  };
+
 public orderActions = {
   confirm: {
     status: 'Confirmed',
@@ -139,10 +153,12 @@ public orderActions = {
 
   nWhat = '1';
   Customers: any = [{ ItemID: '1', ItemName: 'Test Item' }];
+  Products: any = [];
 
   public data: object[];
   public Accounts: any;
   public selectedCustomer: any = {};
+
   constructor(
     private http: HttpBase,
     private ps: PrintDataService,
@@ -154,7 +170,19 @@ public orderActions = {
 
   ngOnInit() {
     this.LoadCustomers();
+    this.LoadProducts();
     this.FilterData();
+  }
+
+  async LoadProducts() {
+    try {
+      this.cachedData.Products$.subscribe((data) => {
+        this.Products = data || [];
+      });
+    } catch (error) {
+      console.error('Error loading products:', error);
+      this.Products = [];
+    }
   }
   PrintReport() {
     this.ps.PrintData.HTMLData = document.getElementById('print-section');
@@ -260,6 +288,11 @@ public orderActions = {
     }).then((res) => {
       Swal.fire('Success', successMessage, 'success');
       this.FilterData(); // Refresh the data after status change
+
+      // If order confirmed, open Booking screen and instruct it to auto-select this order
+      if (status === 'Confirmed') {
+        this.router.navigate(['/purchase/booking'], { queryParams: { confirmedOrderID: row.OrderID } });
+      }
     }).catch((error) => {
       console.error('Error updating order status:', error);
       Swal.fire('Error', 'Failed to update order status', 'error');
@@ -278,4 +311,32 @@ public orderActions = {
   getStatusList() {
     return Object.keys(this.orderActions);
     }
+  // Add Order handler
+  addOrder() {
+    // Simple validation (could be improved)
+    if (!this.newOrder.OrderID || !this.newOrder.OrderDate || !this.newOrder.CustomerName || !this.newOrder.ProductName || !this.newOrder.Quantity || !this.newOrder.Total || !this.newOrder.Status) {
+      Swal.fire('Error', 'Please fill all required fields', 'error');
+      return;
+    }
+    // Add to data array (top)
+    this.data = [
+      { ...this.newOrder },
+      ...(this.data || [])
+    ];
+    this.setting.Data = this.data;
+    this.showAddOrderForm = false;
+    // Reset form
+    this.newOrder = {
+      OrderID: '',
+      OrderDate: '',
+      DeliveryDate: '',
+      CustomerName: '',
+      DeliveryAddress: '',
+      ProductName: '',
+      Quantity: null,
+      Total: null,
+      Status: ''
+    };
+    Swal.fire('Success', 'Order added (not saved to server)', 'success');
+  }
   }

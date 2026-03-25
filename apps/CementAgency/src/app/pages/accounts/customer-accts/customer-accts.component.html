@@ -1,6 +1,16 @@
 <div widget class="card border-0 box-shadow">
   <div class="card-header transparent border-0 text-muted">
-    <h5 class="mb-3">Account Ledger</h5>
+    <div class="d-flex justify-content-between align-items-start">
+      <h5 class="mb-0">Account Ledger</h5>
+      <div class="text-right">
+        <div class="text-muted small">Bookings: {{ customer.BookingCount || 0 }}</div>
+        <div><strong>{{ customer.BookingTotal | number:'1.2-2' }}</strong></div>
+      </div>
+    </div>
+    <div class="mt-2">
+      <div><strong>{{ customer.CustomerName }}</strong> <span class="text-muted">{{ customer.City }}</span></div>
+      <div class="small text-muted">From {{ formatDate(Filter.FromDate) }} To {{ formatDate(Filter.ToDate) }}</div>
+    </div>
   </div>
   <div class="card-block widget-body">
     <form #frmFilter="ngForm">
@@ -110,43 +120,43 @@
       </div>
     </form>
     <div id="print-section">
-      <div class="row no-pad">
-        <div class="col-md-12">
-          <div class="text-center">
-            <h1>Account Details</h1>
+      <div class="row mb-2">
+        <div class="col-md-8">
+          <div><strong>Address:</strong> {{ customer.Address }}</div>
+        </div>
+        <div class="col-md-4 text-right">
+          <div><strong>Opening:</strong> {{ customer.OpenBalance || 0 | number:'1.2-2' }}</div>
+          <div><strong>Closing:</strong> {{ customer.CloseBalance || 0 | number:'1.2-2' }}</div>
+        </div>
+      </div>
+
+      <!-- Bookings summary merged into the same card as Account Details -->
+      <div class="row no-pad" *ngIf="customer.Bookings && customer.Bookings.length">
+        <div class="col-12 mb-3">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <h6 class="mb-0">Bookings ({{ customer.BookingCount }})</h6>
+            <div class="text-right"><small class="text-muted">Total: </small> <strong>{{ customer.BookingTotal | number:'1.2-2' }}</strong></div>
           </div>
-          <table class="table">
-            <tr>
-              <td>
-                Customer Name:
-              </td>
-              <td>
-                <strong>{{ customer.CustomerName }}</strong>
-              </td>
-              <td>From</td>
-              <td>{{ formatDate(Filter.FromDate) }}</td>
-            </tr>
-            <tr>
-              <td>
-                Address:
-              </td>
-              <td>
-                {{ customer.Address }}
-              </td>
-              <td>To</td>
-              <td>{{ formatDate(Filter.ToDate) }}</td>
-            </tr>
-            <tr>
-              <td>
-                City:
-              </td>
-              <td>
-                {{ customer.City }}
-              </td>
-              <td> Opening Balance: <strong>{{customer.OpenBalance}}</strong></td>
-              <td>Clsoing Balance: <strong>{{customer.CloseBalance}}</strong></td>
-            </tr>
-          </table>
+          <div class="table-responsive">
+            <table class="table table-sm table-striped mb-0">
+              <thead>
+                <tr>
+                  <th style="width:160px">Date</th>
+                
+                  <th>Product</th>
+                  <th class="text-right">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let b of customer.Bookings">
+                  <td>{{ formatDate(b.Date) || '-' }}</td>
+                  <td>{{ b.InvoiceNo || b.BookingID }}</td>
+                  <td>{{ b.ProductName || '-' }}</td>
+                  <td class="text-right">{{ (b.NetAmount != null ? b.NetAmount : b.Amount) | number:'1.2-2' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 

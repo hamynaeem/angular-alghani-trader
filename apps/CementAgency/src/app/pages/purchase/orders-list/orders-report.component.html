@@ -131,6 +131,56 @@
     </form>
     <div class="row no-gutter" id="print-section">
       <div class="col-md-12">
+        <!-- Add Order Button -->
+        <button class="btn btn-success mb-3" (click)="showAddOrderForm = !showAddOrderForm">
+          <i class="fa fa-plus"></i> Add Order
+        </button>
+
+        <!-- Add Order Form -->
+        <form *ngIf="showAddOrderForm" (ngSubmit)="addOrder()" #addOrderForm="ngForm" class="mb-4 border p-3 bg-light rounded">
+          <div class="row">
+            <div class="col-md-2">
+              <input type="text" class="form-control mb-2" name="OrderID" placeholder="Order No" [(ngModel)]="newOrder.OrderID" required />
+            </div>
+            <div class="col-md-2">
+              <input type="date" class="form-control mb-2" name="OrderDate" placeholder="Order Date" [(ngModel)]="newOrder.OrderDate" required />
+            </div>
+            <div class="col-md-2">
+              <input type="date" class="form-control mb-2" name="DeliveryDate" placeholder="Delivery Date" [(ngModel)]="newOrder.DeliveryDate" />
+            </div>
+            <div class="col-md-2">
+              <select class="form-control mb-2" name="CustomerName" [(ngModel)]="newOrder.CustomerName" required>
+                <option value="">Select Customer</option>
+                <option *ngFor="let c of Customers" [value]="c.CustomerName">{{ c.CustomerName }}</option>
+              </select>
+            </div>
+            <div class="col-md-2">
+              <input type="text" class="form-control mb-2" name="DeliveryAddress" placeholder="Delivery Address" [(ngModel)]="newOrder.DeliveryAddress" />
+            </div>
+            <div class="col-md-2">
+              <select class="form-control mb-2" name="ProductName" [(ngModel)]="newOrder.ProductName" required>
+                <option value="">Select Product</option>
+                <option *ngFor="let p of Products" [value]="p.ProductName">{{ p.ProductName }}</option>
+              </select>
+            </div>
+            <div class="col-md-1">
+              <input type="number" class="form-control mb-2" name="Quantity" placeholder="Qty" [(ngModel)]="newOrder.Quantity" required />
+            </div>
+            <div class="col-md-1">
+              <input type="number" class="form-control mb-2" name="Total" placeholder="Amount" [(ngModel)]="newOrder.Total" required />
+            </div>
+            <div class="col-md-2">
+              <select class="form-control mb-2" name="Status" [(ngModel)]="newOrder.Status" required>
+                <option value="">Status</option>
+                <option *ngFor="let s of getStatusList()" [value]="s">{{ s }}</option>
+              </select>
+            </div>
+            <div class="col-md-2">
+              <button type="submit" class="btn btn-primary mr-2">Save</button>
+              <button type="button" class="btn btn-secondary" (click)="showAddOrderForm = false">Cancel</button>
+            </div>
+          </div>
+        </form>
         <ft-dynamic-table
           #RptTable
           [Settings]="setting"

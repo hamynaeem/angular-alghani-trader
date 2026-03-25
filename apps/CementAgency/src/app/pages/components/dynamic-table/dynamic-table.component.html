@@ -14,7 +14,7 @@
       </thead>
       <tbody>
         <ng-template ngFor let-r [ngForOf]="Data" let-i="index">
-          <tr (click)="ExandRow($event, i)" [style.background-color]="Data[i].checked ? 'yellow' : 'white'">
+          <tr (click)="ExandRow($event, i)" [ngClass]="(Data[i].checked ? 'checked-row ' : '') + (Data[i].rowClass || '')">
             <td *ngIf="settings.Checkbox" class="screenOnly">
               <input type="checkbox" value="{{ Data[i].checked }}" [(ngModel)]="Data[i].checked" />
             </td>

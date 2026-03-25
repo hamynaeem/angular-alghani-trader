@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, Input, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, OnInit, ViewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { FormatDate, GetDateJSON, JSON2Date } from '../../../factories/utilities';
 import { CachedDataService } from '../../../services/cacheddata.service';
@@ -10,14 +10,11 @@ import { PrintDataService } from '../../../services/print.data.services';
   templateUrl: './customer-accts.component.html',
   styleUrls: ['./customer-accts.component.scss'],
 })
-export class CustomerAcctsComponent implements OnInit, OnChanges {
-  @Input() fromDate: any;
-  @Input() toDate: any;
-  @Input() customerId: any;
-  @ViewChild('Customer') Customer;
-  public data: any = [];
-  public Products: object[];
-  public Users: object[];
+export class CustomerAcctsComponent implements OnInit {
+  @ViewChild('Customer') Customer!: any;
+  public data: any[] = [];
+  public Products: object[] = [];
+  public Users: object[] = [];
 
   public Filter = {
     FromDate: GetDateJSON(),
@@ -31,22 +28,14 @@ export class CustomerAcctsComponent implements OnInit, OnChanges {
         label: 'Date',
         fldName: 'Date',
       },
-      {
-        label: 'Invoice No',
-        fldName: 'RefID',
-        button: {
-          style: 'link',
-          callback: (e)=>{this.InvNoClicked(e)}} ,
-
-      },
-      {
-        label: 'Notes',
-        fldName: 'Notes',
-      },
+      
+     
       {
         label: 'Description',
         fldName: 'Description',
       },
+
+      
 
       {
         label: 'Debit',
@@ -67,7 +56,7 @@ export class CustomerAcctsComponent implements OnInit, OnChanges {
     Data: [],
   };
 
-  public toolbarOptions: object[];
+  public toolbarOptions: object[] = [];
   customer: any = {};
   Customers: any;
 
@@ -85,34 +74,6 @@ export class CustomerAcctsComponent implements OnInit, OnChanges {
     });
     this.Customers = this.cache.Accounts$;
     this.FilterData();
-  }
-
-  ngOnChanges(changes: SimpleChanges) {
-    try {
-      if (changes.fromDate && changes.fromDate.currentValue) {
-        this.Filter.FromDate = changes.fromDate.currentValue;
-      }
-      if (changes.toDate && changes.toDate.currentValue) {
-        this.Filter.ToDate = changes.toDate.currentValue;
-      }
-      if (changes.customerId && changes.customerId.currentValue) {
-        this.Filter.CustomerID = changes.customerId.currentValue;
-        // load customer meta then filter
-        this.http.getData('customers/' + this.Filter.CustomerID).then((r: any) => {
-          this.customer = r || {};
-          this.FilterData();
-        }).catch(() => {
-          this.FilterData();
-        });
-      } else {
-        // If only dates changed and a customer is already selected, refilter
-        if (this.Filter.CustomerID) {
-          this.FilterData();
-        }
-      }
-    } catch (e) {
-      console.error('customer-accts ngOnChanges error', e);
-    }
   }
   load() {}
   FilterData() {
@@ -178,7 +139,7 @@ export class CustomerAcctsComponent implements OnInit, OnChanges {
       });
   }
 
-  Clicked(e) {}
+  Clicked(e: any): void {}
   PrintReport() {
     this.ps.PrintData.Title = 'Customer Accounts Report';
     this.ps.PrintData.SubTitle = 'From: ' + JSON2Date(this.Filter.FromDate);
@@ -198,25 +159,114 @@ export class CustomerAcctsComponent implements OnInit, OnChanges {
         this.Filter.CustomerID
     );
   }
-  CustomerSelected(e) {
+  CustomerSelected(e: any): void {
     if (e.itemData) {
       this.http.getData('customers/' + e.itemData.CustomerID).then((r) => {
         this.customer = r;
         this.customer.OpenBalance = 0;
         this.customer.CloseBalance = 0;
+        // load booking summary for selected customer within the current date range
+        const from = JSON2Date(this.Filter.FromDate);
+        const to = JSON2Date(this.Filter.ToDate);
+        // Purchase bookings where this customer is the supplier
+        const purchaseFilter = "Date between '" + from + "' and '" + to + "' and SupplierID=" + e.itemData.CustomerID;
+        const purchaseParams = { filter: purchaseFilter, flds: 'BookingID,Date,InvoiceNo,Amount,NetAmount', bid: this.http.getBusinessID && this.http.getBusinessID() };
+
+        // Sales bookings (details) where this customer is the buyer
+        const saleFilter = 'CustomerID=' + e.itemData.CustomerID;
+        const saleParams = { filter: saleFilter, flds: 'BookingID,Amount', bid: this.http.getBusinessID && this.http.getBusinessID() };
+
+        Promise.all([
+          this.http.getData('qrybooking', purchaseParams).catch((err) => {
+            console.error('qrybooking purchase load failed:', err, err && err.error);
+            return [];
+          }),
+          this.http.getData('qrybookingsale', saleParams).catch((err) => {
+            console.error('qrybookingsale load failed:', err, err && err.error);
+            return [];
+          }),
+        ])
+          .then(([purchases, sales]: any) => {
+            purchases = purchases || [];
+            sales = sales || [];
+
+            // Normalize sales rows to match booking shape (no Date/InvoiceNo available in view)
+            const salesNorm = (sales || []).map((s: any) => ({ BookingID: s.BookingID, Date: s.Date || null, InvoiceNo: s.InvoiceNo || '', Amount: s.Amount || 0 }));
+
+            // Combine purchases and sales into a single list
+            this.customer.Bookings = purchases.concat(salesNorm);
+
+            // fetch booking details (product names) for all booking ids and attach them
+            const bookingIds = (this.customer.Bookings || []).map((b: any) => b.BookingID).filter((v: any) => v != null && v !== '');
+            const uniqIds = Array.from(new Set(bookingIds));
+            if (uniqIds.length > 0) {
+              const idsFilter = 'BookingID in (' + uniqIds.join(',') + ')';
+              const detailParams = { filter: idsFilter, flds: 'BookingID,ProductName', bid: this.http.getBusinessID && this.http.getBusinessID() };
+              this.http.getData('qrybookingdetails', detailParams).then((d: any) => {
+                const m: any = {};
+                (d || []).forEach((r: any) => {
+                  const id = r.BookingID;
+                  if (!m[id]) m[id] = [];
+                  m[id].push(r.ProductName || r.Product || r.ItemName || '');
+                });
+                (this.customer.Bookings || []).forEach((b: any) => {
+                  b.ProductName = (m[b.BookingID] || []).filter((x: any) => x).join(', ');
+                });
+              }).catch((err) => {
+                console.error('qrybookingdetails load failed:', err, err && err.error);
+              });
+
+              // fetch booking headers (Date, InvoiceNo) to fill missing Date/Invoice for sale rows
+              const headerParams = { filter: idsFilter, flds: 'BookingID,Date,', bid: this.http.getBusinessID && this.http.getBusinessID() };
+              this.http.getData('qrybooking', headerParams).then((hdrs: any) => {
+                const hmap: any = {};
+                (hdrs || []).forEach((r: any) => {
+                  hmap[r.BookingID] = r;
+                });
+                (this.customer.Bookings || []).forEach((b: any) => {
+                  if ((!b.Date || b.Date === null || b.Date === '') && hmap[b.BookingID]) {
+                    b.Date = hmap[b.BookingID].Date || b.Date;
+                  }
+                  if ((!b.InvoiceNo || b.InvoiceNo === null || b.InvoiceNo === '') && hmap[b.BookingID]) {
+                    b.InvoiceNo = hmap[b.BookingID].InvoiceNo || b.InvoiceNo;
+                  }
+                });
+              }).catch((err) => {
+                console.error('qrybooking headers load failed:', err, err && err.error);
+              });
+            }
+
+            const total = (this.customer.Bookings || []).reduce((acc: number, b: any) => {
+              const amt = (b.NetAmount != null ? b.NetAmount : b.Amount) || 0;
+              return acc + Number(amt);
+            }, 0);
+            this.customer.BookingTotal = total;
+            this.customer.BookingCount = (this.customer.Bookings || []).length;
+          })
+          .catch((err) => {
+            console.error('Failed to load bookings for customer (combined):', err, err && err.error);
+            this.customer.Bookings = [];
+            this.customer.BookingTotal = 0;
+            this.customer.BookingCount = 0;
+          });
       });
     }
   }
-  formatDate(d) {
-    return  FormatDate( JSON2Date(d));
+  formatDate(d: any): string {
+    if (!d) return '';
+    // if d is JSON date object {year,month,day}
+    if (d.year && d.month && d.day) {
+      return FormatDate(JSON2Date(d));
+    }
+    // otherwise assume it's a date string or Date
+    return FormatDate(d);
   }
-  InvNoClicked(e){
+  InvNoClicked(e: any): void {
     console.log(e);
     if (e.RefType == 1){
       this.http.PrintSaleInvoice(e.RefID);
     } else  if (e.RefType == 2){
       this.http.PrintPurchaseInvoice(e.RefID);
     }
-
   }
 }

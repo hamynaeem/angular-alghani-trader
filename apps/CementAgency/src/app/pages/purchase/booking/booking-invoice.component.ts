@@ -116,6 +116,8 @@ export class BookingInvoiceComponent
   // Orders modal properties
   public confirmedOrders: any[] = [];
   public loadingOrders: boolean = false;
+  // If arrived with a confirmedOrderID in query params, auto-select it
+  public autoSelectOrderID: string | null = null;
 
   $Companies: any;
   AcctTypes: any;
@@ -160,6 +162,13 @@ export class BookingInvoiceComponent
         this.EditID = params.EditID;
 
         this.LoadInvoice();
+      }
+    });
+
+    // Check for query params to auto-select an order
+    this.activatedRoute.queryParams.subscribe((q: Params) => {
+      if (q && q.confirmedOrderID) {
+        this.autoSelectOrderID = q.confirmedOrderID;
       }
     });
   }
@@ -520,6 +529,18 @@ export class BookingInvoiceComponent
           backdrop: 'static',
           keyboard: false
         });
+
+        // If we were asked to auto-select a specific order, do that now
+        if (this.autoSelectOrderID) {
+          const orderToSelect = (this.confirmedOrders || []).find(o => o.OrderID == this.autoSelectOrderID);
+          if (orderToSelect) {
+            // small timeout to ensure modal is visible before selecting
+            setTimeout(() => {
+              this.selectOrder(orderToSelect);
+            }, 50);
+          }
+          this.autoSelectOrderID = null;
+        }
       })
       .catch((error) => {
         console.error('Error loading confirmed orders:', error);

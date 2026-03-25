@@ -3,3 +3,19 @@
     background-color: #ffaadd;
   }
 }
+
+.row-purchase > td {
+  background-color: #f8d7da;
+}
+.row-sale > td {
+  background-color: #d4edda;
+}
+.row-received > td {
+  background-color: #fff3cd;
+}
+.row-expense > td {
+  background-color: #f8d7da;
+}
+.checked-row > td {
+  background-color: yellow !important;
+}
