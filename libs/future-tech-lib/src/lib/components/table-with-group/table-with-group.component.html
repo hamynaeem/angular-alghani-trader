@@ -21,6 +21,10 @@
             <tr>
               <th [attr.colspan]="GetFldCounts() + 1" class="text-left">
                 <strong>{{ g }}</strong>
+                <span *ngIf="GroupedData[g] && GroupedData[g].length > 0">
+                  &nbsp;-&nbsp;
+                  {{ GroupedData[g][0].WhatsAppNo || GroupedData[g][0].PhoneNo || GroupedData[g][0].Phone || GroupedData[g][0].PhoneNo1 || GroupedData[g][0].PhoneNo2 }}
+                </span>
               </th>
             </tr>
             <ng-container *ngIf="!OnlyGroups">

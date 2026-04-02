@@ -11,7 +11,8 @@ export class TransportsComponent implements OnInit {
   //   TransportID INT PRIMARY KEY AUTO_INCREMENT,
   //   TransportName VARCHAR(255) NOT NULL,
   //   VehicleNo VARCHAR(255) NOT NULL,
-  //   DriverName VARCHAR(255)
+  //   DriverName VARCHAR(255),
+  //   PhoneNo VARCHAR(50)
   // );
 
   public form = {
@@ -40,6 +41,13 @@ export class TransportsComponent implements OnInit {
         control: 'input',
         type: 'text',
         label: 'Driver Name',
+        size: 12
+      },
+      {
+        fldName: 'PhoneNo',
+        control: 'input',
+        type: 'text',
+        label: 'Phone No',
         size: 12
       }
     ]

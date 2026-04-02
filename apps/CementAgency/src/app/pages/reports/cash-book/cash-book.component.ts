@@ -43,12 +43,15 @@ export class CashBookComponent implements OnInit {
   saleSetting = {
     Checkbox: false,
     Columns: [
-      { label: 'Ref No', fldName: 'RefID' },
+  
       { label: 'Customer', fldName: 'Customer', type: 'text' },
       { label: 'Product Name', fldName: 'ProductName' },
       { label: 'Price', fldName: 'Price', sum: true },
       { label: 'Qty', fldName: 'Qty', sum: true },
       { label: 'Amount', fldName: 'Amount', sum: true },
+      { label: 'Discount', fldName: 'Discount', sum: true },
+      { label: 'Received', fldName: 'Received', sum: true },
+      { label: 'Balance', fldName: 'Balance', sum: true },
     ],
     Actions: [],
     Data: [] as any[],
@@ -108,7 +111,7 @@ export class CashBookComponent implements OnInit {
     const customersPromise = this.http.getData('qrycustomers?flds=CustomerID,CustomerName');
     const expensesPromise = this.http.getData('qryexpenses?filter=' + dateFilter + '&orderby=Date')
       .catch(() => this.http.getData('expend?filter=' + dateFilter + '&orderby=Date'));
-    const salePromise = this.http.getData('qrysalereport?orderby=Date,BookingID&flds=CustomerName,ProductName,SPrice,Qty,Amount&filter=' + dateFilter).catch(() => []);
+    const salePromise = this.http.getData('qrysalereport?orderby=Date,BookingID&flds=CustomerName,ProductName,SPrice,Qty,Amount,Discount,Received,(Amount-Received)%20as%20Balance&filter=' + dateFilter).catch(() => []);
     const purchasePromise = this.http.getData('qrypurchasereport?orderby=Date,BookingID&flds=BookingID,ProductName,PPrice,Qty,Amount&filter=' + dateFilter).catch(() => []);
 
     Promise.all([openBalPromise, cashPromise, vouchersPromise, transportPromise, bookingPromise, expensesPromise, customersPromise, salePromise, purchasePromise])
@@ -299,6 +302,9 @@ export class CashBookComponent implements OnInit {
           Price: Number(row.SPrice) || 0,
           Qty: Number(row.Qty) || 0,
           Amount: Number(row.Amount) || 0,
+          Discount: Number(row.Discount) || 0,
+          Received: Number(row.Received) || 0,
+          Balance: Number(row.Balance) || (Number(row.Amount) || 0) - (Number(row.Received) || 0),
         }));
         this.saleSetting.Data = this.saleData;
 

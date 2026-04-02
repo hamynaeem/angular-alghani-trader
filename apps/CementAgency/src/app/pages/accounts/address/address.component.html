@@ -1,0 +1,26 @@
+(div class="address-form-container")
+<div class="address-form">
+	<form [formGroup]="addressForm" (ngSubmit)="save()">
+		<div class="form-group">
+			<label>Application Name</label>
+			<input class="form-control" formControlName="applicationName" placeholder="Enter application name">
+			<div *ngIf="addressForm.get('applicationName')?.touched && addressForm.get('applicationName')?.invalid" class="text-danger">Application name is required.</div>
+		</div>
+
+		<div class="form-group">
+			<label>City</label>
+			<input class="form-control" formControlName="city" placeholder="Enter city">
+			<div *ngIf="addressForm.get('city')?.touched && addressForm.get('city')?.invalid" class="text-danger">City is required.</div>
+		</div>
+
+		<div class="form-group">
+			<label>Phone</label>
+			<input class="form-control" formControlName="phone" placeholder="Enter phone number">
+			<div *ngIf="addressForm.get('phone')?.touched && addressForm.get('phone')?.invalid" class="text-danger">Enter a valid phone.</div>
+		</div>
+
+		<button class="btn btn-primary" type="submit">Save</button>
+		<span *ngIf="saved" class="text-success" style="margin-left:12px">Saved ✓</span>
+	</form>
+</div>
+

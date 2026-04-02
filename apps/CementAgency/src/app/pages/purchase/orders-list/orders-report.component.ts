@@ -154,6 +154,8 @@ public orderActions = {
   nWhat = '1';
   Customers: any = [{ ItemID: '1', ItemName: 'Test Item' }];
   Products: any = [];
+  // Local fallback for orders when server is unreachable
+  public localOrders: any[] = [];
 
   public data: object[];
   public Accounts: any;
@@ -172,6 +174,18 @@ public orderActions = {
     this.LoadCustomers();
     this.LoadProducts();
     this.FilterData();
+    // load local unsynced orders from localStorage so they show in the table
+    try {
+      const raw = localStorage.getItem('local_orders');
+      this.localOrders = raw ? JSON.parse(raw) : [];
+      if (this.localOrders && this.localOrders.length) {
+        this.data = [...(this.data || []), ...this.localOrders];
+        this.setting.Data = this.data;
+      }
+    } catch (e) {
+      console.warn('Failed to load local orders', e);
+      this.localOrders = [];
+    }
   }
 
   async LoadProducts() {
@@ -239,19 +253,57 @@ public orderActions = {
           if (firstArray) rows = firstArray;
         }
 
-        this.data = rows.map((obj: any) => ({
+        let serverData = rows.map((obj: any) => ({
           ...obj,
           OrderDate: obj.OrderDate ? (obj.OrderDate + '').substring(0, 10) : obj.OrderDate,
           DeliveryDate: obj.DeliveryDate ? (obj.DeliveryDate + '').substring(0, 10) : obj.DeliveryDate,
         }));
+
+        // Merge local unsynced orders so they are visible in the report
+        try {
+          const raw = localStorage.getItem('local_orders');
+          const local = raw ? JSON.parse(raw) : [];
+          // dedupe by OrderID: prefer server rows when IDs match
+          const byId: any = {};
+          (serverData || []).forEach((s: any) => (byId[s.OrderID] = s));
+          (local || []).forEach((l: any) => {
+            if (!byId[l.OrderID]) {
+              // ensure date format
+              l.OrderDate = l.OrderDate ? (l.OrderDate + '').substring(0, 10) : l.OrderDate;
+              l.DeliveryDate = l.DeliveryDate ? (l.DeliveryDate + '').substring(0, 10) : l.DeliveryDate;
+              byId[l.OrderID] = l;
+            }
+          });
+
+          // produce merged array and sort by OrderDate desc
+          this.data = Object.keys(byId)
+            .map((k) => byId[k])
+            .sort((a: any, b: any) => (new Date(b.OrderDate).getTime() || 0) - (new Date(a.OrderDate).getTime() || 0));
+        } catch (e) {
+          console.warn('Failed to merge local orders', e);
+          this.data = serverData;
+        }
 
         // Also provide data to table settings in case the table reads from settings.Data
         this.setting.Data = this.data;
       })
       .catch((err) => {
         console.error('Failed to load orders:', err);
-        this.data = [];
-        this.setting.Data = [];
+        // If server fetch failed, try to load local unsynced orders so user still sees manually added rows
+        try {
+          const raw = localStorage.getItem('local_orders');
+          const local = raw ? JSON.parse(raw) : [];
+          this.data = local.map((l: any) => ({
+            ...l,
+            OrderDate: l.OrderDate ? (l.OrderDate + '').substring(0, 10) : l.OrderDate,
+            DeliveryDate: l.DeliveryDate ? (l.DeliveryDate + '').substring(0, 10) : l.DeliveryDate,
+          }));
+          this.setting.Data = this.data;
+        } catch (e) {
+          console.warn('Failed to load local orders after server error', e);
+          this.data = [];
+          this.setting.Data = [];
+        }
       })
       .finally(() => {
         this.loadingOrders = false;
@@ -313,30 +365,136 @@ public orderActions = {
     }
   // Add Order handler
   addOrder() {
-    // Simple validation (could be improved)
-    if (!this.newOrder.OrderID || !this.newOrder.OrderDate || !this.newOrder.CustomerName || !this.newOrder.ProductName || !this.newOrder.Quantity || !this.newOrder.Total || !this.newOrder.Status) {
+    // Simple validation (exclude Status)
+    if (!this.newOrder.OrderID || !this.newOrder.OrderDate || !this.newOrder.CustomerName || !this.newOrder.ProductName || !this.newOrder.Quantity || !this.newOrder.Total) {
       Swal.fire('Error', 'Please fill all required fields', 'error');
       return;
     }
-    // Add to data array (top)
-    this.data = [
-      { ...this.newOrder },
-      ...(this.data || [])
-    ];
-    this.setting.Data = this.data;
-    this.showAddOrderForm = false;
-    // Reset form
-    this.newOrder = {
-      OrderID: '',
-      OrderDate: '',
-      DeliveryDate: '',
-      CustomerName: '',
-      DeliveryAddress: '',
-      ProductName: '',
-      Quantity: null,
-      Total: null,
-      Status: ''
+    // Build order payload compatible with customer_orders API
+    // Find customer by name to get CustomerID
+    const customer = (this.Customers || []).find((c: any) => c.CustomerName == this.newOrder.CustomerName);
+    const customerID = customer ? customer.CustomerID : null;
+    if (!customerID) {
+      Swal.fire('Error', 'Customer not found. Please select a valid customer.', 'error');
+      return;
+    }
+
+    // Find product by name to get ProductID and a default rate
+    const product = (this.Products || []).find((p: any) => p.ProductName == this.newOrder.ProductName);
+    const productID = product ? product.ProductID : null;
+    const rate = product ? (product.SPrice || product.Price || 0) : 0;
+
+    const orderPayload: any = {
+      CustomerID: customerID,
+      OrderDate: GetDateJSON(new Date(this.newOrder.OrderDate || new Date())),
+      DeliveryDate: this.newOrder.DeliveryDate ? GetDateJSON(new Date(this.newOrder.DeliveryDate)) : GetDateJSON(new Date()),
+      DeliveryAddress: this.newOrder.DeliveryAddress || '',
+      Notes: '',
+      Status: this.newOrder.Status || 'Pending',
+      Items: [
+        {
+          ProductID: productID,
+          ProductName: this.newOrder.ProductName,
+          Quantity: this.newOrder.Quantity || 1,
+          Rate: rate,
+          Total: this.newOrder.Total || ((this.newOrder.Quantity || 1) * rate)
+        }
+      ]
     };
-    Swal.fire('Success', 'Order added (not saved to server)', 'success');
+
+    this.http.postData('customer_orders', orderPayload).then((res: any) => {
+      Swal.fire('Success', 'Order saved to server', 'success');
+
+      const createdOrderID = (res && (res.OrderID || res.orderID)) || orderPayload.OrderID || ('srv-' + new Date().getTime());
+      const savedStatus = (res && (res.Status || res.status)) || orderPayload.Status || 'Pending';
+
+      // Immediately show the saved order in the table so user sees it right away
+      try {
+        const orderDateStr = (this.newOrder.OrderDate || new Date()).toString().substring(0,10);
+        const displayRow = {
+          OrderID: createdOrderID,
+          OrderDate: orderDateStr,
+          DeliveryDate: this.newOrder.DeliveryDate || '',
+          CustomerName: this.newOrder.CustomerName,
+          DeliveryAddress: this.newOrder.DeliveryAddress || '',
+          ProductName: this.newOrder.ProductName,
+          Quantity: this.newOrder.Quantity,
+          Total: this.newOrder.Total,
+          Status: savedStatus,
+          _synced: true
+        };
+        this.data = [displayRow, ...(this.data || [])];
+        this.setting.Data = this.data;
+      } catch (e) {
+        console.warn('Unable to prepend display row', e);
+      }
+
+      this.showAddOrderForm = false;
+      const addedOrderDate = this.newOrder.OrderDate || new Date().toISOString().substring(0,10);
+
+      this.newOrder = {
+        OrderID: '',
+        OrderDate: '',
+        DeliveryDate: '',
+        CustomerName: '',
+        DeliveryAddress: '',
+        ProductName: '',
+        Quantity: null,
+        Total: null,
+        Status: ''
+      };
+
+      // Expand the filter range to include the added order date then refresh
+      try {
+        const d = new Date(addedOrderDate);
+        this.Filter.FromDate = GetDateJSON(d);
+        this.Filter.ToDate = GetDateJSON(d);
+      } catch (_) {}
+      this.FilterData();
+
+      if ((savedStatus + '').toLowerCase() === 'confirmed' && createdOrderID) {
+        this.router.navigate(['/purchase/booking'], { queryParams: { confirmedOrderID: createdOrderID } });
+      }
+    }).catch((err) => {
+      console.error('Failed to save customer_order:', err);
+      // Fallback: save locally so order appears in UI and can be synced later
+      try {
+        const tempID = 'local-' + new Date().getTime();
+        const localEntry = {
+          OrderID: tempID,
+          OrderDate: this.newOrder.OrderDate || new Date().toISOString().substring(0,10),
+          DeliveryDate: this.newOrder.DeliveryDate || '',
+          CustomerName: this.newOrder.CustomerName,
+          CustomerID: customerID,
+          DeliveryAddress: this.newOrder.DeliveryAddress || '',
+          ProductName: this.newOrder.ProductName,
+          ProductID: productID,
+          Rate: rate,
+          Quantity: this.newOrder.Quantity,
+          Total: this.newOrder.Total,
+          Status: this.newOrder.Status || 'Pending',
+          _unsynced: true,
+        };
+        this.localOrders.push(localEntry);
+        localStorage.setItem('local_orders', JSON.stringify(this.localOrders));
+        // Ensure local entry is immediately visible
+        this.data = [localEntry, ...(this.data || [])];
+        this.setting.Data = this.data;
+        this.showAddOrderForm = false;
+        // Expand filter to include this local entry date so it remains visible after refresh
+        try {
+          const d = new Date(localEntry.OrderDate);
+          this.Filter.FromDate = GetDateJSON(d);
+          this.Filter.ToDate = GetDateJSON(d);
+        } catch (_) {}
+        this.newOrder = {
+          OrderID: '', OrderDate: '', DeliveryDate: '', CustomerName: '', DeliveryAddress: '', ProductName: '', Quantity: null, Total: null, Status: ''
+        };
+        Swal.fire('Saved locally', 'Order saved locally (offline). It will be synced when server is available.', 'warning');
+      } catch (ex) {
+        console.error('Local save failed', ex);
+        Swal.fire('Error', 'Failed to save order to server', 'error');
+      }
+    });
   }
   }

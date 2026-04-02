@@ -10,10 +10,10 @@ import { PrintDataService } from '../../../services/print.data.services';
   styleUrls: ['./transport-report.component.scss'],
 })
 export class TransportReportComponent implements OnInit {
-  @ViewChild('Transport') Transport;
+  @ViewChild('Transport') Transport!: any;
   public data: any = [];
-  public Products: object[];
-  public Users: object[];
+  public Products: object[] = [];
+  public Users: object[] = [];
 
   public Filter = {
     FromDate: GetDateJSON(),
@@ -52,7 +52,7 @@ export class TransportReportComponent implements OnInit {
     Data: [],
   };
 
-  public toolbarOptions: object[];
+  public toolbarOptions: object[] = [];
   transport: any = {};
   Transports: any;
 
@@ -92,7 +92,12 @@ export class TransportReportComponent implements OnInit {
     this.http
       .getData('transportdetails?filter=' + filter + '&orderby=ID')
       .then((r: any) => {
-        this.data = r;
+        this.data = (r || []).map((row: any) => {
+          const description = row.Description || row.Details || '';
+          return Object.assign({}, row, {
+            Description: description,
+          });
+        });
         if (this.data.length > 0) {
           this.transport.OpenBalance =
             (this.data[0].Balance - this.data[0].Income) * 1 +
@@ -137,12 +142,21 @@ export class TransportReportComponent implements OnInit {
       });
   }
 
-  Clicked(e) {}
+  Clicked(_e: any) {}
   PrintReport() {
+    if (!this.data || this.data.length === 0) {
+      this.FilterData();
+    }
+
+    const transportName =
+      (this.transport && this.transport.TransportName) ||
+      (this.Transport && this.Transport.text) ||
+      '';
+
     this.ps.PrintData.Title = 'Transport Accounts Report';
     this.ps.PrintData.SubTitle = 'From: ' + JSON2Date(this.Filter.FromDate);
     this.ps.PrintData.SubTitle += ' To: ' + JSON2Date(this.Filter.ToDate);
-    this.ps.PrintData.TransportName = 'Transport: ' + this.Transport.text;
+    this.ps.PrintData.TransportName = 'Transport: ' + transportName;
 
     this.ps.PrintData.HTMLData = document.getElementById('print-section');
     this.router.navigateByUrl('/print/print-html');
@@ -157,7 +171,7 @@ export class TransportReportComponent implements OnInit {
         this.Filter.TransportID
     );
   }
-  TransportSelected(TransportID) {
+  TransportSelected(TransportID: any) {
     if (TransportID) {
       this.http.getData('transports/' + TransportID).then((r) => {
         this.transport = r;
@@ -165,7 +179,7 @@ export class TransportReportComponent implements OnInit {
       });
     }
   }
-  formatDate(d) {
+  formatDate(d: any) {
     return  FormatDate( JSON2Date(d));
   }
 

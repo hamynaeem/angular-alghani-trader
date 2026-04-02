@@ -36,7 +36,7 @@ export class PrintHtmlComponent implements OnInit, AfterViewInit {
     }
     document.body.classList.add('A4');
   }
-  getValue(r, c) {
+  getValue(r: any, c: any): any {
     return r[c];
   }
 
@@ -61,9 +61,10 @@ export class PrintHtmlComponent implements OnInit, AfterViewInit {
       align: 'center',
     });
     doc.setFontSize(12);
-    doc.text('Alghani Traders', 105, 25, { align: 'center' });
+    doc.text('Al-Ghani Traders Kanal Road Lila Town (M.B.DIN)', 105, 25, { align: 'center' });
     doc.setFontSize(10);
-    doc.text('+92 300 7749830', 105, 30, { align: 'center' });
+    doc.text('+92 300 7749830 / +92 345 7749830', 105, 30, { align: 'center' });
+
 
     doc.setFontSize(16);
     doc.text(this.pdata.PrintData.Title, 105, 37, {

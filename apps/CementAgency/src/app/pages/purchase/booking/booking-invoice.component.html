@@ -328,6 +328,7 @@
                   [(ngModel)]="saleDetail.Qty"
                   name="SaleQty"
                   type="number"
+                  (ngModelChange)="booking.BagsSold = +$event || 0"
                 ></ft-input-control>
               </div>
               <div class="col-md-3">
@@ -372,6 +373,15 @@
                 ></ft-input-control>
               </div>
 
+              <div class="col-md-3">
+                <ft-input-control
+                  [label]="'City:'"
+                  [(ngModel)]="saleDetail.DeliveryCity"
+                  name="SaleCity"
+                  type="text"
+                ></ft-input-control>
+              </div>
+
               <ft-input-control
                 [label]="'Received:'"
                 [(ngModel)]="saleDetail.OrderID"
@@ -399,6 +409,7 @@
                   <thead class="thead-light">
                     <tr>
                       <th>Customer</th>
+                      <th>City</th>
                       <th>Product Name</th>
                       <th>Qty</th>
                       <th>Rate</th>
@@ -410,6 +421,7 @@
                   <tbody>
                     <tr *ngFor="let item of saleData; let i = index">
                       <td>{{ item.CustomerName }}</td>
+                      <td>{{ item.DeliveryCity }}</td>
                       <td>{{ item.ProductName }}</td>
                       <td>{{ item.Qty }}</td>
                       <td>{{ item.Price }}</td>

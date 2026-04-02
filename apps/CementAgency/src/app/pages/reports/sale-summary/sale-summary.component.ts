@@ -54,6 +54,22 @@ export class SalesummaryComponent implements OnInit {
           return formatNumber(d['Amount']);
         },
       },
+      {
+        label: 'Received',
+        fldName: 'Received',
+        sum: true,
+        valueFormatter: (d: any) => {
+          return formatNumber(d['Received']);
+        },
+      },
+      {
+        label: 'Balance',
+        fldName: 'Balance',
+        sum: true,
+        valueFormatter: (d: any) => {
+          return formatNumber(d['Balance']);
+        },
+      },
     ],
     Actions: [],
     Data: [],
@@ -117,7 +133,7 @@ export class SalesummaryComponent implements OnInit {
       this.http
         .getData(
           'qrysalereport?flds=InvoiceID,CustomerName,ProductName,SPrice,' +
-            'Qty as Qty, Amount as Amount&filter=' +
+            'Qty as Qty, Amount as Amount, Received as Received, (Amount - Received) as Balance&filter=' +
             filter
         )
         .then((r: any) => {
@@ -135,7 +151,7 @@ export class SalesummaryComponent implements OnInit {
       this.http
         .getData(
           'qrysalereport?flds=CustomerName,ProductName,SPrice,Qty as Qty, ' +
-            'Amount as Amount&filter=' +
+            'Amount as Amount, Received as Received, (Amount - Received) as Balance&filter=' +
             filter
         )
         .then((r: any) => {

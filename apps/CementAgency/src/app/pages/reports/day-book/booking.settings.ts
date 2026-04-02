@@ -54,6 +54,16 @@ export const BookingSetting = {
       sum: true,
 
     },
+    {
+      label: "Received",
+      fldName: "Received",
+      sum: true,
+    },
+    {
+      label: "Balance",
+      fldName: "Balance",
+      sum: true,
+    },
 
     {
       label: "Type",

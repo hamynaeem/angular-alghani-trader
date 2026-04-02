@@ -69,6 +69,7 @@ interface SaleDetail {
   CustomerName?: string;
   OrderID?: string;
   Packing?: number;
+  DeliveryCity?: string;
 }
 
 @Component({
@@ -181,6 +182,7 @@ export class BookingInvoiceComponent
       MRP: 0,
       Received: 0,
       Amount: 0,
+      DeliveryCity: ''
     };
     this.bookingDetail = {
       Qty: 0,
@@ -216,14 +218,6 @@ export class BookingInvoiceComponent
         'Validation Error'
       );
       return reject('Validation Error');
-    }
-
-    if (this.booking.BagsPurchase != this.booking.BagsSold) {
-      this.myToaster.Error(
-        'Bags Purchased and Bags Sold must be equal.',
-        'Validation Error'
-      );
-      return;
     }
 
       if (this.fromBooking.valid) {
@@ -284,23 +278,57 @@ export class BookingInvoiceComponent
       return;
     }
 
+    const product = this.Products.find(
+      (p: any) => p.ProductID === this.bookingDetail.ProductID
+    );
+    const packing = product?.Packing || 1;
+
     const newItem = {
       ProductID: this.bookingDetail.ProductID,
-      ProductName:
-        this.Products.find(
-          (p: any) => p.ProductID === this.bookingDetail.ProductID
-        )?.ProductName || '',
+      ProductName: product?.ProductName || '',
       SupplierID: this.booking?.SupplierID || '',
       SupplierName:
         this.Suppliers.find((s: any) => s.CustomerID === this.booking?.SupplierID)
           ?.CustomerName || '',
       Qty: this.bookingDetail.Qty,
       Price: this.bookingDetail.Price,
-      Packing: this.selectedProduct?.Packing || 1,
+      Packing: packing,
       Amount: this.bookingDetail.Qty * this.bookingDetail.Price,
     };
     this.bookData.push(newItem);
+
+    // Auto-add the same item to sales details
+    const saleItem = {
+      ProductID: this.bookingDetail.ProductID,
+      ProductName: product?.ProductName || '',
+      Packing: 1,
+      Qty: newItem.Qty * packing, // Use total bags as quantity
+      Discount: 0,
+      MRP: 0,
+      Received: 0,
+      Price: 0, // User will enter price
+      Amount: 0, // User will enter amount
+      CustomerID: this.saleDetail?.CustomerID || '',
+      OrderID: this.saleDetail?.OrderID || '0',
+      DeliveryCity: this.saleDetail?.DeliveryCity || '',
+      CustomerName:
+        this.Customers.find(
+          (c: any) => c.CustomerID === this.saleDetail?.CustomerID
+        )?.CustomerName || '',
+    };
+
+    // Don't auto-add to saleData - only update form fields
+    // User will manually click "Add" button to add to sales table
+
+    // Keep product in sync, but let user enter sale qty manually.
+    this.saleDetail = {
+      ...this.saleDetail,
+      ProductID: this.bookingDetail.ProductID,
+      ProductName: product?.ProductName || '',
+    };
+
     this.calcBooking();
+    this.calcSaleData();
     this.bookingDetail.ProductID = undefined;
     this.bookingDetail.Qty = 0;
     this.bookingDetail.Price = 0;
@@ -392,6 +420,7 @@ export class BookingInvoiceComponent
       Amount: this.saleDetail.Qty * this.saleDetail.Price,
       CustomerID: this.saleDetail.CustomerID || '',
       OrderID: this.saleDetail.OrderID || '0',
+      DeliveryCity: this.saleDetail.DeliveryCity || '',
       CustomerName:
         this.Customers.find(
           (c: any) => c.CustomerID === this.saleDetail.CustomerID
@@ -427,15 +456,11 @@ export class BookingInvoiceComponent
       (this.sale.TotalAmount ?? 0) - (this.sale.Discount ?? 0) * 1;
     this.sale.Credit =
       (this.sale.NetAmount ?? 0) - (this.sale.Received ?? 0) * 1;
-    // Sale Qty is in booking units; convert to bags using item.Packing
     this.booking.BagsSold = this.saleData.reduce(
-      (acc, item) => acc + item.Qty * (item.Packing ? item.Packing : 1),
+      (acc, item) => acc + item.Qty,
       0
     );
 
-    // Ensure BagsSold matches BagsPurchase to avoid validation failures
-    // (normalize to Booking's computed bags)
-    this.booking.BagsSold = this.booking.BagsPurchase;
   }
   saveAndPrint() {
     // Clone the print section BEFORE saving (SaveData clears data and navigates away)
@@ -521,7 +546,40 @@ export class BookingInvoiceComponent
 
     this.http.getData(`qryorders?filter=${filter}&flds=${fields}&orderby=OrderDate desc`)
       .then((orders: any) => {
-        this.confirmedOrders = orders || [];
+        const serverOrders = orders || [];
+
+        // Merge local unsynced orders so manually added orders appear in modal
+        try {
+          const raw = localStorage.getItem('local_orders');
+          const local = raw ? JSON.parse(raw) : [];
+          // Append local orders that are not already present (by OrderID)
+          const byId: any = {};
+          (serverOrders || []).forEach((s: any) => (byId[s.OrderID] = s));
+          (local || []).forEach((l: any) => {
+            if (!byId[l.OrderID]) {
+              // map local entry to server-like shape
+              byId[l.OrderID] = {
+                OrderID: l.OrderID,
+                OrderDate: l.OrderDate,
+                CustomerID: l.CustomerID || null,
+                CustomerName: l.CustomerName || '',
+                ProductID: l.ProductID || null,
+                ProductName: l.ProductName || l.ProductName || '',
+                Quantity: l.Quantity || 0,
+                Rate: l.Rate || 0,
+                Total: l.Total || 0,
+                DeliveryAddress: l.DeliveryAddress || '',
+                _unsynced: true,
+                Status: l.Status || 'Pending'
+              };
+            }
+          });
+
+          this.confirmedOrders = Object.keys(byId).map((k) => byId[k]).sort((a: any,b:any)=> (new Date(b.OrderDate).getTime()||0)-(new Date(a.OrderDate).getTime()||0));
+        } catch (e) {
+          console.warn('Failed to merge local orders into confirmedOrders', e);
+          this.confirmedOrders = serverOrders;
+        }
 
         // Show the modal using BsModalService
         this.modalRef = this.modalService.show(this.ordersModalTemplate, {
@@ -545,7 +603,34 @@ export class BookingInvoiceComponent
       .catch((error) => {
         console.error('Error loading confirmed orders:', error);
         this.myToaster.Error('Failed to load confirmed orders', 'Error');
-        this.confirmedOrders = [];
+        // Try to show any local unsynced orders so user can still select them
+        try {
+          const raw = localStorage.getItem('local_orders');
+          const local = raw ? JSON.parse(raw) : [];
+          this.confirmedOrders = (local || []).map((l: any) => ({
+            OrderID: l.OrderID,
+            OrderDate: l.OrderDate,
+            CustomerID: l.CustomerID || null,
+            CustomerName: l.CustomerName || '',
+            ProductID: l.ProductID || null,
+            ProductName: l.ProductName || '',
+            Quantity: l.Quantity || 0,
+            Rate: l.Rate || 0,
+            Total: l.Total || 0,
+            DeliveryAddress: l.DeliveryAddress || '',
+            _unsynced: true,
+            Status: l.Status || 'Pending'
+          }));
+          // Show modal even if server failed
+          this.modalRef = this.modalService.show(this.ordersModalTemplate, {
+            class: 'modal-lg',
+            backdrop: 'static',
+            keyboard: false
+          });
+        } catch (e) {
+          console.warn('Failed to load local orders for booking modal', e);
+          this.confirmedOrders = [];
+        }
       })
       .finally(() => {
         this.loadingOrders = false;
@@ -574,6 +659,15 @@ export class BookingInvoiceComponent
         this.saleDetail.ProductName = selectedProduct.ProductName;
       }
 
+      // Try to populate delivery city: prefer explicit field, else extract from DeliveryAddress
+      if (order.DeliveryCity) {
+        this.saleDetail.DeliveryCity = order.DeliveryCity;
+      } else if (order.DeliveryAddress) {
+        const parts = (order.DeliveryAddress + '').split(',').map((s: string) => s.trim()).filter((s: string) => s.length > 0);
+        this.saleDetail.DeliveryCity = parts.length ? parts[parts.length - 1] : '';
+      } else {
+        this.saleDetail.DeliveryCity = '';
+      }
       // Store the order reference for potential status updates
       this.saleDetail.OrderID = order.OrderID;
 

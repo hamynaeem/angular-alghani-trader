@@ -442,8 +442,8 @@ export class AmountReceivedComponent implements OnInit {
     <div class="header">
         <div class="company-name">Recovery Amount</div>
         <div class="receipt-title">AMOUNT RECEIVED RECEIPT</div>
-        <div style="font-size: 14px; font-weight: 600;">Alghani Traders</div>
-        <div style="font-size: 12px;">+92 300 7749830</div>
+        <div style="font-size: 14px; font-weight: 600;">Al-Ghani Traders Kanal Road Lila Town (M.B.DIN)</div>
+        <div style="font-size: 12px;">+92 300 7749830 / +92 345 7749830</div>
         <div>Date: ${currentDate}</div>
     </div>
     

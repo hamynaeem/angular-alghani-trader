@@ -3,10 +3,7 @@
     <div class="row">
         <div class="col">
           <div class="d-flex align-items-start">
-            <button type="button" class="btn btn-info btn-sm mr-2" (click)="ShowReports()" title="Show Reports">
-              <i class="fa fa-table"></i>
-              Show Reports
-            </button>
+             
             <h5 class="mb-3">Transport Expense</h5>
           </div>
         </div>
@@ -39,50 +36,6 @@
     </div>
   </div>
   <div class="card-block widget-body">
-    <div *ngIf="showReports" class="mb-3">
-      <div class="card border-0 box-shadow p-2">
-        <div class="card-body p-2">
-          <h6>Transport Expenses - Reports</h6>
-          <div *ngIf="reports && reports.length>0" class="table-responsive">
-            <table class="table table-sm table-striped">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Vehicle</th>
-                  <th>Description</th>
-                  <th>Actions</th>
-                  <th class="text-right">Income</th>
-                  <th class="text-right">Expense</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr *ngFor="let r of reports">
-                  <td>{{ r.Date }}</td>
-                  <td>{{ r.TransportName || r.TransportID }}</td>
-                  <td>
-                    <div>{{ r.Description }}</div>
-                    <div *ngIf="r.Categories && r.Categories.length" class="small text-muted mt-1">
-                      <span *ngFor="let c of r.Categories; let i = index" class="badge badge-light mr-1">{{ c }}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <button class="btn btn-sm btn-outline-primary mr-1" (click)="editReport(r)">
-                      <i class="fa fa-edit"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-danger" (click)="deleteReport(r)">
-                      <i class="fa fa-trash"></i>
-                    </button>
-                  </td>
-                  <td class="text-right">{{ r.Income || 0 }}</td>
-                  <td class="text-right">{{ r.Expense || 0 }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div *ngIf="!reports || reports.length===0">No records found.</div>
-        </div>
-      </div>
-    </div>
     <div class="container">
       <form #frmFilter="ngForm" (submit)="SaveData()">
         <div class="row no-gutter">

@@ -11,7 +11,7 @@ import {jsPDF} from 'jspdf';
 })
 
 export class SaleOrderPrintComponent implements OnInit {
-  @ViewChild('Invoice') Invoice: ElementRef;
+  @ViewChild('Invoice') Invoice: ElementRef | undefined;
 
 public OrderNo: any;
   public branch:any= {};
@@ -42,7 +42,7 @@ Print() {
 ExportPDF() {
   let pdf = new jsPDF('p','pt','a4');
   pdf.text('Hello World', 10,10);
-  pdf.html(this.Invoice.nativeElement.innerHTML, {
+  pdf.html(this.Invoice?.nativeElement?.innerHTML || '', {
     callback: (pdf)=>{
       pdf.save('invoice.pdf');
     }

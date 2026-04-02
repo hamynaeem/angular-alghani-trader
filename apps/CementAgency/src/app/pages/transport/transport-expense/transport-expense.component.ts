@@ -12,9 +12,6 @@ import { TransportDetail } from '../transport.model';
 })
 export class TransportExpenseComponent implements OnInit {
   @ViewChild('cmbCustomer') cmbCustomer: ElementRef | undefined;
-  public showReports = false;
-  public reports: any[] = [];
-  private editingDetailID: number | null = null;
   public Voucher: TransportDetail;
   public newCategory: string = '';
   AcctTypes = [];
@@ -71,50 +68,8 @@ export class TransportExpenseComponent implements OnInit {
     );
   }
 
-  ShowReports() {
-    // Toggle report panel and load data. If a vehicle is selected, filter by it; otherwise load all.
-    this.showReports = !this.showReports;
-    if (this.showReports) {
-      let endpoint = 'transportdetails?orderby=ID';
-      if (this.Voucher && this.Voucher.TransportID && this.Voucher.TransportID !== 0) {
-        endpoint = 'transportdetails?filter=TransportID=' + this.Voucher.TransportID + '&orderby=ID';
-      }
-      this.http
-        .getData(endpoint)
-        .then((r: any) => {
-          // ensure Vehicles list is available to map TransportID -> TransportName
-          const ensureVehicles = (this.Vehicles && this.Vehicles.length > 0)
-            ? Promise.resolve(this.Vehicles)
-            : this.http.getData('transports');
-
-          ensureVehicles.then((vehicles: any[]) => {
-            this.Vehicles = vehicles;
-            this.reports = (r || []).map((row: any) => {
-              const v = (this.Vehicles || []).find((x: any) => x.TransportID == row.TransportID);
-              // normalize description and categories
-              const description = row.Description || row.Details || '';
-              let categories: string[] = [];
-              if (row.Categories && Array.isArray(row.Categories)) {
-                categories = row.Categories;
-              } else if (row.CategoriesString && typeof row.CategoriesString === 'string') {
-                categories = row.CategoriesString.split(',').map((s: string) => s.trim()).filter((s: string) => s.length > 0);
-              } else if (row.Categories && typeof row.Categories === 'string') {
-                // sometimes API returns a comma-separated string in Categories
-                categories = row.Categories.split(',').map((s: string) => s.trim()).filter((s: string) => s.length > 0);
-              }
-
-              return Object.assign({}, row, {
-                TransportName: v ? v.TransportName : '',
-                Description: description,
-                Categories: categories,
-              });
-            });
-          });
-        })
-        .catch(() => {
-          this.reports = [];
-        });
-    }
+  OpenShowReport() {
+    this.router.navigate(['/transport/show-reports']);
   }
   async FindINo() {
     let voucher: any = await this.http.getData('transportdetails/' + this.Ino);
@@ -140,82 +95,20 @@ export class TransportExpenseComponent implements OnInit {
     }
 
     console.log(this.Voucher);
-    const doPost = () =>
-      this.http.postTask('transportvoucher' + voucherid, this.Voucher);
-
-    // If we are editing an existing transport detail, delete it first then post new
-    if (this.editingDetailID) {
-      this.http
-        .Delete('transportdetails', this.editingDetailID.toString())
-        .then(() => doPost())
-        .then(() => {
-          this.alert.Sucess('Expense Saved', 'Save', 1);
-          this.editingDetailID = null;
-          if (this.EditID != '') {
-            this.router.navigateByUrl('/transport/expense/');
-          } else {
-            this.Cancel();
-          }
-          // refresh reports if visible
-          if (this.showReports) this.ShowReports();
-        })
-        .catch((err) => {
-          this.Voucher.Date = GetDateJSON();
-          console.log(err);
-          this.alert.Error(err.error.message, 'Error', 1);
-        });
-    } else {
-      doPost()
-        .then(() => {
-          this.alert.Sucess('Expense Saved', 'Save', 1);
-          if (this.EditID != '') {
-            this.router.navigateByUrl('/transport/expense/');
-          } else {
-            this.Cancel();
-          }
-          if (this.showReports) this.ShowReports();
-        })
-        .catch((err) => {
-          this.Voucher.Date = GetDateJSON();
-          console.log(err);
-          this.alert.Error(err.error.message, 'Error', 1);
-        });
-    }
-  }
-
-  editReport(r: any) {
-    // populate form with report row values for editing
-    this.editingDetailID = r.ID || r.id || null;
-    this.Voucher.Date = GetDateJSON(new Date(r.Date));
-    this.Voucher.TransportID = r.TransportID;
-    this.Voucher.Details = r.Description || r.Details;
-    this.Voucher.Expense = r.Expense || 0;
-    this.Voucher.Income = r.Income || 0;
-    // populate categories if available
-    if (r.Categories && Array.isArray(r.Categories)) {
-      this.Voucher.Categories = r.Categories;
-    } else if (r.CategoriesString && typeof r.CategoriesString === 'string') {
-      this.Voucher.Categories = r.CategoriesString.split(',').map((s: string) => s.trim()).filter((s: string) => s.length>0);
-    } else {
-      this.Voucher.Categories = [];
-    }
-    // scroll to form or ensure visible
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  deleteReport(r: any) {
-    const id = r.ID || r.id;
-    if (!id) return;
-    if (!confirm('Delete this transport record?')) return;
     this.http
-      .Delete('transportdetails', id.toString())
+      .postTask('transportvoucher' + voucherid, this.Voucher)
       .then(() => {
-        this.alert.Sucess('Record deleted', 'Delete', 1);
-        // refresh reports
-        if (this.showReports) this.ShowReports();
+        this.alert.Sucess('Expense Saved', 'Save', 1);
+        if (this.EditID != '') {
+          this.router.navigateByUrl('/transport/expense/');
+        } else {
+          this.Cancel();
+        }
       })
-      .catch(() => {
-        this.alert.Error('Delete failed', 'Error', 1);
+      .catch((err) => {
+        this.Voucher.Date = GetDateJSON();
+        console.log(err);
+        this.alert.Error(err.error.message, 'Error', 1);
       });
   }
   GetVehicle(VehicleID: any) {

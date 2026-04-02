@@ -88,4 +88,38 @@ class Migration extends REST_Controller {
 
         $this->response(['status' => true, 'message' => "Migration completed: BusinessID column added and normalized."], REST_Controller::HTTP_OK);
     }
+
+    // Add PhoneNo column to transports if missing
+    public function run_transport_phone_get() {
+        // Prevent running on production
+        if (defined('ENVIRONMENT') && ENVIRONMENT === 'production') {
+            $this->response(['status' => false, 'message' => 'Migration not allowed in production'], REST_Controller::HTTP_FORBIDDEN);
+            return;
+        }
+
+        // Check table exists
+        $q = $this->db->query("SHOW TABLES LIKE 'transports'");
+        if ($q->num_rows() === 0) {
+            $this->response(['status' => false, 'message' => "Table 'transports' not found"], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        // Check column existence
+        $schema = $this->db->query("SELECT COUNT(*) AS cnt FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'transports' AND COLUMN_NAME = 'PhoneNo'")->row_array();
+        if ($schema && intval($schema['cnt']) > 0) {
+            $this->response(['status' => true, 'message' => "Column 'PhoneNo' already exists on transports."], REST_Controller::HTTP_OK);
+            return;
+        }
+
+        // Attempt to add column
+        try {
+            $this->db->query("ALTER TABLE `transports` ADD COLUMN `PhoneNo` VARCHAR(50) NULL AFTER `DriverName`");
+        } catch (Exception $e) {
+            $err = $this->db->error();
+            $this->response(['status' => false, 'message' => 'ALTER failed', 'db_error' => $err], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+            return;
+        }
+
+        $this->response(['status' => true, 'message' => "Migration completed: PhoneNo column added on transports."], REST_Controller::HTTP_OK);
+    }
 }

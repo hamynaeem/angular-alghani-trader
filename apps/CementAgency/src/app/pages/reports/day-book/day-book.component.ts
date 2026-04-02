@@ -17,11 +17,19 @@ const SalesSetting = {
   Columns: [
     { label: 'Customer', fldName: 'CustomerName' },
     { label: 'Product Name', fldName: 'ProductName' },
+    { label: 'Invoice No', fldName: 'InvoiceNo' },
+    { label: 'Vehicle No', fldName: 'VehicleNo' },
+    { label: 'Builty No', fldName: 'BuiltyNo' },
     { label: 'Price', fldName: 'SPrice', sum: true },
     { label: 'Qty', fldName: 'Qty', sum: true },
     { label: 'Amount', fldName: 'Amount', sum: true },
+    { label: 'Received', fldName: 'Received', sum: true },
+    { label: 'Balance', fldName: 'Balance', sum: true },
+    { label: 'Status', fldName: 'Posted' },
   ],
-  Actions: [],
+  Actions: [
+    { action: 'post', title: 'Post', icon: 'check', class: 'warning' },
+  ],
   Data: [],
 };
 
@@ -80,7 +88,7 @@ export class DayBookComponent implements OnInit {
     SupplierID: '',
   };
   settings: any = BookingSetting;
-  nWhat = '2';
+  nWhat = '4';
   // when true, clicking a row will open customer ledger for that row (if it has CustomerID)
   public openLedgerOnSelect = false;
   constructor(
@@ -157,18 +165,14 @@ export class DayBookComponent implements OnInit {
     if (this.nWhat === '1') {
       this.settings = ExpenseSetting;
       table = 'qryexpense?orderby=ExpendID ';
-    } else if (this.nWhat === '2') {
-      this.settings = BookingSetting;
-      // request CustomerName from backend so booking rows include customer/supplier name
-      // Note: `Description` and `Posted` do not exist in qrybooking, remove to avoid SQL error
-      table = 'qrybooking?orderby=BookingID&flds=BookingID,Date,CustomerName,InvoiceNo,VehicleNo,BuiltyNo,Amount,Discount,Carriage,NetAmount,DtCr,IsPosted';
-      console.log('Fetching booking data from:', table + '&filter=' + filter);
     } else if (this.nWhat === '3') {
       this.settings = VoucherSetting;
       table = 'qryvouchers?orderby=VoucherID ';
     } else if (this.nWhat === '4') {
       this.settings = SalesSetting;
-      table = 'qrysalereport?orderby=Date,BookingID&flds=CustomerName,ProductName,SPrice,Qty as Qty,Amount as Amount ';
+      const salesSql = `SELECT s.BookingID, s.CustomerName, s.ProductName, b.InvoiceNo, b.VehicleNo, b.BuiltyNo, s.SPrice, s.Qty, s.Amount, s.Received, (s.Amount - s.Received) as Balance, b.IsPosted FROM qrysalereport s LEFT JOIN booking b ON s.BookingID = b.BookingID WHERE s.Date BETWEEN '${JSON2Date(this.Filter.FromDate)}' AND '${JSON2Date(this.Filter.ToDate)}' ORDER BY s.Date, s.BookingID`;
+      table = 'MQRY?qrysql=' + encodeURIComponent(salesSql);
+      filter = '1=1';
     } else if (this.nWhat === '5') {
       this.settings = PurchaseSetting;
       table = 'qrypurchasereport?orderby=Date,BookingID&flds=BookingID,ProductName,PPrice,Qty,Amount ';
@@ -318,13 +322,112 @@ export class DayBookComponent implements OnInit {
               'Builty.No',
             ]);
 
+            // Keep booking report robust: compute Received/Balance client-side
+            // because SQL expressions in `flds` can fail on some backend setups.
+            const receivedRaw = this.firstAvailable(row, [
+              'Received',
+              'RecvAmount',
+              'PaidAmount',
+              'Paid',
+              'CashReceived',
+            ]);
+            const netAmount = Number(row.NetAmount || row.Amount || 0) || 0;
+            const received = Number(receivedRaw || 0) || 0;
+            row.Received = received;
+            row.Balance = netAmount - received;
+
             return row;
           });
           // log sample to help debug missing fields
           try {
             console.log('Booking normalized sample:', normalized && normalized.length ? normalized.slice(0, 5) : normalized);
           } catch (e) {}
-          this.data = normalized;
+
+          // Load received values from booking sales and merge by BookingID.
+          const bookingIds = normalized
+            .map((row: any) => Number(row.BookingID || 0))
+            .filter((id: number) => id > 0);
+
+          if (bookingIds.length > 0) {
+            const salesFilter = 'BookingID in (' + bookingIds.join(',') + ')';
+            this.http
+              .getData(
+                'qrybookingsale?flds=BookingID,CustomerName,Amount,Total,NetAmount,Received,PaidAmount,RecvAmount&filter=' +
+                  salesFilter
+              )
+              .then((sales: any) => {
+                const receivedByBooking: any = {};
+                const amountByBooking: any = {};
+                const customerByBooking: any = {};
+
+                (sales || []).forEach((s: any) => {
+                  const bid = Number(
+                    this.firstAvailable(s, ['BookingID', 'bookingID', 'BookingId']) || 0
+                  );
+                  const amt = Number(
+                    this.firstAvailable(s, ['Amount', 'Total', 'NetAmount']) || 0
+                  ) || 0;
+                  const rec = Number(
+                    this.firstAvailable(s, [
+                      'Received',
+                      'RecvAmount',
+                      'PaidAmount',
+                      'Paid',
+                      'CashReceived',
+                    ]) || 0
+                  );
+
+                  if (bid > 0) {
+                    receivedByBooking[bid] =
+                      (Number(receivedByBooking[bid] || 0) || 0) +
+                      (Number(rec || 0) || 0);
+
+                    amountByBooking[bid] =
+                      (Number(amountByBooking[bid] || 0) || 0) +
+                      (Number(amt || 0) || 0);
+
+                    if (!customerByBooking[bid]) {
+                      customerByBooking[bid] = this.firstAvailable(s, [
+                        'CustomerName',
+                        'Customer',
+                        'CustName',
+                      ]);
+                    }
+                  }
+                });
+
+                const merged = normalized.map((row: any) => {
+                  const bid = Number(row.BookingID || 0);
+                  const currentReceived = Number(row.Received || 0) || 0;
+                  const mergedReceived =
+                    currentReceived > 0
+                      ? currentReceived
+                      : Number(receivedByBooking[bid] || 0) || 0;
+                  const salesAmount = Number(amountByBooking[bid] || 0) || 0;
+                  const netAmount = salesAmount > 0
+                    ? salesAmount
+                    : Number(row.NetAmount || row.Amount || 0) || 0;
+
+                  // Booking view should show sales-side values only.
+                  row.CustomerName = customerByBooking[bid] || row.CustomerName;
+                  row.Amount = netAmount;
+                  row.NetAmount = netAmount;
+                  row.Discount = 0;
+                  row.Carriage = 0;
+                  row.Received = mergedReceived;
+                  row.Balance = netAmount - mergedReceived;
+                  return row;
+                });
+
+                this.data = merged;
+              })
+              .catch(() => {
+                // Fallback to normalized data if booking-sale query fails.
+                this.data = normalized;
+              });
+          } else {
+            this.data = normalized;
+          }
           
           // Debug: Check if any entries actually have Posted status from backend
           const postedCount = normalized.filter((row: any) => row.Posted === 'Posted').length;
@@ -612,7 +715,7 @@ export class DayBookComponent implements OnInit {
         if (Number(e.data.IsPosted) === 0) {
         if (this.nWhat === '1') {
           url = 'postexpense/' + e.data.ExpendID;
-        } else if (this.nWhat === '2') {
+        } else if (this.nWhat === '2' || this.nWhat === '4') {
           // Try different booking post endpoints that might exist
           const bookingId = e.data.BookingID;
           if (!bookingId) {
@@ -658,7 +761,7 @@ export class DayBookComponent implements OnInit {
             Description: e.data.Description || `Expense #${e.data.ExpendID}`,
             Type: 'DR'
           };
-        } else if (this.nWhat === '2') {
+        } else if (this.nWhat === '2' || this.nWhat === '4') {
           // For bookings, use empty payload since backend doesn't read POST data
           // It only uses the ID from the URL parameter
           postPayload = {};
@@ -763,7 +866,7 @@ export class DayBookComponent implements OnInit {
               // Also update in the main data array to ensure consistency
               const dataIndex = this.data.findIndex((item: any) => {
                 if (this.nWhat === '1') return item.ExpendID === e.data.ExpendID;
-                if (this.nWhat === '2') return item.BookingID === e.data.BookingID;
+                if (this.nWhat === '2' || this.nWhat === '4') return item.BookingID === e.data.BookingID;
                 if (this.nWhat === '3') return item.VoucherID === e.data.VoucherID;
                 if (this.nWhat === '6') return (item.ID || item.id) === (e.data.ID || e.data.id);
                 return false;
@@ -786,7 +889,7 @@ export class DayBookComponent implements OnInit {
               console.log('❌ Post response indicates failure:', response);
               
               // If this is the first attempt for a booking, try direct endpoint call
-              if (this.nWhat === '2' && !isRetry) {
+              if ((this.nWhat === '2' || this.nWhat === '4') && !isRetry) {
                 console.log('Trying direct postbooking endpoint...');
                 attemptPost(`postbooking/${e.data.BookingID}`, {}, true);
                 return;
@@ -803,7 +906,7 @@ export class DayBookComponent implements OnInit {
             console.error('Post error', err);
             
             // For bookings, try alternative method on error
-            if (this.nWhat === '2' && !isRetry) {
+            if ((this.nWhat === '2' || this.nWhat === '4') && !isRetry) {
               console.log('Primary booking post failed, trying simpler payload...');
               // Don't use putTask as it doesn't exist, try with empty payload instead
               this.http.postTask(`postbooking/${e.data.BookingID}`, {}).then((altResponse: any) => {
@@ -848,7 +951,7 @@ export class DayBookComponent implements OnInit {
                   // Update in main data array too
                   const dataIndex = this.data.findIndex((item: any) => {
                     if (this.nWhat === '1') return item.ExpendID === e.data.ExpendID;
-                    if (this.nWhat === '2') return item.BookingID === e.data.BookingID;
+                    if (this.nWhat === '2' || this.nWhat === '4') return item.BookingID === e.data.BookingID;
                     if (this.nWhat === '3') return item.VoucherID === e.data.VoucherID;
                     if (this.nWhat === '6') return (item.ID || item.id) === (e.data.ID || e.data.id);
                     return false;
@@ -895,7 +998,7 @@ export class DayBookComponent implements OnInit {
               // Update in main data array too
               const dataIndex = this.data.findIndex((item: any) => {
                 if (this.nWhat === '1') return item.ExpendID === e.data.ExpendID;
-                if (this.nWhat === '2') return item.BookingID === e.data.BookingID;
+                if (this.nWhat === '2' || this.nWhat === '4') return item.BookingID === e.data.BookingID;
                 if (this.nWhat === '3') return item.VoucherID === e.data.VoucherID;
                 if (this.nWhat === '6') return (item.ID || item.id) === (e.data.ID || e.data.id);
                 return false;
@@ -928,7 +1031,7 @@ export class DayBookComponent implements OnInit {
           let uurl = '';
           if (this.nWhat === '1') {
             uurl = 'unpostexpense/' + (e.data.ExpendID || e.data.ExpID || e.data.ID || e.data.id);
-          } else if (this.nWhat === '2') {
+          } else if (this.nWhat === '2' || this.nWhat === '4') {
             uurl = 'unpostbooking/' + e.data.BookingID;
             console.log('Unposting booking with BookingID:', e.data.BookingID);
           } else if (this.nWhat === '3') {
@@ -946,7 +1049,7 @@ export class DayBookComponent implements OnInit {
           let unpostPayload: any = {};
           if (this.nWhat === '1') {
             unpostPayload = { ExpendID: e.data.ExpendID, ID: e.data.ExpendID };
-          } else if (this.nWhat === '2') {
+          } else if (this.nWhat === '2' || this.nWhat === '4') {
             unpostPayload = { BookingID: e.data.BookingID, ID: e.data.BookingID };
           } else if (this.nWhat === '3') {
             unpostPayload = { VoucherID: e.data.VoucherID, ID: e.data.VoucherID };
@@ -963,7 +1066,7 @@ export class DayBookComponent implements OnInit {
             // Also update in the main data array to ensure consistency
             const dataIndex = this.data.findIndex((item: any) => {
               if (this.nWhat === '1') return item.ExpendID === e.data.ExpendID;
-              if (this.nWhat === '2') return item.BookingID === e.data.BookingID;
+              if (this.nWhat === '2' || this.nWhat === '4') return item.BookingID === e.data.BookingID;
               if (this.nWhat === '3') return item.VoucherID === e.data.VoucherID;
               if (this.nWhat === '6') return (item.ID || item.id) === (e.data.ID || e.data.id);
               return false;
@@ -1100,6 +1203,121 @@ export class DayBookComponent implements OnInit {
     try {
       const row = e && e.data ? e.data : null;
       if (!row) return;
+
+      if (this.nWhat === '2') {
+        const bookingId = row.BookingID || row.BookingId || row.bookingID || row.ID;
+        if (!bookingId) {
+          swal('Info', 'Booking ID not found for this row.', 'info');
+          return;
+        }
+
+        this.http
+          .getData(
+            'qrybookingsale?filter=BookingID=' + bookingId
+          )
+          .then((sales: any) => {
+            const rows = (sales || []).map((s: any) => {
+              const customer = this.firstAvailable(s, [
+                'CustomerName',
+                'Customer',
+                'CustName',
+              ]);
+              const product = this.firstAvailable(s, [
+                'ProductName',
+                'Product',
+                'PName',
+              ]);
+              const qty = Number(
+                this.firstAvailable(s, ['Qty', 'SaleQty', 'Quantity']) || 0
+              ) || 0;
+              const price = Number(
+                this.firstAvailable(s, ['Price', 'Rate', 'SPrice']) || 0
+              ) || 0;
+              const amount = Number(
+                this.firstAvailable(s, ['Amount', 'Total', 'NetAmount']) ||
+                  qty * price
+              ) || 0;
+              const received = Number(
+                this.firstAvailable(s, [
+                  'Received',
+                  'RecvAmount',
+                  'PaidAmount',
+                  'Paid',
+                ]) || 0
+              ) || 0;
+
+              return {
+                customer,
+                product,
+                qty,
+                price,
+                amount,
+                received,
+              };
+            });
+
+            if (!rows.length) {
+              swal('Sale Details', 'No sale details found for this booking.', 'info');
+              return;
+            }
+
+            const totalAmount = rows.reduce((acc: number, x: any) => acc + (x.amount || 0), 0);
+            const totalReceived = rows.reduce((acc: number, x: any) => acc + (x.received || 0), 0);
+
+            const body = rows
+              .map(
+                (x: any) =>
+                  '<tr>' +
+                  '<td style="padding:4px;border:1px solid #ddd;">' + (x.customer || '') + '</td>' +
+                  '<td style="padding:4px;border:1px solid #ddd;">' + (x.product || '') + '</td>' +
+                  '<td style="padding:4px;border:1px solid #ddd;text-align:right;">' + x.qty.toFixed(2) + '</td>' +
+                  '<td style="padding:4px;border:1px solid #ddd;text-align:right;">' + x.price.toFixed(2) + '</td>' +
+                  '<td style="padding:4px;border:1px solid #ddd;text-align:right;">' + x.amount.toFixed(2) + '</td>' +
+                  '<td style="padding:4px;border:1px solid #ddd;text-align:right;">' + x.received.toFixed(2) + '</td>' +
+                  '</tr>'
+              )
+              .join('');
+
+            const html =
+              '<div style="max-height:320px;overflow:auto;text-align:left;">' +
+              '<table style="width:100%;border-collapse:collapse;font-size:13px;">' +
+              '<thead><tr>' +
+              '<th style="padding:6px;border:1px solid #ddd;">Customer</th>' +
+              '<th style="padding:6px;border:1px solid #ddd;">Product</th>' +
+              '<th style="padding:6px;border:1px solid #ddd;">Qty</th>' +
+              '<th style="padding:6px;border:1px solid #ddd;">Price</th>' +
+              '<th style="padding:6px;border:1px solid #ddd;">Amount</th>' +
+              '<th style="padding:6px;border:1px solid #ddd;">Received</th>' +
+              '</tr></thead>' +
+              '<tbody>' + body + '</tbody>' +
+              '<tfoot><tr>' +
+              '<td colspan="4" style="padding:6px;border:1px solid #ddd;text-align:right;"><b>Totals</b></td>' +
+              '<td style="padding:6px;border:1px solid #ddd;text-align:right;"><b>' + totalAmount.toFixed(2) + '</b></td>' +
+              '<td style="padding:6px;border:1px solid #ddd;text-align:right;"><b>' + totalReceived.toFixed(2) + '</b></td>' +
+              '</tr></tfoot>' +
+              '</table>' +
+              '</div>';
+
+            swal({
+              title: 'Booking #' + bookingId + ' Sale Details',
+              content: {
+                element: 'div',
+                attributes: {
+                  innerHTML: html,
+                },
+              },
+            });
+          })
+          .catch((err: any) => {
+            const msg =
+              (err && err.error && err.error.message) ||
+              (err && err.message) ||
+              'Could not load sale details.';
+            swal('Error', msg, 'error');
+          });
+
+        return;
+      }
 
       if (this.openLedgerOnSelect) {
         const custId = row.CustomerID || row.CustID || row.AccountID || row.AccountId || row.CustId;

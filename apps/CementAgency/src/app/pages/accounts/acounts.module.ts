@@ -11,6 +11,7 @@ import { FutureTechLibModule } from '../../../../../../libs/future-tech-lib/src'
 import { AccttypesComponent } from './acct-type/acct-types.component';
 import { CustomerAcctsComponent } from './customer-accts/customer-accts.component';
 import { CustomersComponent } from './customers/customers.component';
+import { AddressComponent } from './address/address.component';
 
 
 const routes:any = [
@@ -18,13 +19,15 @@ const routes:any = [
   { path: 'accounts', component: CustomersComponent, data: { breadcrumb: 'Customer List' } },
   { path: 'accountledger', component: CustomerAcctsComponent, data: { breadcrumb: 'Customer Accounts' } },
   { path: 'accttypes', component: AccttypesComponent, data: { breadcrumb: 'Accounts Types' } },
+  { path: 'address', component: AddressComponent, data: { breadcrumb: 'Address' } },
 
 ];
 @NgModule({
   declarations: [
     CustomersComponent,
     CustomerAcctsComponent,
-    AccttypesComponent
+    AccttypesComponent,
+    AddressComponent
   ],
   imports: [
     CommonModule,
