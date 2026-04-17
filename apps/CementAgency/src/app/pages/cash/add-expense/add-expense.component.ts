@@ -12,14 +12,14 @@ import swal from 'sweetalert';
   styleUrls: ['./add-expense.component.scss']
 })
 export class AddExpenseComponent implements OnInit {
-  @ViewChild('cmbCustomer') cmbCustomer: DropDownListComponent;
+  @ViewChild('cmbCustomer') cmbCustomer!: DropDownListComponent;
   public Voucher = new VoucherModel();
   Customers = [];
   Salesmen = [];
   Routes = [];
 
   curCustomer: any = {};
-  VouchersList: object[];
+  VouchersList: object[] = [];
 
   setting = {
     Columns: [
@@ -73,7 +73,7 @@ export class AddExpenseComponent implements OnInit {
     this.Voucher.Date = JSON2Date(this.Voucher.Date);
     this.Voucher.PrevBalance = this.curCustomer.Balance;
     console.log(this.Voucher);
-    this.http.postTask('vouchers', this.Voucher).then(r => {
+    this.http.postTask('vouchers', this.Voucher).then(() => {
       this.alert.Sucess('Payment Saved', 'Save', 1);
       this.Voucher = new VoucherModel();
 
@@ -82,7 +82,7 @@ export class AddExpenseComponent implements OnInit {
       this.LoadVouchers();
     });
   }
-  GetCustomer(e) {
+  GetCustomer(e: any) {
     console.log(e);
     if (e.itemData && e.itemData.CustomerID !== '') {
       this.http.getData('qrycustomers?filter=CustomerID=' + e.itemData.CustomerID).then((r: any) => {
@@ -93,7 +93,7 @@ export class AddExpenseComponent implements OnInit {
 
   }
 
-  Clicked(e) {
+  Clicked(e: any) {
     console.log(e);
     if (e.action === 'Delete') {
       swal({
@@ -106,11 +106,11 @@ export class AddExpenseComponent implements OnInit {
       })
         .then(willDelete => {
           if (willDelete) {
-            this.http.getData('delete/vouchers/' + e.data.VoucherID).then(r => {
+            this.http.getData('delete/vouchers/' + e.data.VoucherID).then(() => {
               this.LoadVouchers();
               swal('Deleted!', 'Your voucher has been deleted!', 'success');
 
-            }).catch(er => {
+            }).catch(() => {
               swal('Oops!', 'Error while deleting voucher', 'error');
             });
 
@@ -125,7 +125,7 @@ export class AddExpenseComponent implements OnInit {
         this.VouchersList = r;
       });
   }
-  Round(amnt) {
+  Round(amnt: number) {
     return Math.round(amnt);
   }
 }

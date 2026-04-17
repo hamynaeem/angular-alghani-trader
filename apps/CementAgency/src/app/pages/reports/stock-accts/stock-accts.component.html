@@ -1,127 +1,227 @@
 <div widget class="card border-0 box-shadow">
-  <div class="card-header transparent border-0 text-muted">
-    <h5 class="mb-3">Product Accounts</h5>
-  </div>
-  <div class="card-block widget-body">
-    <form #frmFilter="ngForm">
-      <div class="row no-gutter">
-        <div class="col-md-3">
-          <div class="row no-gutter">
-            <div class="col-md-6">
-              <label for="dtFrom">From Date:</label>
-              <div class="input-group">
-                <input
-                  class="form-control"
-                  placeholder="yyyy-mm-dd"
-                  name="dtFrom"
-                  [(ngModel)]="Filter.FromDate"
-                  ngbDatepicker
-                  #dtFrom="ngbDatepicker"
-                />
-                <div class="input-group-addon">
-                  <button
-                    type="button"
-                    class="btn btn-warning"
-                    (click)="dtFrom.toggle()"
-                  >
-                    <i class="fa fa-calendar"></i>
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div class="col-md-6">
-              <label for="dtTo">To Date:</label>
-              <div class="input-group">
-                <input
-                  class="form-control"
-                  placeholder="yyyy-mm-dd"
-                  name="dtTo"
-                  [(ngModel)]="Filter.ToDate"
-                  ngbDatepicker
-                  #dtTo="ngbDatepicker"
-                />
-                <div class="input-group-addon">
-                  <button
-                    type="button"
-                    class="btn btn-warning"
-                    (click)="dtTo.toggle()"
-                  >
-                    <i class="fa fa-calendar"></i>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+<div class="card-header transparent border-0 text-muted">
+<h5 class="mb-3">Stock Products</h5>
+</div>
+<div class="card-block widget-body">
 
-        <div class="col-md-9">
-          <div class="row no-gutter">
+<div id="print-section">
+<!-- Booking Details UI -->
+<div class="row no-gutter mb-3">
+<div class="col-md-12">
+<div class="card border-0 box-shadow p-3">
+<div class="card-header transparent border-0 text-muted p-0 mb-2 d-flex justify-content-between align-items-center">
+<div>
+<h5 class="mb-0"><i class="fa fa-archive mr-2 text-primary"></i>Booking Details</h5>
+<small class="text-muted">Add purchase items to increase stock. 1 Ton = 20 bags.</small>
+</div>
+<div>
+<button class="btn btn-outline-secondary btn-sm mr-2" type="button" (click)="Booking = { SupplierID: '', SupplierName: '', ProductID: '', ProductName: '', Qty: 0, Bags: 0, Price: 0, Carriage: 0, Amount: 0 }"><i class="fa fa-eraser"></i> Clear</button>
+<button class="btn btn-info btn-sm" type="button" (click)="FilterData()"><i class="fa fa-sync"></i> Refresh</button>
+</div>
+</div>
+<div class="row no-gutter mb-2">
+<div class="col-md-2 form-group">
+<label>DATE:</label>
+<div class="input-group">
+<input
+class="form-control"
+placeholder="yyyy-mm-dd"
+name="bookingDate"
+[(ngModel)]="BookingDate"
+ngbDatepicker
+#bookingDatePicker="ngbDatepicker"
+/>
+<div class="input-group-addon">
+<button type="button" class="btn btn-warning" (click)="bookingDatePicker.toggle()">
+<i class="fa fa-calendar"></i>
+</button>
+</div>
+</div>
+</div>
+<div class="col-md-4 form-group">
+<label>SUPPLIER:</label>
+<ng-select
+name="supplier"
+[items]="lstSuppliers"
+bindLabel="CustomerName"
+bindValue="CustomerID"
+[(ngModel)]="Booking.SupplierID"
+(change)="onSupplierChange($event)"
+class="custom"
+placeholder="Select supplier"
+[searchable]="true"
+></ng-select>
+</div>
+<div class="col-md-4 form-group">
+<label>PRODUCT:</label>
+<ng-select
+name="bookproduct"
+[items]="lstDataRource"
+bindLabel="ItemName"
+bindValue="ItemID"
+[(ngModel)]="Booking.ProductID"
+(change)="onProductChange($event)"
+class="custom"
+placeholder="Select product"
+[clearable]="true"
+>
+<ng-template ng-option-tmp let-item="item">
+<div class="d-flex justify-content-between w-100">
+<div class="text-truncate">{{ item.ItemName }}</div>
+<div class="text-right">
+<small class="text-muted">(Stock: {{ item.Stock || 0 }})</small>
+</div>
+</div>
+</ng-template>
+<ng-template ng-label-tmp let-item="item">
+<div class="d-flex justify-content-between w-100">
+<div class="text-truncate">{{ item.ItemName }}</div>
+<div class="text-right"><small class="text-muted">{{ item.Stock || 0 }}</small></div>
+</div>
+</ng-template>
+</ng-select>
+</div>
+<div class="col-md-1 form-group">
+<label>QTY (Tons):</label>
+<input name="bookqty" type="number" class="form-control" [(ngModel)]="Booking.Qty" (ngModelChange)="computeBookingAmount()" />
+</div>
+<div class="col-md-1 form-group">
+<label>BAGS:</label>
+<input name="bookbags" type="number" class="form-control" [value]="Booking.Bags" readonly />
+</div>
+<div class="col-md-1 form-group">
+<label>PRICE:</label>
+<input name="bookprice" type="number" class="form-control" [(ngModel)]="Booking.Price" (ngModelChange)="computeBookingAmount()" />
+</div>
+<div class="col-md-1 form-group">
+<label>Carriage:</label>
+<input name="bookcarriage" type="number" class="form-control" [(ngModel)]="Booking.Carriage" (ngModelChange)="computeBookingAmount()" />
+</div>
+<div class="col-md-2 form-group">
+<label>AMOUNT:</label>
+<input type="number" class="form-control" [value]="Booking.Amount" readonly />
+</div>
+
+<div class="col-md-12 text-right">
+<button class="btn btn-outline-primary mr-2" type="button" (click)="addBookingItem()"><i class="fa fa-plus"></i> Add Item</button>
+<button class="btn btn-success" type="button" (click)="SaveBooking()"><i class="fa fa-save"></i> Save Booking</button>
+</div>
+</div>
+
+<div class="row no-gutter mt-2">
+<div class="col-md-12">
+<table class="table table-sm table-bordered">
+<thead>
+<tr>
+<th>Supplier</th>
+<th>Product Name</th>
+<th>Qty (Tons)</th>
+<th>Bags</th>
+<th>Rate</th>
+<th>Amount</th>
+<th>Actions</th>
+</tr>
+</thead>
+<tbody>
+<tr *ngFor="let it of BookingItems; let i = index">
+<td>{{ it.Supplier }}</td>
+<td>{{ it.ProductName }}</td>
+<td class="text-right">{{ it.Qty }}</td>
+<td class="text-right">{{ it.Bags }}</td>
+<td class="text-right">{{ it.Rate }}</td>
+<td class="text-right">{{ it.Amount }}</td>
+<td class="text-center"><button class="btn btn-sm btn-danger" type="button" (click)="removeBookingItem(i)"><i class="fa fa-trash"></i></button></td>
+</tr>
+<tr *ngIf="BookingItems.length === 0">
+<td colspan="7" class="text-center text-muted">No items added yet</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+
+<div class="row no-gutter mt-2" *ngIf="BookingItems.length > 0">
+<div class="col-md-12 text-right">
+<button class="btn btn-success" type="button" (click)="SaveBooking()">
+<i class="fa fa-save"></i> Save Booking
+</button>
+</div>
+</div>
+
+</div>
+</div>
+</div>
 
 
 
-            <div class="form-group col-md-4">
-              <label for="product">
-                Select Product
-              </label>
-              <ng-select
-                name="product"
-                id="product"
-                [items]="lstDataRource"
-                bindLabel="ItemName"
-                class="custom"
-                bindValue="ItemID"
-                [(ngModel)]="Filter.ItemID"
-                (change)="CustomerSelected($event)"
-                [clearable]="false"
-                required
-                placeholder="Select Product"
-                [selectOnTab]="true"
-                [searchable]="true"
-              >
-              </ng-select>
-            </div>
-            <div class="col-md-2">
-              <div class="form-group">
-                <label>&nbsp;</label>
-                <button
-                  type="submit"
-                  class="btn btn-primary form-control"
-                  (click)="FilterData()"
-                  accesskey="a"
-                >
-                  <i class="fa fa-search"></i>
-                  Filter
-                </button>
-              </div>
-            </div>
-            <div class="col-md-2">
-              <div class="form-group">
-                <label>&nbsp;</label>
-                <button
-                  type="submit"
-                  class="btn btn-primary form-control"
-                  accesskey="p"
-                  (click)="PrintReport()"
-                >
-                  <i class="fa fa-print"></i>
-                  Print
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </form>
-    <div id="print-section">
-      <div class="row no-gutter">
-        <div class="col-md-12">
-          <ft-dynamic-table
-            [Settings]="setting"
-            [Data]="data"
-            (ClickAction)="Clicked($event)"
-          ></ft-dynamic-table>
-        </div>
-      </div>
-    </div>
-  </div>
+
+
+<!-- Saved Bookings List -->
+<div class="row no-gutter mb-3">
+<div class="col-md-12">
+<div class="card border-0 box-shadow p-3">
+<div class="card-header transparent border-0 text-muted p-0 mb-2">
+<h5 class="mb-2">Saved Bookings</h5>
+</div>
+<div class="table-responsive">
+<table class="table table-sm table-bordered table-hover">
+<thead class="thead-light">
+<tr>
+<th>Date</th>
+<th>Supplier</th>
+<th>Product Name</th>
+<th>Qty (Tons)</th>
+<th>Bags</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr *ngFor="let bk of savedBookings">
+<td class="text-nowrap">{{ bk.Date }}</td>
+<td>{{ bk.CustomerName }}</td>
+<td>{{ bk.ProductName }}</td>
+<td class="text-right">{{ bk.Qty | number:'1.0-2' }}</td>
+<td class="text-right">{{ bk.Bags | number:'1.0-0' }}</td>
+<td class="text-center">
+<span class="badge" [ngClass]="bk.IsPosted == 1 ? 'badge-success' : 'badge-warning'">{{ bk.Status }}</span>
+</td>
+<td class="text-center">
+<div class="btn-group">
+<a [routerLink]="['/purchase/booking', bk.BookingID]" class="btn btn-sm btn-light three-dot-btn" title="Open booking"><i class="fa fa-ellipsis-v"></i></a>
+<button class="btn btn-sm btn-light text-danger" title="Delete booking" (click)="deleteBooking(bk.BookingID, bk.IsPosted)"><i class="fa fa-trash"></i></button>
+</div>
+</td>
+</tr>
+<tr *ngIf="savedBookings.length === 0">
+<td colspan="6" class="text-center text-muted">No bookings found for selected date range</td>
+</tr>
+</tbody>
+<tfoot *ngIf="savedBookings.length > 0">
+<tr class="font-weight-bold bg-light">
+<td colspan="3" class="text-right">Total:</td>
+<td class="text-right">{{ savedBookingsTotalQty | number:'1.0-2' }}</td>
+<td class="text-right">{{ savedBookingsTotalBags | number:'1.0-0' }}</td>
+<td></td>
+<td></td>
+</tr>
+</tfoot>
+</table>
+</div>
+</div>
+</div>
+</div>
+
+<div class="row no-gutter">
+<div class="col-md-12">
+<ft-dynamic-table
+[Settings]="setting"
+[Data]="data"
+(ClickAction)="Clicked($event)"
+></ft-dynamic-table>
+</div>
+</div>
+
+<!-- Current Stock Summary removed -->
+</div>
+</div>
 </div>

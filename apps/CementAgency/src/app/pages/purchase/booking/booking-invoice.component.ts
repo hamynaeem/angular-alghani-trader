@@ -107,6 +107,7 @@ export class BookingInvoiceComponent
   saleDetail!: SaleDetail;
 
   public Products: any = [];
+  public AllProducts: any = [];   // full unfiltered product list — never mutate this
   public SelectedProduct: any = {};
   public bookData: BookingDetail[] = [];
   public saleData: SaleDetail[] = [];
@@ -144,11 +145,117 @@ export class BookingInvoiceComponent
     return s ? s.CustomerName : '';
   }
 
+  applyStockToProducts() {
+    const source = (this.AllProducts && this.AllProducts.length) ? this.AllProducts : this.Products;
+    // Show only products that appear in posted booking purchases (have positive bag count)
+    const inStock = source.filter((p: any) => (this.PostedStockMap[p.ProductID] || 0) > 0);
+    this.Products = (inStock.length ? inStock : source).map((p: any) => ({
+      ...p,
+      Stock: this.PostedStockMap[p.ProductID] || 0,
+    }));
+  }
+
+  getStock(productID: any): number {
+    // Return posted stock count for display in dropdowns
+    return this.PostedStockMap[productID] || 0;
+  }
+
+  public StockMap: { [productID: string]: number } = {};
+  public PostedStockMap: { [productID: string]: number } = {};
+
+  // Refresh stock map from POSTED booking purchase details and re-apply to Products.
+  // Refresh stock: net bags = purchased bags (Qty×Packing) - sold bags (Qty×Packing, Packing=1)
+  refreshStock() {
+    this.http.getData('qrybooking?flds=BookingID&filter=IsPosted=1')
+      .then((postedBookings: any) => {
+        const bookingIds = (postedBookings || []).map((b: any) => b.BookingID).filter(Boolean);
+        if (!bookingIds.length) {
+          this.PostedStockMap = {};
+          this.StockMap = {};
+          this.applyStockToProducts();
+          return;
+        }
+        const idList = bookingIds.join(',');
+        Promise.all([
+          this.http.getData('qrybookingpurchase?filter=BookingID IN (' + idList + ')'),
+          this.http.getData('qrybookingsale?filter=BookingID IN (' + idList + ')'),
+        ]).then(([purchases, sales]: any[]) => {
+          const purchaseBags: any = {};
+          (purchases || []).forEach((d: any) => {
+            const pid = d.ProductID;
+            const bags = (Number(d.Qty) || 0) * (Number(d.Packing) || 20);
+            purchaseBags[pid] = (purchaseBags[pid] || 0) + bags;
+          });
+          const saleBags: any = {};
+          (sales || []).forEach((d: any) => {
+            const pid = d.ProductID;
+            const bags = (Number(d.Qty) || 0) * (Number(d.Packing) || 1);
+            saleBags[pid] = (saleBags[pid] || 0) + bags;
+          });
+          this.PostedStockMap = {};
+          this.StockMap = {};
+          Object.keys(purchaseBags).forEach((pid) => {
+            const net = Math.max(0, (purchaseBags[pid] || 0) - (saleBags[pid] || 0));
+            this.PostedStockMap[pid] = net;
+            this.StockMap[pid] = net;
+          });
+          this.applyStockToProducts();
+        }).catch(() => this.applyStockToProducts());
+      })
+      .catch(() => this.applyStockToProducts());
+  }
+
   ngOnInit() {
     this.Cancel();
-    this.cachedData.Products$.subscribe((products: any[]) => {
-      // ensure only product-like items are assigned (filter out accounts/customers accidentally returned)
-      this.Products = (products || []).filter((p: any) => p && (p.ProductName || p.ProductID));
+    // Fetch unposted booking IDs from qrybooking first, then get their purchase details
+    // load products and initial stock map
+    // Build stock map from POSTED booking purchase details (Qty × Packing = bags).
+    // qrystock returns net stock (purchases - sales) which can be 0 after selling.
+    Promise.all([
+      this.http.getData('products?orderby=ProductName'),
+      this.http.getData('qrybooking?flds=BookingID&filter=IsPosted=1'),
+    ]).then(([products, postedBookings]: any[]) => {
+      this.AllProducts = (products || []).filter((p: any) => p && (p.ProductName || p.ProductID));
+      const bookingIds = (postedBookings || []).map((b: any) => b.BookingID).filter(Boolean);
+      if (!bookingIds.length) {
+        this.PostedStockMap = {};
+        this.StockMap = {};
+        this.applyStockToProducts();
+        return;
+      }
+      const idList = bookingIds.join(',');
+      // Net bags = purchased bags - sold bags
+      Promise.all([
+        this.http.getData('qrybookingpurchase?filter=BookingID IN (' + idList + ')'),
+        this.http.getData('qrybookingsale?filter=BookingID IN (' + idList + ')'),
+      ]).then(([purchases, sales]: any[]) => {
+          const purchaseBags: any = {};
+          (purchases || []).forEach((d: any) => {
+            const pid = d.ProductID;
+            const bags = (Number(d.Qty) || 0) * (Number(d.Packing) || 20);
+            purchaseBags[pid] = (purchaseBags[pid] || 0) + bags;
+          });
+          const saleBags: any = {};
+          (sales || []).forEach((d: any) => {
+            const pid = d.ProductID;
+            const bags = (Number(d.Qty) || 0) * (Number(d.Packing) || 1);
+            saleBags[pid] = (saleBags[pid] || 0) + bags;
+          });
+          this.PostedStockMap = {};
+          this.StockMap = {};
+          Object.keys(purchaseBags).forEach((pid) => {
+            const net = Math.max(0, (purchaseBags[pid] || 0) - (saleBags[pid] || 0));
+            this.PostedStockMap[pid] = net;
+            this.StockMap[pid] = net;
+          });
+          this.applyStockToProducts();
+        })
+        .catch(() => { this.PostedStockMap = {}; this.StockMap = {}; this.applyStockToProducts(); });
+    }).catch(() => {
+      this.http.getData('products?orderby=ProductName').then((products: any[]) => {
+        this.AllProducts = (products || []).filter((p: any) => p && (p.ProductName || p.ProductID));
+        this.Products = this.AllProducts.map((p: any) => ({ ...p, Stock: 0 }));
+      });
     });
     this.cachedData.Accounts$.subscribe((accounts: any[]) => {
       this.Customers = accounts.filter(
@@ -212,14 +319,6 @@ export class BookingInvoiceComponent
   ngAfterViewInit(): void {}
   SaveData() {
     return new Promise((resolve, reject) => {
-    if (!this.booking || !this.bookData.length) {
-      this.myToaster.Error(
-        'Booking and booking details are required.',
-        'Validation Error'
-      );
-      return reject('Validation Error');
-    }
-
       if (this.fromBooking.valid) {
         // Save booking data
         const data = {
@@ -235,7 +334,7 @@ export class BookingInvoiceComponent
             'booking' + (this.EditID != '' ? '/' + this.EditID : ''),
             data
           )
-          .then((r) => {
+          .then((r: any) => {
             console.log(r);
 
             this.myToaster.Sucess('Booking saved successfully.', 'Success');
@@ -245,6 +344,24 @@ export class BookingInvoiceComponent
             this.calcSaleData();
             this.Cancel();
             this.EditID = '';
+
+            // Auto-post the booking so stock is updated immediately.
+            // Booking POST returns { id: <BookingID> }
+            const bookingId = r && (r.id || r.bookingID || r.BookingID);
+            if (bookingId) {
+              this.http.postTask('postbooking/' + bookingId, {})
+                .then(() => {
+                  // Refresh posted-stock map after posting
+                  setTimeout(() => this.refreshStock(), 500);
+                })
+                .catch(() => {
+                  // ignore post errors here; UI still continues
+                });
+            } else {
+              // If no id returned, still refresh stock (best-effort)
+              this.refreshStock();
+            }
+
             this.router.navigateByUrl('/purchase/booking');
             resolve(r);
           })
@@ -334,7 +451,7 @@ export class BookingInvoiceComponent
     this.bookingDetail.Price = 0;
     this.cmbProd.focus();
   }
-  
+
   onBookingProductChange(event: any) {
     // event from ng-select is usually the selected item object; if bindValue
     // was used and a primitive arrives, try to resolve it from Products.
