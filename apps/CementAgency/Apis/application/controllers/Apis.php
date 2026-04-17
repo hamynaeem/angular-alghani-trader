@@ -625,7 +625,7 @@ class Apis extends REST_Controller
         // Avoid joining to 'accounts' table (may not exist on some DBs). Return AcctID as Head.
         $sql = "SELECT c.Date, '' AS RefModule, 0 AS RefID, c.AcctID AS Head, c.Details, c.Recvd, c.Paid, c.Balance, c.CashID as ID
             FROM cashbook c
-            WHERE DATE(c.Date) BETWEEN '" . $date1 . "' AND '" . $date2 . "' 
+            WHERE DATE(c.Date) BETWEEN '" . $date1 . "' AND '" . $date2 . "'
             ORDER BY c.Date";
 
         $query = $this->db->query($sql);
@@ -955,9 +955,19 @@ class Apis extends REST_Controller
             }
         }
 
-        $sql = "SELECT CustomerAcctID AS DetailID, Date, Description, InvoiceID AS RefID, 0 AS RefType, CustomerID, ";
-        $sql .= $this->db->escape_str($debitCol) . " AS Debit, " . $this->db->escape_str($creditCol) . " AS Credit, Balance FROM customeraccts WHERE " . $filter;
+        // Prefix unqualified Date/CustomerID column references to avoid ambiguity after JOIN
+        $filter = preg_replace('/\b(Date|CustomerID)\b/', 'ca.$1', $filter);
+
+        $sql  = "SELECT ca.CustomerAcctID AS DetailID, ca.Date, ca.Description, ca.InvoiceID AS RefID, 0 AS RefType, ca.CustomerID, ";
+        $sql .= "IFNULL(bd.Qty, 0) AS Qty, IFNULL(bd.SPrice, 0) AS Rate, ";
+        $sql .= "ca." . $this->db->escape_str($debitCol) . " AS Debit, ca." . $this->db->escape_str($creditCol) . " AS Credit, ca.Balance ";
+        $sql .= "FROM customeraccts ca ";
+        $sql .= "LEFT JOIN booking_details bd ON bd.BookingID = ca.InvoiceID ";
+        $sql .= "  AND bd.CustomerID = ca.CustomerID AND bd.Type = 2 ";
+        $sql .= "  AND bd.ProductID IN (SELECT ProductID FROM products WHERE ProductName = ca.Description) ";
+        $sql .= "WHERE " . $filter;
         if ($orderby) {
+            // prefix orderby column if it's DetailID (maps to CustomerAcctID alias)
             $sql .= ' ORDER BY ' . $orderby;
         }
         if ($limit) {
@@ -1013,7 +1023,7 @@ class Apis extends REST_Controller
             ");
         $this->response($result, REST_Controller::HTTP_OK);
     }
-     
+
     public function sendwabulk_post()
     {
         $post_data = $this->post();

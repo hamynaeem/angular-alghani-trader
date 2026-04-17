@@ -28,6 +28,7 @@ class="form-control"
 placeholder="yyyy-mm-dd"
 name="bookingDate"
 [(ngModel)]="BookingDate"
+(ngModelChange)="onBookingDateChange($event)"
 ngbDatepicker
 #bookingDatePicker="ngbDatepicker"
 />
@@ -171,8 +172,9 @@ placeholder="Select product"
 <th>Supplier</th>
 <th>Product Name</th>
 <th>Qty (Tons)</th>
-<th>Bags</th>
-<th>Status</th>
+<th>Qty</th>
+<th class="text-center">Load</th>
+<th class="text-center">Actions</th>
 </tr>
 </thead>
 <tbody>
@@ -182,18 +184,19 @@ placeholder="Select product"
 <td>{{ bk.ProductName }}</td>
 <td class="text-right">{{ bk.Qty | number:'1.0-2' }}</td>
 <td class="text-right">{{ bk.Bags | number:'1.0-0' }}</td>
+
 <td class="text-center">
-<span class="badge" [ngClass]="bk.IsPosted == 1 ? 'badge-success' : 'badge-warning'">{{ bk.Status }}</span>
+	<button class="btn btn-sm btn-primary" type="button" title="Load to Sale" (click)="loadBookingToSale(bk)"><i class="fa fa-shopping-cart"></i> Load</button>
 </td>
 <td class="text-center">
-<div class="btn-group">
-<a [routerLink]="['/purchase/booking', bk.BookingID]" class="btn btn-sm btn-light three-dot-btn" title="Open booking"><i class="fa fa-ellipsis-v"></i></a>
-<button class="btn btn-sm btn-light text-danger" title="Delete booking" (click)="deleteBooking(bk.BookingID, bk.IsPosted)"><i class="fa fa-trash"></i></button>
-</div>
+	<div class="btn-group">
+		<a [routerLink]="['/purchase/booking', bk.BookingID]" class="btn btn-sm btn-light three-dot-btn" title="Open booking"><i class="fa fa-ellipsis-v"></i></a>
+		<button class="btn btn-sm btn-light text-danger" title="Delete booking" (click)="deleteBooking(bk.BookingID, bk.IsPosted)"><i class="fa fa-trash"></i></button>
+	</div>
 </td>
 </tr>
 <tr *ngIf="savedBookings.length === 0">
-<td colspan="6" class="text-center text-muted">No bookings found for selected date range</td>
+<td colspan="7" class="text-center text-muted">No bookings found for selected date range</td>
 </tr>
 </tbody>
 <tfoot *ngIf="savedBookings.length > 0">

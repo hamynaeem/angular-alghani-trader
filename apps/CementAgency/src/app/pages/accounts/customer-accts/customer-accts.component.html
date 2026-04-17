@@ -120,6 +120,14 @@
       </div>
     </form>
     <div id="print-section">
+      <div class="print-header sub-head">
+
+        <div class="print-customer">
+          <h3>Customer: {{ customer.CustomerName }}</h3>
+          <div>Customer Accounts Report</div>
+          <div class="small">From: {{ formatDate(Filter.FromDate) }} To: {{ formatDate(Filter.ToDate) }}</div>
+        </div>
+      </div>
       <div class="row mb-2">
         <div class="col-md-8">
           <div><strong>Address:</strong> {{ customer.Address }}</div>
@@ -137,22 +145,28 @@
             <h6 class="mb-0">Bookings ({{ customer.BookingCount }})</h6>
             <div class="text-right"><small class="text-muted">Total: </small> <strong>{{ customer.BookingTotal | number:'1.2-2' }}</strong></div>
           </div>
-          <div class="table-responsive">
-            <table class="table table-sm table-striped mb-0">
+          <div class="table-responsive print-table side-line">
+            <table class="table table-sm table-striped mb-0 modern-print-table">
               <thead>
                 <tr>
-                  <th style="width:160px">Date</th>
-                
+                  <th style="width:130px">Date</th>
+                  <th style="width:100px">Invoice</th>
                   <th>Product</th>
-                  <th class="text-right">Amount</th>
+                  <th class="text-right" style="width:90px">Qty</th>
+                  <th class="text-right" style="width:90px">Received</th>
+                  <th class="text-right" style="width:90px">Balance</th>
+                  <th class="text-right" style="width:130px"> Total Amount</th>
                 </tr>
               </thead>
               <tbody>
                 <tr *ngFor="let b of customer.Bookings">
-                  <td>{{ formatDate(b.Date) || '-' }}</td>
+                  <td class="text-nowrap">{{ b.Date || '-' }}</td>
                   <td>{{ b.InvoiceNo || b.BookingID }}</td>
-                  <td>{{ b.ProductName || '-' }}</td>
-                  <td class="text-right">{{ (b.NetAmount != null ? b.NetAmount : b.Amount) | number:'1.2-2' }}</td>
+                  <td>{{ bookingProductName(b) || '-' }}</td>
+                  <td class="text-right">{{ b.Qty | number:'1.0-0' }}</td>
+                  <td class="text-right">{{ b.Received | number:'1.2-2' }}</td>
+                  <td class="text-right" [class.text-danger]="b.Balance > 0">{{ b.Balance | number:'1.2-2' }}</td>
+                  <td class="text-right">{{ b.Amount | number:'1.2-2' }}</td>
                 </tr>
               </tbody>
             </table>

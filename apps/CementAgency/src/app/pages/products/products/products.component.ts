@@ -101,27 +101,26 @@ export class ProductsComponent implements OnInit {
         this.Add(r);
       });
     } else if (e.action === 'delete') {
-      swal('Error!', 'Not Allowed', 'error');
-      // // swal({
-      // //   text: `Do you really want to delete this product ${e.data.ProductName}  ?`,
-      // //   icon: 'warning',
-      // //   buttons: {
-      // //     cancel: true,
-      // //     confirm: true,
-      // //   },
-      // // }).then((willDelete) => {
-      // //   if (willDelete) {
-      // //     this.http
-      // //       .Delete('products', e.data.ProductID)
-      // //       .then((r) => {
-      // //         this.FilterData();
-      // //         swal('Deleted!', 'Your product is deleted', 'success');
-      // //       })
-      // //       .catch((er) => {
-      // //         swal('Error!', 'Error whie deleting', 'error');
-      // //       });
-      //   }
-      // });
+      swal({
+        text: `Do you really want to delete "${e.data.ProductName}"?`,
+        icon: 'warning',
+        buttons: {
+          cancel: true,
+          confirm: true,
+        },
+      } as any).then((willDelete) => {
+        if (willDelete) {
+          this.http
+            .Delete('products', e.data.ProductID)
+            .then(() => {
+              this.dataList.realoadTable();
+              swal('Deleted!', 'Product has been deleted.', 'success');
+            })
+            .catch(() => {
+              swal('Error!', 'Error while deleting.', 'error');
+            });
+        }
+      });
     }
   }
   Add(
@@ -129,7 +128,6 @@ export class ProductsComponent implements OnInit {
       Packing: 1,
       PPrice: 0,
       SPrice: 0,
-      Status: 1,
     }
   ) {
     this.http.openForm(this.form, data).then((r) => {

@@ -141,6 +141,6 @@ constructor(private http: HttpClient, private http2: HttpBase) {
     this._suppliers$.next();
   }
   public updateStock() {
-    this._storesData$.next();
+    this._stockData$.next();
   }
 }

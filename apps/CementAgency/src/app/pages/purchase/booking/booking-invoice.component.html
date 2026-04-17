@@ -20,6 +20,11 @@
                 placeholder="Invoice No"
               />
             </div>
+            <div class="col-md-2">
+              <button type="button" class="btn btn-sm btn-outline-secondary" (click)="toggleStockDebug()">
+                Debug Stock
+              </button>
+            </div>
             <div class="col-md-4">
               <div class="form-group">
                 <button
@@ -115,15 +120,7 @@
             name="BuiltyNo"
           ></ft-input-control>
         </div>
-        <div class="col-md-2">
-          <ft-input-control
-            [label]="'Bags Purchase:'"
-            [value]="booking.BagsPurchase"
-            name="BagsPurchase"
-            [type]="'number'"
-            [readonly]="true"
-          ></ft-input-control>
-        </div>
+
         <div class="col-md-2">
           <ft-input-control
             [label]="'Bags Sold:'"
@@ -136,144 +133,7 @@
       </div>
       <div id="print-section">
       <div class="row no-pad">
-        <div class="col-md-6 bg-light-primary">
-          <div class="row no-pad">
-            <div>
-              <h5 class="mt-2">Booking Details</h5>
-            </div>
-
-            <div class="col-md-12">
-              <label for="supplier">Supplier:</label>
-              <ng-select
-                [items]="Suppliers"
-                bindLabel="CustomerName"
-                bindValue="CustomerID"
-                class="custom"
-                [(ngModel)]="booking.SupplierID"
-                name="SupplierID"
-                placeholder="Select supplier"
-                [searchable]="true"
-                [clearable]="true"
-              >
-              </ng-select>
-            </div>
-
-            <div class="col-md-12">
-              <label for="product">Product:</label>
-              <ng-select
-                [items]="Products"
-                bindLabel="ProductName"
-                bindValue="ProductID"
-                class="custom"
-                [(ngModel)]="bookingDetail.ProductID"
-                name="ProductID"
-                placeholder="Select product"
-                [searchable]="true"
-                [clearable]="true"
-                (change)="onBookingProductChange($event)"
-              >
-              </ng-select>
-            </div>
-            <div class="col-md-3">
-              <ft-input-control
-                [label]="'Qty:'"
-                [(ngModel)]="bookingDetail.Qty"
-                name="Qty"
-                type="number"
-              ></ft-input-control>
-            </div>
-            <div class="col-md-3">
-              <ft-input-control
-                [label]="'Price:'"
-                [(ngModel)]="bookingDetail.Price"
-                name="Price"
-                type="number"
-              ></ft-input-control>
-            </div>
-            <div class="col-md-3">
-              <ft-input-control
-                [label]="'Amount:'"
-                [value]="bookingDetail.Qty * bookingDetail.Price"
-                name="Amount"
-                type="number"
-              ></ft-input-control>
-            </div>
-            <div class="col-md-3">
-              <button
-                type="button"
-                class="btn btn-primary btn-block mt-3"
-                (click)="addItem()"
-              >
-                <i class="fa fa-plus"></i>
-                Add Item
-              </button>
-            </div>
-          </div>
-          <div class="row no-pad">
-            <div class="col-md-12">
-              <table class="table table-sm table-bordered mt-3">
-                <thead class="thead-light">
-                  <tr>
-                    <th>Supplier</th>
-                    <th>Product Name</th>
-                    <th>Qty</th>
-                    <th>Rate</th>
-                    <th>Amount</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr *ngFor="let item of bookData; let i = index">
-                    <td>{{ item.SupplierName || getSupplierName(item.SupplierID) }}</td>
-                    <td>{{ item.ProductName }}</td>
-                    <td>{{ item.Qty }}</td>
-                    <td>{{ item.Price }}</td>
-                    <td>{{ item.Amount }}</td>
-                    <td>
-                      <button
-                        type="button"
-                        class="btn btn-sm btn-danger"
-                        (click)="deleteItem(i)"
-                      >
-                        <i class="fa fa-trash"></i>
-                      </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-          <div class="row no-pad">
-            <div class="col-md-4">
-              <ft-input-control
-                [label]="'Total Amount:'"
-                [value]="booking.Amount"
-                name="TotalAmount"
-                type="number"
-                readonly
-              ></ft-input-control>
-            </div>
-            <div class="col-md-4">
-              <ft-input-control
-                [label]="'Carriage:'"
-                [(ngModel)]="booking.Carriage"
-                name="Carriage"
-                type="number"
-                (ngModelChange)="calcBooking()"
-              ></ft-input-control>
-            </div>
-            <div class="col-md-4">
-              <ft-input-control
-                [label]="'Net Amount:'"
-                [value]="booking.NetAmount"
-                name="TotalAmountAfterCarriage"
-                type="number"
-                readonly
-              ></ft-input-control>
-            </div>
-          </div>
-        </div>
-        <div class="col-md-6 bg-light-success">
+        <div class="col-md-12 bg-light-success">
           <div class="row no-pad">
             <div class="col">
               <h5 class="mt-2">Sales Details</h5>
@@ -306,7 +166,11 @@
           </div>
           <div class="row no-pad">
             <div class="col-md-12">
-              <label for="saleProduct">Product:</label>
+              <label for="saleProduct">Product:
+                <a routerLink="/reports/stockaccts" class="ml-2 text-info" style="font-size:0.8rem;" title="View Stock">
+                  <i class="fa fa-cube"></i> View Stock
+                </a>
+              </label>
 
               <ng-select
                 [items]="Products"
@@ -319,6 +183,14 @@
                 [searchable]="true"
                 [clearable]="true"
               >
+                <ng-template ng-option-tmp let-item="item">
+                  <span [class.text-muted]="item.disabled" [style.text-decoration]="item.disabled ? 'line-through' : 'none'">
+                    {{ item.ProductName }}
+                    <small class="ml-1" [class.text-danger]="item.disabled" [class.text-muted]="!item.disabled">
+                      (Stock: {{ getStock(item.ProductID) || 0 }})
+                    </small>
+                  </span>
+                </ng-template>
               </ng-select>
             </div>
             <div class="row no-pad">
@@ -382,12 +254,6 @@
                 ></ft-input-control>
               </div>
 
-              <ft-input-control
-                [label]="'Received:'"
-                [(ngModel)]="saleDetail.OrderID"
-                name="OrderID"
-                type="hidding"
-              ></ft-input-control>
 
               <div class="col-md-3">
                 <button
@@ -519,6 +385,27 @@
         </div>
       </div>
     </form>
+  </div>
+</div>
+
+<div *ngIf="showStockDebug" class="m-3 p-3 bg-light border">
+  <h6>PostedStockMap (key → stock)</h6>
+  <pre style="max-height:200px; overflow:auto">{{ PostedStockMap | json }}</pre>
+
+  <h6 class="mt-2">Products (ProductID → ProductName → Stock)</h6>
+  <div style="max-height:200px; overflow:auto">
+    <table class="table table-sm table-bordered">
+      <thead>
+        <tr><th>ProductID</th><th>ProductName</th><th>Stock</th></tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let p of Products">
+          <td>{{ p.ProductID }}</td>
+          <td>{{ p.ProductName }}</td>
+          <td>{{ p.Stock }}</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 </div>
 

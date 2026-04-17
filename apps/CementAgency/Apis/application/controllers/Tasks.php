@@ -568,7 +568,7 @@ class Tasks extends REST_Controller
             $this->response(['status' => false, 'message' => $e->getMessage()], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
-    
+
 
     // Public endpoint to unpost vouchers (set IsPosted = 0)
     public function unpostvouchers_post($id = 0)
@@ -636,6 +636,23 @@ class Tasks extends REST_Controller
         $bid = 1
     ) {
         try {
+            // Debug/logging: record each UpdateStock invocation and parameters
+            $logLine = sprintf(
+                "[UpdateStock] %s - a=%s pid=%s pprice=%s qtyout=%s qtyin=%s billNo=%s bType=%s invDate=%s storeID=%s unitID=%s bid=%s",
+                date('Y-m-d H:i:s'),
+                var_export($a, true),
+                var_export($pid, true),
+                var_export($pprice, true),
+                var_export($qtyout, true),
+                var_export($qtyin, true),
+                var_export($billNo, true),
+                var_export($bType, true),
+                var_export($invDate, true),
+                var_export($storeID, true),
+                var_export($unitID, true),
+                var_export($bid, true)
+            );
+            error_log($logLine);
             if ($a == 1) {
                 $this->db->where('ProductID', $pid);
                 $this->db->where('BusinessID', $bid);
@@ -643,9 +660,11 @@ class Tasks extends REST_Controller
 
                 $stock1 = $this->db->get('stock')->result_array();
                 if (count($stock1) > 0) {
-                    $stock['Stock'] = $stock1[0]['Stock'] - $qtyout + $qtyin;
+                    $oldStock = $stock1[0]['Stock'];
+                    $stock['Stock'] = $oldStock - $qtyout + $qtyin;
                     $this->db->where('StockID', $stock1[0]['StockID']);
                     $this->db->update('stock', $stock);
+                    error_log(sprintf('[UpdateStock] %s - Updated existing stock: ProductID=%s old=%s qtyout=%s qtyin=%s new=%s StoreID=%s', date('Y-m-d H:i:s'), $pid, $oldStock, $qtyout, $qtyin, $stock['Stock'], $storeID));
                 } else {
                     $stock['ProductID']  = $pid;
                     $stock['PPrice']     = $pprice;
@@ -654,6 +673,7 @@ class Tasks extends REST_Controller
                     $stock['UnitID']     = $unitID;
                     $stock['Stock']      = $qtyin - $qtyout;
                     $this->db->insert('stock', $stock);
+                    error_log(sprintf('[UpdateStock] %s - Inserted new stock: ProductID=%s qtyIn=%s qtyOut=%s net=%s StoreID=%s', date('Y-m-d H:i:s'), $pid, $qtyin, $qtyout, $stock['Stock'], $storeID));
                 }
             } else {
                 // var_dump($qtyin, $qtyout);
@@ -664,10 +684,12 @@ class Tasks extends REST_Controller
                 $stock1 = $this->db->get('stock')->result_array();
 
                 if (count($stock1) > 0) {
-                    $stock['Stock'] = $stock1[0]['Stock'] - $qtyout + $qtyin;
+                    $oldStock = $stock1[0]['Stock'];
+                    $stock['Stock'] = $oldStock - $qtyout + $qtyin;
                     $this->db->where('StockID', $stock1[0]['StockID']);
                     $this->db->update('stock', $stock);
                     $pid = $stock1[0]['ProductID'];
+                    error_log(sprintf('[UpdateStock] %s - Updated existing stock (alt path): ProductID=%s old=%s qtyout=%s qtyin=%s new=%s StoreID=%s', date('Y-m-d H:i:s'), $pid, $oldStock, $qtyout, $qtyin, $stock['Stock'], $storeID));
                 } else {
                     throw (new Exception('Product Not found in Stock'));
                     //exit(0);
@@ -712,6 +734,9 @@ class Tasks extends REST_Controller
         } elseif ($post_data['Table'] === 'P') {
             $this->db->query('delete from pinvoices where InvoiceID=' . $post_data['ID']);
             $this->db->query('delete from pinvoicedetails where InvoiceID=' . $post_data['ID']);
+        } elseif ($post_data['Table'] === 'B') {
+            $this->db->query('delete from booking where BookingID=' . $post_data['ID']);
+            $this->db->query('delete from booking_details where BookingID=' . $post_data['ID']);
         }
         $this->db->trans_commit();
         $this->response(['msg' => 'Ok'], REST_Controller::HTTP_OK);
@@ -1159,6 +1184,13 @@ class Tasks extends REST_Controller
 
         $this->PostBookings($id);
 
+        // Direct update as safety net: ensures IsPosted=1 is persisted even if
+        // the qrybooking view does not include this booking (e.g. sales-only bookings).
+        if (intval($id) > 0) {
+            $this->db->where('BookingID', intval($id));
+            $this->db->update('booking', ['IsPosted' => 1]);
+        }
+
         $this->response(['msg' => 'Booking(s) posted'], REST_Controller::HTTP_OK);
     }
 
@@ -1298,34 +1330,53 @@ class Tasks extends REST_Controller
         foreach ($bookings as $booking) {
 
             $supplierID = isset($booking['SupplierID']) ? $booking['SupplierID'] : 0;
-            if ($supplierID == 0) {
-                $this->response([
-                    'status' => 'error',
-                    'msg'    => 'Supplier not found'], REST_Controller::HTTP_NOT_FOUND);
-                return;
-            }
 
             $date = $booking['Date'];
-            $this->db->where('BookingID', $booking['BookingID']);
-            $details = $this->db->get('qrybookingpurchase')->result_array();
 
-            foreach ($details as $detail) {
+            // Only post supplier (purchase) account entries when a SupplierID exists
+            if ($supplierID > 0) {
+                $this->db->where('BookingID', $booking['BookingID']);
+                $details = $this->db->get('qrybookingpurchase')->result_array();
 
-                $data['CustomerID'] = $supplierID;
-                $data['Date']       = $date;
-                $data['InvNo']      = $booking['InvoiceNo'];
-                $data['RecNo']      = $booking['ReceiptNo'];
-                $data['CofNo']      = $booking['CofNo'];
-                $data['BuiltyNo']   = $booking['BuiltyNo'];
-                $data['VehicleNo']  = $booking['VehicleNo'];
-                $data['Rate']       = $detail['Price'];
-                $data['Qty']        = $detail['Qty'];
-                $data['Credit']     = $booking['Amount'];
-                $data['Debit']      = $booking['Debit'];
-                $data['RefID']      = $booking['BookingID'];
-                $data['RefType']    = 1;
-                $this->AddToAccount($data);
+                foreach ($details as $detail) {
 
+                    $data['CustomerID'] = $supplierID;
+                    $data['Date']       = $date;
+                    $data['InvNo']      = $booking['InvoiceNo'];
+                    $data['RecNo']      = $booking['ReceiptNo'];
+                    $data['CofNo']      = $booking['CofNo'];
+                    $data['BuiltyNo']   = $booking['BuiltyNo'];
+                    $data['VehicleNo']  = $booking['VehicleNo'];
+                    $data['Rate']       = $detail['Price'];
+                    $data['Qty']        = $detail['Qty'];
+                    $data['Credit']     = $booking['Amount'];
+                    $data['Debit']      = $booking['Debit'];
+                    $data['RefID']      = $booking['BookingID'];
+                    $data['RefType']    = 1;
+                    $this->AddToAccount($data);
+
+                    // Update stock for purchase booking details (Qty is in tons, Packing expected)
+                    try {
+                        $qtyIn = isset($detail['Qty']) ? ($detail['Qty'] * (isset($detail['Packing']) && $detail['Packing'] > 0 ? $detail['Packing'] : 20)) : 0;
+                        $this->UpdateStock(
+                            1,
+                            'Booking Purchase',
+                            $detail['ProductID'],
+                            isset($detail['Price']) ? $detail['Price'] : 0,
+                            0,
+                            $qtyIn,
+                            $booking['BookingID'],
+                            1,
+                            $date,
+                            isset($booking['StoreID']) ? $booking['StoreID'] : 0,
+                            isset($detail['UnitID']) ? $detail['UnitID'] : 0,
+                            isset($booking['BusinessID']) ? $booking['BusinessID'] : 1
+                        );
+                    } catch (Exception $e) {
+                        // ignore stock-update errors to avoid blocking posting
+                    }
+
+                }
             }
             $this->db->where('BookingID', $booking['BookingID']);
             $details = $this->db->get('qrybookingsale')->result_array();
@@ -1363,6 +1414,26 @@ class Tasks extends REST_Controller
                         'RefType'     => 2,
                     ];
                     $this->AddToAccount($accountData);
+                }
+
+                // Update stock for sale booking details (Qty is in bags)
+                try {
+                    $this->UpdateStock(
+                        2,
+                        'Booking Sale',
+                        $detail['ProductID'],
+                        isset($detail['SPrice']) ? $detail['SPrice'] : 0,
+                        isset($detail['Qty']) ? $detail['Qty'] : 0,
+                        0,
+                        $booking['BookingID'],
+                        2,
+                        $date,
+                        isset($booking['StoreID']) ? $booking['StoreID'] : 0,
+                        isset($detail['UnitID']) ? $detail['UnitID'] : 0,
+                        isset($booking['BusinessID']) ? $booking['BusinessID'] : 1
+                    );
+                } catch (Exception $e) {
+                    // ignore stock-update errors to avoid blocking posting
                 }
 
                 // if ($detail['Received'] > 0) {

@@ -37,6 +37,19 @@ export const ROUTES: RouteInfo[] = [
         submenu: [],
         group: [1, 2],
       },
+
+      {
+        id: 530,
+        path: '/reports/stockaccts',
+        title: 'Stock Account',
+        icon: 'ft-info submenu-icon',
+        class: '',
+        badge: '',
+        badgeClass: '',
+        isExternalLink: false,
+        submenu: [],
+        group: [1, 2, 3],
+      },
       {
         id: 210,
         path: '/purchase/orders',
@@ -122,7 +135,7 @@ export const ROUTES: RouteInfo[] = [
         submenu: [],
         group: [1, 2],
       },
-     
+
       {
         id: 320,
         path: '/transport/income',
@@ -159,7 +172,7 @@ export const ROUTES: RouteInfo[] = [
         submenu: [],
         group: [1, 2],
       },
-      { 
+      {
         id: 350,
         path: '/transport/show-reports',
         title: 'Show Reports',
@@ -246,18 +259,6 @@ export const ROUTES: RouteInfo[] = [
         group: [1, 2],
       },
 
-      {
-        id: 530,
-        path: '/reports/stockaccts',
-        title: 'Stock Account',
-        icon: 'ft-info submenu-icon',
-        class: '',
-        badge: '',
-        badgeClass: '',
-        isExternalLink: false,
-        submenu: [],
-        group: [1, 2, 3],
-      },
       {
         id: 540,
         path: '/reports/salesummary',

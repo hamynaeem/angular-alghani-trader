@@ -1,5 +1,11 @@
 .extrahead {
 }
+/* UI improvements for Stock Accts */
+.three-dot-btn { padding: 4px 8px; border-radius: 4px; }
+.table-hover tbody tr:hover { background: #f4f7fb; }
+.summary-bar { background: #f8f9fb; border: 1px solid #e9ecef; padding: 10px; border-radius: 4px; }
+.badge-success { background-color: #28a745 !important; }
+.badge-warning { background-color: #ffc107 !important; color: #212529 !important; }
 @media screen {
   .sub-head {
     display: none;

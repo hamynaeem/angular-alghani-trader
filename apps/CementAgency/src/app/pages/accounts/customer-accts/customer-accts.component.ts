@@ -28,14 +28,14 @@ export class CustomerAcctsComponent implements OnInit {
         label: 'Date',
         fldName: 'Date',
       },
-      
-     
+
+
       {
         label: 'Description',
         fldName: 'Description',
       },
 
-      
+
 
       {
         label: 'Debit',
@@ -59,6 +59,7 @@ export class CustomerAcctsComponent implements OnInit {
   public toolbarOptions: object[] = [];
   customer: any = {};
   Customers: any;
+  productMap: any = {};
 
   constructor(
     private http: HttpBase,
@@ -165,90 +166,133 @@ export class CustomerAcctsComponent implements OnInit {
         this.customer = r;
         this.customer.OpenBalance = 0;
         this.customer.CloseBalance = 0;
-        // load booking summary for selected customer within the current date range
+        this.customer.Bookings = [];
+        this.customer.BookingTotal = 0;
+        this.customer.BookingCount = 0;
+
         const from = JSON2Date(this.Filter.FromDate);
         const to = JSON2Date(this.Filter.ToDate);
-        // Purchase bookings where this customer is the supplier
-        const purchaseFilter = "Date between '" + from + "' and '" + to + "' and SupplierID=" + e.itemData.CustomerID;
-        const purchaseParams = { filter: purchaseFilter, flds: 'BookingID,Date,InvoiceNo,Amount,NetAmount', bid: this.http.getBusinessID && this.http.getBusinessID() };
+        const cid = e.itemData.CustomerID;
+        const dateRange = "Date between '" + from + "' and '" + to + "'";
 
-        // Sales bookings (details) where this customer is the buyer
-        const saleFilter = 'CustomerID=' + e.itemData.CustomerID;
-        const saleParams = { filter: saleFilter, flds: 'BookingID,Amount', bid: this.http.getBusinessID && this.http.getBusinessID() };
+        // 1. Purchase headers (this customer as supplier)
+        const purchaseFlt = dateRange + " and SupplierID=" + cid + " and DtCr='Dr'";
+        // 2. Sale details (this customer as buyer)
+        const saleFlt = "CustomerID=" + cid + " and " + dateRange;
 
         Promise.all([
-          this.http.getData('qrybooking', purchaseParams).catch((err) => {
-            console.error('qrybooking purchase load failed:', err, err && err.error);
-            return [];
-          }),
-          this.http.getData('qrybookingsale', saleParams).catch((err) => {
-            console.error('qrybookingsale load failed:', err, err && err.error);
-            return [];
-          }),
-        ])
-          .then(([purchases, sales]: any) => {
-            purchases = purchases || [];
-            sales = sales || [];
+          this.http.getData('qrybooking?filter=' + encodeURIComponent(purchaseFlt) + '&orderby=Date').catch(() => []),
+          this.http.getData('qrybookingsale?filter=' + encodeURIComponent(saleFlt)).catch(() => []),
+          this.http.getData('qryproducts?flds=ProductID,ProductName').catch(() => []),
+        ]).then(([purchaseHeaders, saleDetails, products]: any) => {
+          purchaseHeaders = purchaseHeaders || [];
+          saleDetails     = saleDetails     || [];
 
-            // Normalize sales rows to match booking shape (no Date/InvoiceNo available in view)
-            const salesNorm = (sales || []).map((s: any) => ({ BookingID: s.BookingID, Date: s.Date || null, InvoiceNo: s.InvoiceNo || '', Amount: s.Amount || 0 }));
+          // Build a ProductID → ProductName lookup map
+          const productMap: any = {};
+          (products || []).forEach((p: any) => { productMap[String(p.ProductID)] = p.ProductName || ''; });
+          // expose for template lookup
+          this.productMap = productMap;
 
-            // Combine purchases and sales into a single list
-            this.customer.Bookings = purchases.concat(salesNorm);
+          const purchaseIds   = purchaseHeaders.map((b: any) => b.BookingID).filter(Boolean);
+          const saleHeaderIds = [...new Set(saleDetails.map((d: any) => d.BookingID).filter(Boolean))] as any[];
 
-            // fetch booking details (product names) for all booking ids and attach them
-            const bookingIds = (this.customer.Bookings || []).map((b: any) => b.BookingID).filter((v: any) => v != null && v !== '');
-            const uniqIds = Array.from(new Set(bookingIds));
-            if (uniqIds.length > 0) {
-              const idsFilter = 'BookingID in (' + uniqIds.join(',') + ')';
-              const detailParams = { filter: idsFilter, flds: 'BookingID,ProductName', bid: this.http.getBusinessID && this.http.getBusinessID() };
-              this.http.getData('qrybookingdetails', detailParams).then((d: any) => {
-                const m: any = {};
-                (d || []).forEach((r: any) => {
-                  const id = r.BookingID;
-                  if (!m[id]) m[id] = [];
-                  m[id].push(r.ProductName || r.Product || r.ItemName || '');
-                });
-                (this.customer.Bookings || []).forEach((b: any) => {
-                  b.ProductName = (m[b.BookingID] || []).filter((x: any) => x).join(', ');
-                });
-              }).catch((err) => {
-                console.error('qrybookingdetails load failed:', err, err && err.error);
+          const purchaseDetailsPromise = purchaseIds.length
+            ? this.http.getData('qrybookingpurchase?filter=' + encodeURIComponent('BookingID IN (' + purchaseIds.join(',') + ')')).catch(() => [])
+            : Promise.resolve([]);
+
+          const saleHeadersPromise = saleHeaderIds.length
+            ? this.http.getData('qrybooking?filter=' + encodeURIComponent('BookingID IN (' + saleHeaderIds.join(',') + ')')).catch(() => [])
+            : Promise.resolve([]);
+
+          return Promise.all([purchaseDetailsPromise, saleHeadersPromise])
+            .then(([purchaseDetails, saleHeaders]: any) => {
+              // Map purchase details by BookingID
+              const purchDetailMap: any = {};
+              (purchaseDetails || []).forEach((d: any) => {
+                if (!purchDetailMap[d.BookingID]) purchDetailMap[d.BookingID] = [];
+                purchDetailMap[d.BookingID].push(d);
               });
 
-              // fetch booking headers (Date, InvoiceNo) to fill missing Date/Invoice for sale rows
-              const headerParams = { filter: idsFilter, flds: 'BookingID,Date,', bid: this.http.getBusinessID && this.http.getBusinessID() };
-              this.http.getData('qrybooking', headerParams).then((hdrs: any) => {
-                const hmap: any = {};
-                (hdrs || []).forEach((r: any) => {
-                  hmap[r.BookingID] = r;
-                });
-                (this.customer.Bookings || []).forEach((b: any) => {
-                  if ((!b.Date || b.Date === null || b.Date === '') && hmap[b.BookingID]) {
-                    b.Date = hmap[b.BookingID].Date || b.Date;
-                  }
-                  if ((!b.InvoiceNo || b.InvoiceNo === null || b.InvoiceNo === '') && hmap[b.BookingID]) {
-                    b.InvoiceNo = hmap[b.BookingID].InvoiceNo || b.InvoiceNo;
-                  }
-                });
-              }).catch((err) => {
-                console.error('qrybooking headers load failed:', err, err && err.error);
-              });
-            }
+              // Map sale headers by BookingID
+              const saleHeaderMap: any = {};
+              (saleHeaders || []).forEach((h: any) => { saleHeaderMap[h.BookingID] = h; });
 
-            const total = (this.customer.Bookings || []).reduce((acc: number, b: any) => {
-              const amt = (b.NetAmount != null ? b.NetAmount : b.Amount) || 0;
-              return acc + Number(amt);
-            }, 0);
-            this.customer.BookingTotal = total;
-            this.customer.BookingCount = (this.customer.Bookings || []).length;
-          })
-          .catch((err) => {
-            console.error('Failed to load bookings for customer (combined):', err, err && err.error);
-            this.customer.Bookings = [];
-            this.customer.BookingTotal = 0;
-            this.customer.BookingCount = 0;
-          });
+              // Build purchase rows — qrybookingpurchase has ProductName directly
+              const purchaseRows = purchaseHeaders.map((b: any) => {
+                const details  = purchDetailMap[b.BookingID] || [];
+                const amount   = Number(b.NetAmount || b.Amount || 0);
+                const received = Number(b.Received || b.AmountReceived || 0);
+                return {
+                  BookingID:   b.BookingID,
+                  Date:        (b.Date || '').substring(0, 10),
+                  InvoiceNo:   b.BookingID,
+                  ProductName: details.map((d: any) => d.ProductName || productMap[String(d.ProductID)] || '').filter(Boolean).join(', '),
+                  Qty:         details.reduce((s: number, d: any) => s + (Number(d.Qty) || 0), 0),
+                  Amount:      amount,
+                  Received:    received,
+                  Balance:     amount - received,
+                };
+              });
+
+              // Build sale rows — qrybookingsale has ProductID but NOT ProductName, use productMap
+              const saleRows = (saleDetails as any[]).map((d: any) => {
+                const hdr      = saleHeaderMap[d.BookingID] || {};
+                const amount   = Number(d.Amount || 0);
+                const received = Number(d.Received || hdr.Received || hdr.AmountReceived || 0);
+                return {
+                  BookingID:   d.BookingID,
+                  Date:        ((hdr.Date || d.Date || '')).substring(0, 10),
+                  InvoiceNo:   d.BookingID,
+                  ProductID:   d.ProductID,
+                  ProductName: productMap[String(d.ProductID)] || '',
+                  Qty:         Number(d.Qty) || 0,
+                  Amount:      amount,
+                  Received:    received,
+                  Balance:     amount - received,
+                };
+              });
+
+              // Combine rows — no qrybookingdetails (view doesn't exist on backend).
+              // ProductName is already resolved: purchaseRows via purchDetailMap (qrybookingpurchase),
+              // saleRows via productMap (qryproducts). Apply final productMap fallback for any gaps.
+              const combined = [...purchaseRows, ...saleRows];
+
+              const finalize = (rows: any[]) => {
+                this.customer.Bookings = rows.sort((a: any, b: any) => (a.Date > b.Date ? 1 : -1));
+                this.customer.BookingTotal = this.customer.Bookings.reduce((acc: number, b: any) => acc + (Number(b.Amount) || 0), 0);
+                this.customer.BookingCount = this.customer.Bookings.length;
+              };
+
+              // For any row still missing ProductName, check purchDetailMap first (purchase details
+              // already fetched from qrybookingpurchase), then fall back to productMap.
+              combined.forEach((r: any) => {
+                if (!r.ProductName || r.ProductName === '') {
+                  // check purchase detail map (keyed by BookingID)
+                  const details = purchDetailMap[r.BookingID] || [];
+                  if (details.length) {
+                    const match = details.find((x: any) => String(x.ProductID) === String(r.ProductID));
+                    if (match) {
+                      r.ProductName = match.ProductName || match.ItemName || '';
+                    } else {
+                      r.ProductName = details.map((x: any) => x.ProductName || x.ItemName || '').filter(Boolean).join(', ');
+                    }
+                  }
+                }
+                // final fallback via productMap
+                if ((!r.ProductName || r.ProductName === '') && r.ProductID) {
+                  r.ProductName = productMap[String(r.ProductID)] || '';
+                }
+              });
+
+              finalize(combined);
+            });
+        }).catch((err) => {
+          console.error('Failed to load bookings:', err);
+          this.customer.Bookings     = [];
+          this.customer.BookingTotal = 0;
+          this.customer.BookingCount = 0;
+        });
       });
     }
   }
@@ -260,6 +304,14 @@ export class CustomerAcctsComponent implements OnInit {
     }
     // otherwise assume it's a date string or Date
     return FormatDate(d);
+  }
+
+  bookingProductName(b: any): string {
+    if (!b) return '';
+    if (b.ProductName && String(b.ProductName).trim() !== '') return b.ProductName;
+    const pid = b.ProductID || b.ProductId || b.Product || b.ItemID || b.ItemId;
+    if (pid && this.productMap && this.productMap[String(pid)]) return this.productMap[String(pid)];
+    return '';
   }
   InvNoClicked(e: any): void {
     console.log(e);

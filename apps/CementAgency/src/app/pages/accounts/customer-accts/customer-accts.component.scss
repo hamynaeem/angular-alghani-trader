@@ -60,3 +60,38 @@
     width: 8.33333333%;
   }
 }
+
+  /* Print / modern styles for customer accounts print view */
+  .print-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    border-bottom: 1px solid #e6e6e6;
+    padding-bottom: 8px;
+  }
+  .print-header .print-company h2 {
+    margin: 0;
+    font-size: 18px;
+  }
+  .print-header .print-customer h3 {
+    margin: 0;
+    font-size: 16px;
+  }
+  .print-table {
+    padding-top: 8px;
+  }
+  .print-table .modern-print-table th,
+  .print-table .modern-print-table td {
+    padding: 10px 12px;
+    border-top: 1px solid #f0f0f0;
+  }
+  .side-line .modern-print-table {
+    border-left: 4px solid #f0f0f0;
+  }
+
+  @media print {
+    .print-header { border-bottom-color: #ccc; }
+    .print-table .modern-print-table th, .print-table .modern-print-table td { padding: 8px 10px; }
+    .side-line .modern-print-table { border-left-color: #ccc; }
+  }
