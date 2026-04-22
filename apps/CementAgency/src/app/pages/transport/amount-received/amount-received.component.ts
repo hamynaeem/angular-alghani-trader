@@ -4,7 +4,7 @@ import { JSON2Date, getCurDate } from '../../../factories/utilities';
 import { HttpBase } from '../../../services/httpbase.service';
 import { MyToastService } from '../../../services/toaster.server';
 import { VoucherModel } from '../../cash/voucher.model';
- 
+
 @Component({
   selector: 'app-amount-received',
   templateUrl: './amount-received.component.html',
@@ -22,14 +22,17 @@ export class AmountReceivedComponent implements OnInit {
   // Transaction-related balances
   transactionBalance: number = 0;  // Remaining balance for this transaction (total - paid)
   totalAmount: number = 0;         // Total amount for selected date
-  
+
   // Customer account balance
   customerAccountBalance: number = 0;   // Customer's actual account balance
-  
+
   // Date range filter properties
   fromDate: string = '';
   toDate: string = '';
-  
+
+  // Show All records
+  Records: any[] = [];
+
   // Legacy properties (keeping for compatibility)
   displayedBalance: number = 0;
   selectedDate: string = ''; // Keeping for backward compatibility
@@ -48,14 +51,14 @@ export class AmountReceivedComponent implements OnInit {
   setTodayDate() {
     // Use application login date instead of system today's date
     const appDate = getCurDate() || new Date().toISOString().split('T')[0];
-    
+
     // Initialize date range - default to current date for both from and to
     this.fromDate = appDate;
     this.toDate = appDate;
-    
+
     // Keep selectedDate for backward compatibility
     this.selectedDate = appDate;
-    
+
     console.log('Using application business date range:', { fromDate: this.fromDate, toDate: this.toDate });
   }
 
@@ -67,10 +70,10 @@ export class AmountReceivedComponent implements OnInit {
         return;
       }
     }
-    
+
     // Update selectedDate for backward compatibility (use fromDate as primary)
     this.selectedDate = this.fromDate || this.toDate;
-    
+
     // Reset total amount when date range changes
     this.totalAmount = 0;
     this.ComputeBalance();
@@ -86,17 +89,17 @@ export class AmountReceivedComponent implements OnInit {
 
   Reset() {
     this.Voucher = new VoucherModel();
-    
+
     // Reset all balance-related properties
     this.transactionBalance = 0;
     this.customerAccountBalance = 0;
     this.displayedBalance = 0;
     this.totalAmount = 0;
-    
+
     this.curCustomer = {};
     this.setTodayDate(); // Uses application login date and sets date range
     this.ComputeBalance();
-    
+
     // Clear customer selection in dropdown
     if (this.cmbCustomer) {
       this.cmbCustomer.clearModel();
@@ -113,15 +116,15 @@ export class AmountReceivedComponent implements OnInit {
     this.Voucher.PrevBalance = this.curCustomer.Balance || 0;
     // Set voucher date to the selected business date (use fromDate as primary)
     this.Voucher.Date = this.fromDate || this.selectedDate;
-    
+
     // Add total amount to voucher for reference
     this.Voucher.Debit = this.totalAmount; // Record the order total as debit
-    
+
     // Create description with date range information
-    const dateRangeText = this.fromDate === this.toDate 
-      ? this.fromDate 
+    const dateRangeText = this.fromDate === this.toDate
+      ? this.fromDate
       : `${this.fromDate} to ${this.toDate}`;
-      
+
     this.Voucher.Description = `Amount Received: Rs.${this.Voucher.Credit} against Rs.${this.totalAmount} orders from ${dateRangeText}`;
 
     try {
@@ -145,23 +148,23 @@ export class AmountReceivedComponent implements OnInit {
       const paidAmount = Number(this.Voucher.Credit) || 0;
       const totalOrderAmount = Number(this.totalAmount) || 0;
       const previousBalance = Number(this.curCustomer.Balance) || 0;
-      
+
       // Correct balance calculation: previous balance - total orders + payment received
       const newCustomerBalance = previousBalance - totalOrderAmount + paidAmount;
-      
+
       // Update customer balance in the database
       const balanceUpdatePayload = {
         CustomerID: this.Voucher.CustomerID,
         Balance: newCustomerBalance
       };
-      
+
       try {
         // Update customer balance in database
         await this.http.postTask('updatecustomerbalance', balanceUpdatePayload);
         console.log('Customer balance updated in database:', newCustomerBalance);
       } catch (balanceError) {
         console.warn('Balance update failed, using direct customer update:', balanceError);
-        // Fallback: try updating customer record directly using postTask 
+        // Fallback: try updating customer record directly using postTask
         try {
           const customerUpdatePayload = {
             CustomerID: this.Voucher.CustomerID,
@@ -175,24 +178,24 @@ export class AmountReceivedComponent implements OnInit {
           console.log('Using local balance update only');
         }
       }
-      
+
       // Update local customer object
       this.curCustomer.Balance = newCustomerBalance;
       this.customerAccountBalance = newCustomerBalance;
-      
+
       // Update customers array for consistency
       const customerIndex = this.Customers.findIndex(
         c => c.CustomerID == this.Voucher.CustomerID
       );
-      
+
       if (customerIndex > -1) {
         this.Customers[customerIndex].Balance = newCustomerBalance;
       }
-      
+
       // Reset transaction balance since payment is complete
       this.transactionBalance = 0;
       this.displayedBalance = newCustomerBalance;  // Show final customer balance
-      
+
       console.log('Balance Updated:', {
         previousBalance,
         totalOrderAmount,
@@ -241,10 +244,10 @@ export class AmountReceivedComponent implements OnInit {
       const r: any = await this.http.getData(url);
       this.Customers = r;
       console.log('Customers loaded:', r?.length, 'customers');
-      
+
       // Emit event to notify other components about customer data refresh
       this.notifyCustomerDataUpdated();
-      
+
       return r;
     } catch (err) {
       console.error('Load customer error', err);
@@ -255,11 +258,11 @@ export class AmountReceivedComponent implements OnInit {
   // Method to notify other components about customer balance updates
   private notifyCustomerDataUpdated() {
     // Emit a custom event that can be listened to by the accounts list component
-    window.dispatchEvent(new CustomEvent('customerBalanceUpdated', { 
-      detail: { 
+    window.dispatchEvent(new CustomEvent('customerBalanceUpdated', {
+      detail: {
         timestamp: Date.now(),
         updatedCustomers: this.Customers
-      } 
+      }
     }));
   }
 
@@ -284,7 +287,7 @@ export class AmountReceivedComponent implements OnInit {
       );
 
       this.curCustomer = r[0] || {};
-      
+
       // Update customer account balance
       this.customerAccountBalance = Number(this.curCustomer.Balance) || 0;
 
@@ -298,6 +301,29 @@ export class AmountReceivedComponent implements OnInit {
     }
   }
 
+  getCustomerName(customerID: any): string {
+    const c = this.Customers.find(x => x.CustomerID == customerID);
+    return c ? c.CustomerName : '';
+  }
+
+  async ShowAll() {
+    if (!this.fromDate || !this.toDate) return;
+
+    let filter = `Date>='${this.fromDate}' AND Date<='${this.toDate}'`;
+    if (this.Voucher.CustomerID) {
+      filter += ` AND CustomerID=${this.Voucher.CustomerID}`;
+    }
+    try {
+      const r: any = await this.http.getData(
+        'qryvouchers?filter=' + encodeURIComponent(filter) + '&orderby=Date desc'
+      );
+      this.Records = r || [];
+    } catch (err) {
+      console.error('ShowAll error', err);
+      this.alert.Error('Failed to load records', 'Error', 1);
+    }
+  }
+
   ComputeBalance() {
     const paid = Number(this.Voucher.Credit) || 0;
     const total = Number(this.totalAmount) || 0;
@@ -305,13 +331,13 @@ export class AmountReceivedComponent implements OnInit {
 
     // Calculate balance: Total Amount + Previous Balance - Paid Amount
     this.transactionBalance = total + previousCustomerBalance - paid;
-    
+
     // Customer balance should show the actual previous balance (before transaction)
     this.customerAccountBalance = previousCustomerBalance;
-    
+
     // Show transaction balance as the displayed balance amount
     this.displayedBalance = this.transactionBalance;
-    
+
     console.log('Balance Calculation:', {
       totalAmount: total,
       paidAmount: paid,
@@ -334,14 +360,14 @@ export class AmountReceivedComponent implements OnInit {
 
     // Create printable receipt content
     const receiptContent = this.generateReceiptHTML();
-    
+
     // Open print window
     const printWindow = window.open('', '_blank', 'width=800,height=600');
     if (printWindow) {
       printWindow.document.write(receiptContent);
       printWindow.document.close();
       printWindow.focus();
-      
+
       // Print after content loads
       setTimeout(() => {
         printWindow.print();
@@ -352,8 +378,8 @@ export class AmountReceivedComponent implements OnInit {
 
   private generateReceiptHTML(): string {
     const currentDate = new Date().toLocaleString();
-    const dateRangeText = this.fromDate === this.toDate 
-      ? this.fromDate 
+    const dateRangeText = this.fromDate === this.toDate
+      ? this.fromDate
       : `${this.fromDate} to ${this.toDate}`;
     const paidAmount = Number(this.Voucher.Credit) || 0;
     const totalAmount = Number(this.totalAmount) || 0;
@@ -367,59 +393,59 @@ export class AmountReceivedComponent implements OnInit {
     <meta charset="utf-8">
     <title>Transport Amount Receipt</title>
     <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            margin: 20px; 
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
             font-size: 12px;
             line-height: 1.4;
         }
-        .header { 
-            text-align: center; 
-            border-bottom: 2px solid #333; 
-            padding-bottom: 10px; 
-            margin-bottom: 20px; 
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
         }
-        .company-name { 
-            font-size: 18px; 
-            font-weight: bold; 
-            margin-bottom: 5px; 
+        .company-name {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 5px;
         }
-        .receipt-title { 
-            font-size: 16px; 
-            font-weight: bold; 
-            margin: 10px 0; 
+        .receipt-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin: 10px 0;
         }
-        .content { 
-            margin: 20px 0; 
+        .content {
+            margin: 20px 0;
         }
-        .row { 
-            display: flex; 
-            justify-content: space-between; 
-            margin: 8px 0; 
+        .row {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
             padding: 4px 0;
         }
-        .label { 
-            font-weight: bold; 
-            width: 150px; 
+        .label {
+            font-weight: bold;
+            width: 150px;
         }
-        .value { 
-            text-align: right; 
-            flex: 1; 
+        .value {
+            text-align: right;
+            flex: 1;
         }
-        .amount { 
-            font-size: 14px; 
-            font-weight: bold; 
+        .amount {
+            font-size: 14px;
+            font-weight: bold;
         }
         .total-section {
             border-top: 1px solid #333;
             margin-top: 15px;
             padding-top: 10px;
         }
-        .footer { 
-            margin-top: 30px; 
-            text-align: center; 
-            font-size: 10px; 
-            color: #666; 
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 10px;
+            color: #666;
         }
         .signature-section {
             margin-top: 40px;
@@ -446,7 +472,7 @@ export class AmountReceivedComponent implements OnInit {
         <div style="font-size: 12px;">+92 300 7749830 / +92 345 7749830</div>
         <div>Date: ${currentDate}</div>
     </div>
-    
+
     <div class="content">
         <div class="row">
             <span class="label">Receipt Date:</span>
@@ -468,7 +494,7 @@ export class AmountReceivedComponent implements OnInit {
             <span class="label">City:</span>
             <span class="value">${this.curCustomer.City || ''}</span>
         </div>
-        
+
         <div class="total-section">
             <div class="row">
                 <span class="label">Total Amount:</span>
@@ -488,7 +514,7 @@ export class AmountReceivedComponent implements OnInit {
             </div>
         </div>
     </div>
- 
+
 </body>
 </html>
     `;

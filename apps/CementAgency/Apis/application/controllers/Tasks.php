@@ -635,24 +635,15 @@ class Tasks extends REST_Controller
         $unitID,
         $bid = 1
     ) {
+        // Skip stock table operations if the tables don't exist yet
+        $stockTableExists = $this->db->table_exists('stock');
+        $stockAcctTableExists = $this->db->table_exists('stockaccts');
+
+        if (!$stockTableExists) {
+            return;
+        }
+
         try {
-            // Debug/logging: record each UpdateStock invocation and parameters
-            $logLine = sprintf(
-                "[UpdateStock] %s - a=%s pid=%s pprice=%s qtyout=%s qtyin=%s billNo=%s bType=%s invDate=%s storeID=%s unitID=%s bid=%s",
-                date('Y-m-d H:i:s'),
-                var_export($a, true),
-                var_export($pid, true),
-                var_export($pprice, true),
-                var_export($qtyout, true),
-                var_export($qtyin, true),
-                var_export($billNo, true),
-                var_export($bType, true),
-                var_export($invDate, true),
-                var_export($storeID, true),
-                var_export($unitID, true),
-                var_export($bid, true)
-            );
-            error_log($logLine);
             if ($a == 1) {
                 $this->db->where('ProductID', $pid);
                 $this->db->where('BusinessID', $bid);
@@ -664,7 +655,6 @@ class Tasks extends REST_Controller
                     $stock['Stock'] = $oldStock - $qtyout + $qtyin;
                     $this->db->where('StockID', $stock1[0]['StockID']);
                     $this->db->update('stock', $stock);
-                    error_log(sprintf('[UpdateStock] %s - Updated existing stock: ProductID=%s old=%s qtyout=%s qtyin=%s new=%s StoreID=%s', date('Y-m-d H:i:s'), $pid, $oldStock, $qtyout, $qtyin, $stock['Stock'], $storeID));
                 } else {
                     $stock['ProductID']  = $pid;
                     $stock['PPrice']     = $pprice;
@@ -673,10 +663,8 @@ class Tasks extends REST_Controller
                     $stock['UnitID']     = $unitID;
                     $stock['Stock']      = $qtyin - $qtyout;
                     $this->db->insert('stock', $stock);
-                    error_log(sprintf('[UpdateStock] %s - Inserted new stock: ProductID=%s qtyIn=%s qtyOut=%s net=%s StoreID=%s', date('Y-m-d H:i:s'), $pid, $qtyin, $qtyout, $stock['Stock'], $storeID));
                 }
             } else {
-                // var_dump($qtyin, $qtyout);
                 $this->db->where('ProductID', $pid);
                 $this->db->where('StoreID', $storeID);
                 $this->db->where('BusinessID', $bid);
@@ -689,25 +677,32 @@ class Tasks extends REST_Controller
                     $this->db->where('StockID', $stock1[0]['StockID']);
                     $this->db->update('stock', $stock);
                     $pid = $stock1[0]['ProductID'];
-                    error_log(sprintf('[UpdateStock] %s - Updated existing stock (alt path): ProductID=%s old=%s qtyout=%s qtyin=%s new=%s StoreID=%s', date('Y-m-d H:i:s'), $pid, $oldStock, $qtyout, $qtyin, $stock['Stock'], $storeID));
                 } else {
-                    throw (new Exception('Product Not found in Stock'));
-                    //exit(0);
+                    // Product not in stock table yet — treat as zero stock
+                    $stock['Stock'] = 0 - $qtyout + $qtyin;
+                    $stock['ProductID']  = $pid;
+                    $stock['PPrice']     = $pprice;
+                    $stock['StoreID']    = $storeID;
+                    $stock['BusinessID'] = $bid;
+                    $stock['UnitID']     = $unitID;
+                    $this->db->insert('stock', $stock);
                 }
             }
 
-            $stockacct['Date']        = $invDate;
-            $stockacct['Description'] = $desc;
-            $stockacct['ProductID']   = $pid;
-            $stockacct['QtyIn']       = $qtyin;
-            $stockacct['QtyOut']      = $qtyout;
-            $stockacct['Balance']     = $stock['Stock'];
-            $stockacct['BusinessID']  = $bid;
-            $stockacct['StoreID']     = $storeID;
-            $stockacct['RefID']       = $billNo;
-            $stockacct['RefType']     = $bType;
+            if ($stockAcctTableExists) {
+                $stockacct['Date']        = $invDate;
+                $stockacct['Description'] = $desc;
+                $stockacct['ProductID']   = $pid;
+                $stockacct['QtyIn']       = $qtyin;
+                $stockacct['QtyOut']      = $qtyout;
+                $stockacct['Balance']     = $stock['Stock'];
+                $stockacct['BusinessID']  = $bid;
+                $stockacct['StoreID']     = $storeID;
+                $stockacct['RefID']       = $billNo;
+                $stockacct['RefType']     = $bType;
 
-            $this->db->insert('stockaccts', $stockacct);
+                $this->db->insert('stockaccts', $stockacct);
+            }
         } catch (Exception $e) {
             throw $e;
         }
@@ -977,6 +972,153 @@ class Tasks extends REST_Controller
         }
     }
 
+    /**
+     * Recalculates all customer balances.
+     * Step 1: Re-processes all posted bookings — deletes & re-inserts their customeraccts entries.
+     * Step 2: Sums customeraccts (debit - credit) to set customers.Balance.
+     * This fixes any missing/duplicate entries from previous bugs.
+     * Optional POST param: CustomerID to recalculate a single customer only.
+     */
+    public function recalcbalances_post()
+    {
+        if (! $this->checkToken()) {
+            $this->response(['result' => 'Error', 'message' => 'user is not authorised'], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        try {
+            $post_data  = $this->post();
+            $customerID = isset($post_data['CustomerID']) ? intval($post_data['CustomerID']) : 0;
+
+            $debitCol  = $this->db->field_exists('Amount', 'customeraccts')  ? 'Amount'  : 'Debit';
+            $creditCol = $this->db->field_exists('Recived', 'customeraccts') ? 'Recived' : 'Credit';
+
+            // Step 1: Re-process all posted bookings to rebuild customeraccts from scratch.
+            // Get all posted bookings (IsPosted = 1 and IsPosted = 0 — rebuild everything)
+            $this->db->where("Date <> '0000-00-00'");
+            if ($customerID > 0) {
+                // Only rebuid bookings that have sales to this specific customer
+                $customerBookings = $this->db->query(
+                    "SELECT DISTINCT BookingID FROM booking_details WHERE CustomerID = ? AND Type = 2",
+                    [$customerID]
+                )->result_array();
+                $bookingIDs = array_column($customerBookings, 'BookingID');
+                if (!empty($bookingIDs)) {
+                    $this->db->where_in('BookingID', $bookingIDs);
+                }
+            }
+            $allBookings = $this->db->get('booking')->result_array();
+
+            $this->db->trans_begin();
+            foreach ($allBookings as $booking) {
+                $bid = $booking['BookingID'];
+
+                // Delete existing customeraccts entries for this booking
+                $this->db->where('InvoiceID', $bid);
+                $this->db->delete('customeraccts');
+
+                // Re-insert sale entries from booking_details
+                $saleDetails = $this->db->query(
+                    "SELECT bd.*, COALESCE(p.ProductName, '') AS ProductName
+                     FROM booking_details bd
+                     LEFT JOIN products p ON p.ProductID = bd.ProductID
+                     WHERE bd.BookingID = ? AND bd.Type = 2",
+                    [$bid]
+                )->result_array();
+
+                foreach ($saleDetails as $detail) {
+                    if (empty($detail['CustomerID'])) continue;
+
+                    // Debit: sale amount
+                    $this->db->insert('customeraccts', $this->buildAcctRow(
+                        $detail['CustomerID'],
+                        $booking['Date'],
+                        $detail['ProductName'],
+                        $booking['BookingID'],
+                        floatval($detail['SPrice']) * floatval($detail['Qty']),
+                        0,
+                        $debitCol, $creditCol
+                    ));
+
+                    // Credit: discount
+                    if (floatval($detail['Discount']) > 0) {
+                        $this->db->insert('customeraccts', $this->buildAcctRow(
+                            $detail['CustomerID'],
+                            $booking['Date'],
+                            'Discount ' . $detail['ProductName'],
+                            $booking['BookingID'],
+                            0,
+                            floatval($detail['Discount']),
+                            $debitCol, $creditCol
+                        ));
+                    }
+
+                    // Credit: amount received at time of sale
+                    if (floatval($detail['Received']) > 0) {
+                        $this->db->insert('customeraccts', $this->buildAcctRow(
+                            $detail['CustomerID'],
+                            $booking['Date'],
+                            'Cash Recvd ' . $detail['ProductName'],
+                            $booking['BookingID'],
+                            0,
+                            floatval($detail['Received']),
+                            $debitCol, $creditCol
+                        ));
+                    }
+                }
+            }
+            $this->db->trans_commit();
+
+            // Step 2: Recalculate customers.Balance from customeraccts
+            if ($customerID > 0) {
+                $this->db->where('CustomerID', $customerID);
+            }
+            $customers = $this->db->get('customers')->result_array();
+
+            $updated = 0;
+            foreach ($customers as $cust) {
+                $cid = $cust['CustomerID'];
+
+                $row = $this->db->query(
+                    "SELECT
+                        COALESCE(SUM(`{$debitCol}`),  0) AS TotalDebit,
+                        COALESCE(SUM(`{$creditCol}`), 0) AS TotalCredit
+                     FROM customeraccts
+                     WHERE CustomerID = ?",
+                    [$cid]
+                )->row_array();
+
+                $newBalance = floatval($row['TotalDebit']) - floatval($row['TotalCredit']);
+
+                $this->db->where('CustomerID', $cid);
+                $this->db->update('customers', ['Balance' => $newBalance]);
+                $updated++;
+            }
+
+            $this->response(['status' => true, 'updated' => $updated, 'msg' => "Balances recalculated for {$updated} account(s)"], REST_Controller::HTTP_OK);
+        } catch (Exception $e) {
+            $this->db->trans_rollback();
+            $this->response(['status' => false, 'msg' => 'Error: ' . $e->getMessage()], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Helper to build a customeraccts insert row with correct column names.
+     */
+    private function buildAcctRow($customerID, $date, $description, $bookingID, $debit, $credit, $debitCol, $creditCol)
+    {
+        $row = [
+            'CustomerID'  => $customerID,
+            'Date'        => $date,
+            'Description' => $description,
+            'InvoiceID'   => $bookingID,
+            'Balance'     => 0, // Will be corrected by recalculation
+        ];
+        $row[$debitCol]  = $debit;
+        $row[$creditCol] = $credit;
+        return $row;
+    }
+
     public function AddToAccount($data)
     {
         $this->db->where('CustomerID', $data['CustomerID']);
@@ -1182,7 +1324,12 @@ class Tasks extends REST_Controller
             return;
         }
 
-        $this->PostBookings($id);
+        try {
+            $this->PostBookings($id);
+        } catch (Exception $e) {
+            $this->response(['status' => false, 'message' => $e->getMessage()], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+            return;
+        }
 
         // Direct update as safety net: ensures IsPosted=1 is persisted even if
         // the qrybooking view does not include this booking (e.g. sales-only bookings).
@@ -1319,12 +1466,17 @@ class Tasks extends REST_Controller
 
     private function PostBookings($id = 0)
     {
+        // Query the booking table directly — do NOT use qrybooking view which may
+        // exclude sales-only bookings (no SupplierID) causing balance to never update.
+        $this->db->where('IsPosted', 0);
+        $this->db->where("Date <> '0000-00-00'");
         if ($id > 0) {
             $this->db->where('BookingID', $id);
         }
-        $this->db->where('IsPosted', 0);
-        $this->db->where("Date <> '0000-00-00'");
-        $bookings = $this->db->get('qrybooking')->result_array();
+        $bookings = $this->db->get('booking')->result_array();
+
+        // Collect all customer IDs affected so we can recalculate their balances at the end
+        $affectedCustomerIDs = [];
 
         $this->db->trans_begin();
         foreach ($bookings as $booking) {
@@ -1333,10 +1485,21 @@ class Tasks extends REST_Controller
 
             $date = $booking['Date'];
 
+            // Remove any existing customeraccts entries for this booking before re-inserting.
+            // This makes posting idempotent — safe when a booking is edited and re-posted.
+            $this->db->where('InvoiceID', $booking['BookingID']);
+            $this->db->delete('customeraccts');
+
             // Only post supplier (purchase) account entries when a SupplierID exists
             if ($supplierID > 0) {
-                $this->db->where('BookingID', $booking['BookingID']);
-                $details = $this->db->get('qrybookingpurchase')->result_array();
+                // Query booking_details directly for purchase items (Type=1)
+                $details = $this->db->query(
+                    "SELECT bd.*, COALESCE(p.ProductName, '') AS ProductName
+                     FROM booking_details bd
+                     LEFT JOIN products p ON p.ProductID = bd.ProductID
+                     WHERE bd.BookingID = ? AND bd.Type = 1",
+                    [$booking['BookingID']]
+                )->result_array();
 
                 foreach ($details as $detail) {
 
@@ -1350,7 +1513,7 @@ class Tasks extends REST_Controller
                     $data['Rate']       = $detail['Price'];
                     $data['Qty']        = $detail['Qty'];
                     $data['Credit']     = $booking['Amount'];
-                    $data['Debit']      = $booking['Debit'];
+                    $data['Debit']      = isset($booking['Debit']) ? $booking['Debit'] : 0;
                     $data['RefID']      = $booking['BookingID'];
                     $data['RefType']    = 1;
                     $this->AddToAccount($data);
@@ -1378,10 +1541,19 @@ class Tasks extends REST_Controller
 
                 }
             }
-            $this->db->where('BookingID', $booking['BookingID']);
-            $details = $this->db->get('qrybookingsale')->result_array();
+            // Query booking_details directly (not via view) to guarantee the Received field is available
+            $details = $this->db->query(
+                "SELECT bd.*, COALESCE(p.ProductName, '') AS ProductName
+                 FROM booking_details bd
+                 LEFT JOIN products p ON p.ProductID = bd.ProductID
+                 WHERE bd.BookingID = ? AND bd.Type = 2",
+                [$booking['BookingID']]
+            )->result_array();
 
             foreach ($details as $detail) {
+                if (!empty($detail['CustomerID'])) {
+                    $affectedCustomerIDs[] = intval($detail['CustomerID']);
+                }
                 $accountData = [
                     'CustomerID'  => $detail['CustomerID'],
                     'Date'        => $date,
@@ -1436,32 +1608,23 @@ class Tasks extends REST_Controller
                     // ignore stock-update errors to avoid blocking posting
                 }
 
-                // if ($detail['Received'] > 0) {
-                //     $accountData = [
-                //         'CustomerID'  => $detail['CustomerID'],
-                //         'Date'        => $date,
-                //         'InvNo'       => $booking['InvoiceNo'],
-                //         'BuiltyNo'    => $booking['BuiltyNo'],
-                //         'VehicleNo'   => $booking['VehicleNo'],
-                //         'Rate'        => 0,
-                //         'Qty'         => 0,
-                //         'Credit'      => $detail['Received'],
-                //         'Debit'       => 0,
-                //         'Description' => 'Cash Recvd ' . $detail['ProductName'],
-                //         'RefID'       => $booking['BookingID'],
-                //         'RefType'     => 2,
-                //     ];
-                //     $this->AddToAccount($accountData);
-                //     $cashdata = [
-                //         'Date'    => $date,
-                //         'AcctID'  => $detail['CustomerID'], // Cash account
-                //         'Details' => 'Cash Recvd ' . $detail['ProductName'] . ' Inv#' . $booking['InvoiceNo'],
-                //         'Recvd'   => $detail['Received'],
-                //         'Paid'    => 0,
-                //         'Type'    => 1, // Receipt
-                //     ];
-                //     $this->AddToCash($cashdata);
-                // }
+                if (isset($detail['Received']) && floatval($detail['Received']) > 0) {
+                    $accountData = [
+                        'CustomerID'  => $detail['CustomerID'],
+                        'Date'        => $date,
+                        'InvNo'       => $booking['InvoiceNo'],
+                        'BuiltyNo'    => $booking['BuiltyNo'],
+                        'VehicleNo'   => $booking['VehicleNo'],
+                        'Rate'        => 0,
+                        'Qty'         => 0,
+                        'Credit'      => floatval($detail['Received']),
+                        'Debit'       => 0,
+                        'Description' => 'Cash Recvd ' . $detail['ProductName'],
+                        'RefID'       => $booking['BookingID'],
+                        'RefType'     => 2,
+                    ];
+                    $this->AddToAccount($accountData);
+                }
 
             }
 
@@ -1486,6 +1649,24 @@ class Tasks extends REST_Controller
             $this->db->update('booking', $posted);
         }
         $this->db->trans_commit();
+
+        // After committing, recalculate each affected customer's balance from customeraccts.
+        // customeraccts is the single source of truth: debit rows (sales) - credit rows (payments/discounts).
+        $debitCol  = $this->db->field_exists('Amount', 'customeraccts')  ? 'Amount'  : 'Debit';
+        $creditCol = $this->db->field_exists('Recived', 'customeraccts') ? 'Recived' : 'Credit';
+        foreach (array_unique($affectedCustomerIDs) as $cid) {
+            if ($cid <= 0) continue;
+            $row = $this->db->query(
+                "SELECT
+                    COALESCE(SUM(`{$debitCol}`),  0) AS TotalDebit,
+                    COALESCE(SUM(`{$creditCol}`), 0) AS TotalCredit
+                 FROM customeraccts WHERE CustomerID = ?",
+                [$cid]
+            )->row_array();
+            $newBalance = floatval($row['TotalDebit']) - floatval($row['TotalCredit']);
+            $this->db->where('CustomerID', $cid);
+            $this->db->update('customers', ['Balance' => $newBalance]);
+        }
     }
     private function PostExpense($id = 0)
     {

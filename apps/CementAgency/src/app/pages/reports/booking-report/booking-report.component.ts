@@ -111,26 +111,15 @@ export class BookingReportComponent implements OnInit {
           label: 'Customer Name',
           fldName: 'CustomerName',
         },
-        {
-          label: 'PurchasePrice',
-          fldName: 'Price',
-        },
-        {
-          label: 'Purchase Qty',
-          fldName: 'PurchaseQty',
-          sum: true,
-        },
+
+
         {
           label: 'Sale Qty',
           fldName: 'SaleQty',
           sum: true,
         },
 
-        {
-          label: 'Purchase Amount',
-          fldName: 'PAmount',
-          sum: true,
-        },
+
         {
           label: 'Sale Amount',
           fldName: 'SAmount',
@@ -144,25 +133,13 @@ export class BookingReportComponent implements OnInit {
     subRowBackgroundConfig: {
       // Multiple conditions with priority (as expected by getSubRowBackgroundColor)
       conditions: [
-
         {
-            // Purchase type
-            condition: (subRow: any, subIndex: number, parentRow: any, parentIndex: number) => subRow.Type === 'Purchase',
-            color: '#ffcccc', // light red
-            priority: 10
-          },
-          {
           // Sale type
-          condition: (subRow: any, subIndex: number, parentRow: any, parentIndex: number) => subRow.Type === 'Sale',
+          condition: (subRow: any, subIndex: number, parentRow: any, parentIndex: number) => (subRow && String(subRow.Type).toLowerCase() === 'sale'),
           color: 'lightgreen',
           priority: 5
         }
       ],
-      // Fallback single condition (optional, for backward compatibility)
-      condition: (subRow: any, subIndex: number, parentRow: any, parentIndex: number) =>
-        subRow.Type === 'Purchase' || subRow.Type === 'Sale',
-      color: (subRow: any, subIndex: number, parentRow: any, parentIndex: number) =>
-        subRow.Type === 'Purchase' ? 'red' : 'lightgreen',
       // Default color if no condition matches
       defaultColor: 'white'
     }
@@ -226,8 +203,52 @@ export class BookingReportComponent implements OnInit {
         };
       });
 
+      // Keep only sales rows
+      const isSaleRow = (obj: any) => {
+        try {
+          if (!obj) return false;
+          if (obj.Type && String(obj.Type).toLowerCase().includes('sale')) return true;
+          if (obj.DtCr && String(obj.DtCr).toLowerCase() === 'cr') return true;
+          if (obj.IsSale === 1 || obj.IsSale === '1') return true;
+          if (obj.SAmount || obj.SaleAmount || obj.SaleQty) return true;
+          return false;
+        } catch (e) { return false; }
+      };
+
+      this.data = (this.data || []).filter(isSaleRow);
+
       // Provide the fetched data to the report table settings so the table component can render it
       this.setting.Data = this.data;
+      // If qrybooking returned no rows, try a fallback MQRY to fetch bookings directly (may help if server-side view is empty)
+      if ((!this.data || this.data.length === 0)) {
+        console.log('qrybooking empty — running fallback MQRY');
+        const sql = `SELECT b.BookingID, b.Date, c.CustomerName, b.InvoiceNo, b.VehicleNo, b.BuiltyNo,
+          b.Amount, b.Discount, COALESCE(b.Carriage,0) AS Carriage, (b.Amount - COALESCE(b.Discount,0) - COALESCE(b.Carriage,0)) AS NetAmount,
+          b.DtCr, b.IsPosted
+          FROM booking b
+          LEFT JOIN customers c ON b.SupplierID = c.CustomerID
+          WHERE ${filter}
+          ORDER BY c.CustomerName, b.BookingID`;
+
+        this.http.getData('MQRY?qrysql=' + encodeURIComponent(sql)).then((mr: any) => {
+          const rows = Array.isArray(mr) ? mr : (mr && Array.isArray(mr.data) ? mr.data : []);
+          console.log('MQRY fallback payload', rows);
+          this.data = (rows || []).map((obj: any) => ({
+            ...obj,
+            InvoiceID: (obj.InvoiceID || obj.InvoiceNo || obj.InvNo || obj.Invoice || obj.RefNo || '') + '',
+            InvoiceNo: (obj.InvoiceNo || obj.InvNo || obj.Invoice || obj.RefNo || '') + '',
+            VehNo: (obj.VehicleNo || obj.VehNo || obj.VehICLENo || obj.Veh || '') + '',
+            BuiltyNo: (obj.BuiltyNo || obj.Builty || obj.Bilty || '') + '',
+            details: [],
+            Status: obj.IsPosted == 0 ? 'Un-Posted' : 'Posted',
+            Date: obj.Date ? (obj.Date + '').substring(0, 10) : obj.Date,
+          }));
+          this.data = (this.data || []).filter(isSaleRow);
+          this.setting.Data = this.data;
+        }).catch((e: any) => {
+          console.warn('Fallback MQRY failed', e);
+        });
+      }
     });
   }
   Clicked(e: any) {
@@ -243,12 +264,21 @@ export class BookingReportComponent implements OnInit {
       this.http
         .getData('qrybookingdetails?filter=BookingID=' + event.data.BookingID)
         .then((r: any) => {
-          const details = (r || []).map((d: any) => {
+          let details = (r || []).map((d: any) => {
             const customerName = (d.CustomerName || d.Customer || d.CustName || d.SupplierName || d.Supplier || '') + '';
             return {
               ...d,
               CustomerName: customerName,
             };
+          });
+          // keep only sale type detail rows
+          details = details.filter((d: any) => {
+            try {
+              const t = (d.Type || '').toString().toLowerCase();
+              if (t === 'sale' || t === 's') return true;
+              if (d.SaleQty || d.SAmount || d.SAmount === 0) return true;
+              return false;
+            } catch (e) { return false; }
           });
 
           event.data['details'] = details;

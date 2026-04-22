@@ -201,7 +201,7 @@ export class CustomersComponent implements OnInit {
         color: '#ffcccc', // light red
         priority: 20,
       },
-      // Warning 1 month not sale and purchase 
+      // Warning 1 month not sale and purchase
       // {
       //   condition: (Row: any) => Row.LastSaleDate && Row.LastPurchaseDate && (new Date().getTime() - new Date(Row.LastSaleDate).getTime()) > 30 * 24 * 60 * 60 * 1000 && (new Date().getTime() - new Date(Row.LastPurchaseDate).getTime()) > 30 * 24 * 60 * 60 * 1000,
       //   color: 'red', // light orange
@@ -375,6 +375,22 @@ export class CustomersComponent implements OnInit {
         this.FilterData();
       }
     });
+  }
+
+  async SyncBalances() {
+    const confirm = await swal({
+      text: 'Recalculate all customer balances from the account ledger? This will fix any incorrect balances.',
+      icon: 'warning',
+      buttons: { cancel: true, confirm: true },
+    });
+    if (!confirm) return;
+    try {
+      const r: any = await this.http.postTask('recalcbalances', {});
+      swal('Done!', r.msg || 'Balances updated successfully', 'success');
+      this.FilterData();
+    } catch (err) {
+      swal('Error!', 'Failed to recalculate balances', 'error');
+    }
   }
   PrintReport() {
     this.ps.PrintData.HTMLData = document.getElementById('print-section');

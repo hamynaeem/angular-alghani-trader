@@ -1,6 +1,6 @@
 <div widget class="card border-0 box-shadow">
   <div class="card-header transparent border-0 text-muted d-flex align-items-center justify-content-between">
-    <h5 class="mb-3 mb-0">Sale Summary</h5>
+    <h5 class="mb-3 mb-0">Sales Reports</h5>
     <div *ngIf="SelectedCustomerName && SelectedCustomerName != ''" class="text-muted">
       <small>Customer: {{ SelectedCustomerName }}</small>
     </div>
@@ -68,7 +68,7 @@
           </ng-select>
         </div>
 
-        <div class="form-group col-md-3">
+        <!-- <div class="form-group col-md-3">
           <label for="customer">Select Product </label>
           <ng-select
             #cmbProduct
@@ -82,7 +82,7 @@
             [(ngModel)]="Filter.ProductID"
           >
           </ng-select>
-        </div>
+        </div> -->
         <div class="col-md-1">
           <div class="form-group">
             <label>&nbsp;</label>

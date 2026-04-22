@@ -50,6 +50,8 @@ export class StockAcctsComponent implements OnInit {
   lstDataRource: any = [];
   lstSelectable: any[] = [];
   PostedStockMap: any = {};
+  stockByProduct: { [pid: string]: number } = {};
+  soldByProduct: { [pid: string]: number } = {};
   lstAccounts: any = [];
   lstSuppliers: any = [];
   stores$: Observable<any[]>;
@@ -67,8 +69,7 @@ export class StockAcctsComponent implements OnInit {
   }
 
   // Build lstSelectable and lstDataRource with NET bags = purchased bags − sold bags.
-  // Uses booking_details directly (raw table): Type=1 purchase (Qty tons × Packing=20),
-  // Type=2 sale (Qty already in bags, Packing not stored for sales).
+  // Uses booking_details: Type=1 purchase (Qty tons × Packing), Type=2 sale (Qty in bags).
   loadProductsAndStock() {
     const netSql = `SELECT bd.ProductID,
       SUM(CASE WHEN bd.Type=1 THEN bd.Qty * IFNULL(bd.Packing,20) ELSE 0 END) AS PurchaseBags,
@@ -83,13 +84,35 @@ export class StockAcctsComponent implements OnInit {
       this.http.getData('MQRY?qrysql=' + encodeURIComponent(netSql)),
     ]).then(([products, stockRows]: any[]) => {
       const bagMap: any = {};
+      const saleMap: any = {};
       const nameMap: any = {};
       (stockRows || []).forEach((r: any) => {
         const pid = String(r.ProductID);
-        const net = Math.max(0, (Number(r.PurchaseBags) || 0) - (Number(r.SaleBags) || 0));
+        const purchase = Number(r.PurchaseBags) || 0;
+        const sold = Number(r.SaleBags) || 0;
+        const net = Math.max(0, purchase - sold);
         bagMap[pid] = net;
+        saleMap[pid] = sold;
         if (!nameMap[pid]) nameMap[pid] = r.ProductName || '';
       });
+
+      this.stockByProduct = bagMap;
+      this.soldByProduct = saleMap;
+
+      // DEBUG: log computed stock and sales maps to help trace NetStock issues
+      try {
+        console.debug('stockByProduct (sample):', Object.keys(bagMap).slice(0,20).reduce((o: any, k: any) => { o[k]=bagMap[k]; return o; }, {}));
+        console.debug('soldByProduct (sample):', Object.keys(saleMap).slice(0,20).reduce((o: any, k: any) => { o[k]=saleMap[k]; return o; }, {}));
+      } catch (e) { /* ignore logging errors */ }
+
+      // Refresh NetStock and SoldBags on any already-loaded savedBookings rows
+      if (this.savedBookings.length) {
+        this.savedBookings = this.savedBookings.map((bk: any) => ({
+          ...bk,
+          NetStock: bagMap[String(bk.ProductID)] || 0,
+          SoldBags: saleMap[String(bk.ProductID)] || 0,
+        }));
+      }
 
       this.lstSelectable = Object.keys(bagMap)
         .filter((pid) => bagMap[pid] > 0)
@@ -219,18 +242,26 @@ export class StockAcctsComponent implements OnInit {
               const header = bookingMap[d.BookingID] || {};
               const qty = Number(d.Qty) || 0;
               const packing = Number(d.Packing) || 20;
+              const pid = d.ProductID || d.ItemID || null;
               return {
                 BookingID: d.BookingID,
                 Date: header.Date || '',
                 CustomerName: header.CustomerName || '',
-                  ProductID: d.ProductID || d.ItemID || null,
-                  ProductName: d.ProductName || d.ItemName || '',
+                ProductID: pid,
+                ProductName: d.ProductName || d.ItemName || '',
                 Qty: qty,
                 Bags: qty * packing,
+                NetStock: this.stockByProduct[String(pid)] || 0,
+                SoldBags: this.soldByProduct[String(pid)] || 0,
                 IsPosted: header.IsPosted,
                 Status: header.Status || '',
               };
             });
+
+            // DEBUG: log a few saved bookings so we can verify ProductID keys
+            try {
+              console.debug('savedBookings loaded (sample):', this.savedBookings.slice(0,10).map(sb => ({ BookingID: sb.BookingID, ProductID: sb.ProductID, ProductName: sb.ProductName, Bags: sb.Bags, NetStock: sb.NetStock })));
+            } catch (e) { /* ignore */ }
           })
           .catch(() => {
             this.savedBookings = [];
@@ -491,8 +522,9 @@ export class StockAcctsComponent implements OnInit {
   computeBookingAmount() {
     const q = Number(this.Booking.Qty) || 0;
     const p = Number(this.Booking.Price) || 0;
+    const c = Number(this.Booking.Carriage) || 0;
     this.Booking.Bags = q * 20;   // 1 ton = 20 bags
-    this.Booking.Amount = q * p;
+    this.Booking.Amount = q * p + c;
   }
 
   // Helper: return product object by id
@@ -597,6 +629,7 @@ export class StockAcctsComponent implements OnInit {
         Carriage: it.Carriage,
         Amount: it.Amount,
         Packing: 20,
+        Type: 1,
       })),
     };
     this.http.postTask('booking', payload)
@@ -721,6 +754,19 @@ export class StockAcctsComponent implements OnInit {
   getProductStock(id: any): number {
     const p = (this.lstSelectable || []).find((x: any) => String(x.ItemID) === String(id));
     return p ? (Number(p.Stock) || 0) : 0;
+  }
+
+  // Return NetStock for a saved booking row. Use pre-computed NetStock where available,
+  // otherwise fall back to Bags minus soldByProduct (useful when stock map misses product)
+  getNetStockForBooking(bk: any): number {
+    if (!bk) return 0;
+    const pid = String(bk.ProductID || '');
+    const fromMap = Number(bk.NetStock) || 0;
+    if (fromMap > 0) return fromMap;
+    const bags = Number(bk.Bags) || 0;
+    const sold = Number(this.soldByProduct[String(pid)]) || 0;
+    const calc = Math.max(0, bags - sold);
+    return calc;
   }
   PrintReport() {
     this.ps.PrintData.HTMLData = document.getElementById('print-section');

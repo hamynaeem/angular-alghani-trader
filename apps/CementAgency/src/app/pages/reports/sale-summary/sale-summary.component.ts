@@ -37,6 +37,7 @@ export class SalesummaryComponent implements OnInit {
         fldName: 'ProductName',
       },
       {
+
         label: 'Price',
         fldName: 'SPrice',
         sum: true,
@@ -54,6 +55,15 @@ export class SalesummaryComponent implements OnInit {
           return formatNumber(d['Amount']);
         },
       },
+      {
+        label: 'Discount',
+        fldName: 'Discount',
+        sum: true,
+        valueFormatter: (d: any) => {
+          return formatNumber(d['Discount']);
+        },
+      },
+
       {
         label: 'Received',
         fldName: 'Received',
@@ -116,50 +126,63 @@ export class SalesummaryComponent implements OnInit {
     this.router.navigateByUrl('/print/print-html');
   }
   FilterData() {
-    // tslint:disable-next-line:quotemark
-    let filter =
-      "Date between '" +
-      JSON2Date(this.Filter.FromDate) +
-      "' and '" +
-      JSON2Date(this.Filter.ToDate) +
-      "'";
+    const from = JSON2Date(this.Filter.FromDate);
+    const to   = JSON2Date(this.Filter.ToDate);
 
-    if (this.Filter.ProductID && this.Filter.ProductID != '') {
-      if (this.Filter.CustomerID && this.Filter.CustomerID != '') {
-        filter += ' And CustomerID=' + this.Filter.CustomerID;
-      }
-      filter += ' And ProductID=' + this.Filter.ProductID;
+    let whereClauses = `s.Date BETWEEN '${from}' AND '${to}'`;
+    if (this.Filter.CustomerID && this.Filter.CustomerID !== '') {
+      whereClauses += ` AND s.CustomerID=${this.Filter.CustomerID}`;
+    }
 
-      this.http
-        .getData(
-          'qrysalereport?flds=InvoiceID,CustomerName,ProductName,SPrice,' +
-            'Qty as Qty, Amount as Amount, Received as Received, (Amount - Received) as Balance&filter=' +
-            filter
-        )
-        .then((r: any) => {
-          this.sting = JSON.parse(JSON.stringify(this.setting));
-          this.sting.Columns.unshift({
-            label: 'Bill No',
-            fldName: 'InvoiceID',
-          });
-          this.data = r;
-        });
+    if (this.Filter.ProductID && this.Filter.ProductID !== '') {
+      whereClauses += ` AND s.ProductID=${this.Filter.ProductID}`;
+
+      const sql = `SELECT s.InvoiceID, s.CustomerName, s.ProductName, s.SPrice, s.Qty,
+        s.Amount, s.Discount, COALESCE(b.Carriage, 0) AS Carriage,
+        s.Received, (s.Amount - s.Received) AS Balance,
+        b.InvoiceNo AS InvoiceNo, b.VehicleNo AS VehicleNo, b.CofNo AS CofNo, b.ReceiptNo AS ReceiptNo, b.BuiltyNo AS BuiltyNo
+        FROM qrysalereport s
+        LEFT JOIN booking b ON s.BookingID = b.BookingID
+        WHERE ${whereClauses}
+        ORDER BY s.CustomerName`;
+
+      this.http.getData('MQRY?qrysql=' + encodeURIComponent(sql)).then((r: any) => {
+        console.log('sale-summary (product) payload', r);
+        this.sting = JSON.parse(JSON.stringify(this.setting));
+        // ensure invoice/billing/transport fields appear at the front
+        this.sting.Columns.unshift(
+          { label: 'Builty No', fldName: 'BuiltyNo' },
+          { label: 'Receipt No', fldName: 'ReceiptNo' },
+          { label: 'COF No', fldName: 'CofNo' },
+          { label: 'Vehicle No', fldName: 'VehicleNo' },
+          { label: 'Bill No', fldName: 'InvoiceNo' }
+        );
+        this.data = Array.isArray(r) ? r : (r && Array.isArray(r.data) ? r.data : []);
+      });
     } else {
-      if (this.Filter.CustomerID && this.Filter.CustomerID != '') {
-        filter += ' And CustomerID=' + this.Filter.CustomerID;
-      }
-      this.http
-        .getData(
-          'qrysalereport?flds=CustomerName,ProductName,SPrice,Qty as Qty, ' +
-            'Amount as Amount, Received as Received, (Amount - Received) as Balance&filter=' +
-            filter
-        )
-        .then((r: any) => {
-          this.sting = JSON.parse(JSON.stringify(this.setting));
-          // group results by customer name for the grouped table
+      const sql = `SELECT s.CustomerName, s.ProductName, s.SPrice, s.Qty,
+        s.Amount, s.Discount, COALESCE(b.Carriage, 0) AS Carriage,
+        s.Received, (s.Amount - s.Received) AS Balance,
+        b.InvoiceNo AS InvoiceNo, b.VehicleNo AS VehicleNo, b.CofNo AS CofNo, b.ReceiptNo AS ReceiptNo, b.BuiltyNo AS BuiltyNo
+        FROM qrysalereport s
+        LEFT JOIN booking b ON s.BookingID = b.BookingID
+        WHERE ${whereClauses}
+        ORDER BY s.CustomerName`;
+
+      this.http.getData('MQRY?qrysql=' + encodeURIComponent(sql)).then((r: any) => {
+        console.log('sale-summary payload', r);
+        this.sting = JSON.parse(JSON.stringify(this.setting));
           this.sting.GroupBy = 'CustomerName';
-          this.data = r;
-        });
+          // add booking/transport columns for grouped view
+          this.sting.Columns.unshift(
+            { label: 'Builty No', fldName: 'BuiltyNo' },
+            { label: 'Receipt No', fldName: 'ReceiptNo' },
+            { label: 'COF No', fldName: 'CofNo' },
+            { label: 'Vehicle No', fldName: 'VehicleNo' },
+            { label: 'Invoice No', fldName: 'InvoiceNo' }
+          );
+        this.data = Array.isArray(r) ? r : (r && Array.isArray(r.data) ? r.data : []);
+      });
     }
   }
 }

@@ -32,6 +32,10 @@ export class SaleLedgerComponent implements OnInit {
         fldName: 'BookingID',
       },
       {
+        label: 'Customer Name',
+        fldName: 'CustomerName',
+      },
+      {
         label: 'Product Name',
         fldName: 'ProductName',
       },
@@ -124,11 +128,11 @@ export class SaleLedgerComponent implements OnInit {
 
 
     let flds =
-      'Date,BookingID, ProductName, Qty, SPrice, Amount';
+      'Date,BookingID, CustomerName, ProductName, Qty, SPrice, Amount';
 
     this.http
       .getData(
-        `qrysalereport?orderby=Date,BookingID&flds=${flds}&filter=${filter}`
+        `qrysalereport?orderby=Date,BookingID&flds=${flds}&filter=${encodeURIComponent(filter)}`
       )
       .then((r: any) => {
         this.data = r;

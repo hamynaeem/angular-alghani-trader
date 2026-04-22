@@ -98,10 +98,51 @@
                 </button>
               </div>
             </div>
+            <div class="row no-gutter mt-2">
+              <div class="col-md-6 pr-1">
+                <button type="button" class="btn btn-outline-secondary form-control" (click)="toggleShowExpenses()">
+                  <i class="fa fa-list"></i> Show Expenses
+                </button>
+              </div>
+              <div class="col-md-6 pl-1">
+                <button type="button" class="btn btn-outline-info form-control" (click)="toggleShowAll()">
+                  <i class="fa fa-eye"></i> {{ showAll ? 'Show Filtered' : 'Show All' }}
+                </button>
+              </div>
+            </div>
             <div class="row no-gutter"></div>
           </form>
         </div>
         <div class="col-md-6"></div>
+      </div>
+      <div class="row mt-3" *ngIf="showExpenses">
+        <div class="col-md-12">
+          <div class="card">
+            <div class="card-body p-2">
+              <table class="table table-sm mb-0">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Head</th>
+                    <th>Description</th>
+                    <th class="text-right">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let e of Expenses">
+                    <td>{{ e.Date | date:'yyyy-MM-dd' }}</td>
+                    <td>{{ e.HeadName || e.Head || e.ExpenseHead }}</td>
+                    <td>{{ e.Desc }}</td>
+                    <td class="text-right">{{ e.Amount | number:'1.2-2' }}</td>
+                  </tr>
+                  <tr *ngIf="!Expenses || Expenses.length === 0">
+                    <td colspan="4" class="text-center text-muted">No expenses to show</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>

@@ -1,0 +1,47 @@
+/* Ensure combobox input and dropdown list text is black for readability */
+:host ::ng-deep .ejs-combobox .e-input,
+:host ::ng-deep .e-combobox .e-input,
+:host ::ng-deep .e-list-item,
+:host ::ng-deep .e-list-item .e-text,
+:host ::ng-deep .e-list-item .e-content,
+:host ::ng-deep .e-popup .e-list-item {
+	color: #000 !important;
+}
+
+/* Also ensure dynamic table text is black */
+:host ::ng-deep ft-dynamic-table,
+:host ::ng-deep ft-dynamic-table * {
+	color: #000 !important;
+}
+
+/* Ensure dropdown panel background and borders so items are readable */
+:host ::ng-deep .e-popup,
+:host ::ng-deep .e-popup .e-list,
+:host ::ng-deep .ejs-combobox .e-popup {
+	background: #171717 !important;
+	border: 1px solid rgba(0,0,0,0.12) !important;
+	box-shadow: 0 2px 6px rgba(0,0,0,0.12) !important;
+}
+
+:host ::ng-deep .e-list-item {
+	background: transparent !important;
+	color: #000 !important;
+}
+
+:host ::ng-deep .e-list-item.e-active,
+:host ::ng-deep .e-list-item:hover {
+	background: rgba(0,123,204,0.12) !important;
+	color: #000 !important;
+}
+
+/* combobox input visual tweaks */
+:host ::ng-deep .ejs-combobox .e-input,
+:host ::ng-deep .e-combobox .e-input {
+	background: #fff !important;
+	color: #000 !important;
+}
+
+:host ::ng-deep .ejs-combobox .e-input::placeholder,
+:host ::ng-deep .e-combobox .e-input::placeholder {
+	color: #666 !important;
+}

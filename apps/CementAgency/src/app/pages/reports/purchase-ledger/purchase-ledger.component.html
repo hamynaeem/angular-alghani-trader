@@ -55,23 +55,23 @@
 
 
             <div class="form-group col-md-5">
-              <label for="customer">Account</label>
+              <label for="customer">Supplier</label>
               <ng-select
-                #cmbCustomers
+                #cmbSuppliers
                 name="ng2select"
                 class="custom"
-                [items]="Accounts | async"
+                [items]="SuppliersList"
                 [virtualScroll]="true"
-                bindLabel="CustomerName"
-                bindValue="CustomerID"
-                placeholder="Select Account"
-                [(ngModel)]="Filter.CustomerID"
-                (change) = "CustomerSelected($event)"
+                bindLabel="SupplierName"
+                bindValue="SupplierID"
+                placeholder="Select Supplier"
+                [(ngModel)]="Filter.SupplierID"
+                (change) = "SupplierSelected($event)"
               >
                 <ng-template ng-option-tmp let-item="item">
                   <div class="row no-gutter">
                     <div class="col-md-9">
-                      {{ item.CustomerName }}
+                      {{ item.SupplierName }}
                     </div>
                     <div class="col-md-3 text-italic font-small-2 mt-1">
                       <small>

@@ -150,6 +150,20 @@
                   </button>
                 </div>
               </div>
+              <div class="col-md-1">
+                <div class="form-group">
+                  <label>&nbsp;</label>
+                  <button
+                    type="button"
+                    class="btn btn-info form-control"
+                    (click)="SyncBalances()"
+                    title="Recalculate all customer balances from account ledger"
+                  >
+                    <i class="fa fa-refresh"></i>
+                    Sync Bal
+                  </button>
+                </div>
+              </div>
             </div>
           </form>
           <div class="row no-gutter" id="print-section">

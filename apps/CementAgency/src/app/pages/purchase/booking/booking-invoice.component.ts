@@ -147,14 +147,27 @@ export class BookingInvoiceComponent
     return s ? s.SupplierName : '';
   }
 
+  // Returns bags contributed by in-memory purchase items for this product.
+  // Only used for NEW bookings (EditID === '') — when editing, DB already has these rows.
+  private getInMemoryPurchaseBags(pid: string): number {
+    return (this.bookData || [])
+      .filter((item: any) => String(item.ProductID) === pid)
+      .reduce((acc: number, item: any) =>
+        acc + (Number(item.Qty) || 0) * (Number(item.Packing) > 0 ? Number(item.Packing) : 1), 0);
+  }
+
   applyStockToProducts() {
     const source = (this.AllProducts && this.AllProducts.length) ? this.AllProducts : this.Products;
-    // Show all products but disable those with zero stock
-    this.Products = source.map((p: any) => ({
-      ...p,
-      Stock: this.PostedStockMap[String(p.ProductID)] || 0,
-      disabled: (this.PostedStockMap[String(p.ProductID)] || 0) <= 0,
-    }));
+    this.Products = source.map((p: any) => {
+      const dbStock = this.PostedStockMap[String(p.ProductID)] || 0;
+      const inMemoryBags = !this.EditID ? this.getInMemoryPurchaseBags(String(p.ProductID)) : 0;
+      const effectiveStock = Math.max(0, dbStock + inMemoryBags);
+      return {
+        ...p,
+        Stock: effectiveStock,
+        disabled: effectiveStock <= 0,
+      };
+    });
     try {
       // Log per-product mapping to help debug mismatches between DB rows and product list
       this.Products.forEach((p: any) => {
@@ -171,9 +184,11 @@ export class BookingInvoiceComponent
   }
 
   getStock(productID: any): number {
-    // Return posted stock count for display in dropdowns
     if (productID === null || productID === undefined) return 0;
-    return this.getPostedStockValue(productID);
+    const dbStock = this.getPostedStockValue(productID);
+    // For new (unsaved) bookings, also count in-memory purchase items
+    const inMemoryBags = !this.EditID ? this.getInMemoryPurchaseBags(String(productID)) : 0;
+    return Math.max(0, dbStock + inMemoryBags);
   }
 
   // Robust lookup: try trimmed string key, numeric key, and original
@@ -470,6 +485,7 @@ export class BookingInvoiceComponent
 
     this.calcBooking();
     this.calcSaleData();
+    this.applyStockToProducts();
     this.bookingDetail.ProductID = undefined;
     this.bookingDetail.Qty = 0;
     this.bookingDetail.Price = 0;
@@ -508,12 +524,14 @@ export class BookingInvoiceComponent
   removeItem() {
     if (this.bookData.length > 0) {
       this.bookData.pop();
+      this.applyStockToProducts();
     }
   }
   deleteItem(index: number) {
     if (index > -1 && index < this.bookData.length) {
       this.bookData.splice(index, 1);
       this.calcBooking();
+      this.applyStockToProducts();
     }
   }
   calcBooking() {
@@ -540,6 +558,20 @@ export class BookingInvoiceComponent
       this.myToaster.Error(
         'Please select a product and enter valid quantity and price.',
         'Validation Error'
+      );
+      return;
+    }
+
+    // Stock validation: total qty already added for this product + new qty must not exceed available stock
+    const availableStock = this.getStock(this.saleDetail.ProductID);
+    const alreadyAdded = this.saleData
+      .filter((item: any) => String(item.ProductID) === String(this.saleDetail.ProductID))
+      .reduce((acc: number, item: any) => acc + item.Qty * 1, 0);
+    const totalRequested = alreadyAdded + this.saleDetail.Qty * 1;
+    if (totalRequested > availableStock) {
+      this.myToaster.Error(
+        `Not enough stock! Available: ${availableStock} bags, Already added: ${alreadyAdded}, Requested: ${this.saleDetail.Qty}.`,
+        'Insufficient Stock'
       );
       return;
     }
@@ -573,6 +605,7 @@ export class BookingInvoiceComponent
     }
     this.saleData.push(saleItem);
     this.calcSaleData();
+    this.applyStockToProducts();
     this.cmbCustomers.focus();
     this.saleDetail.ProductID = undefined;
     this.saleDetail.Qty = 0;
@@ -598,7 +631,7 @@ export class BookingInvoiceComponent
     this.sale.Credit =
       (this.sale.NetAmount ?? 0) - (this.sale.Received ?? 0) * 1;
     this.booking.BagsSold = this.saleData.reduce(
-      (acc, item) => acc + item.Qty,
+      (acc, item) => acc + item.Qty * 1,
       0
     );
 
@@ -676,6 +709,7 @@ export class BookingInvoiceComponent
   deleteSaleItem(idx: number){
     this.saleData.splice(idx, 1);
     this.calcSaleData();
+    this.applyStockToProducts();
   }
   LoadOrders() {
     this.loadingOrders = true;

@@ -167,27 +167,26 @@ placeholder="Select product"
 <div class="table-responsive">
 <table class="table table-sm table-bordered table-hover">
 <thead class="thead-light">
-<tr>
-<th>Date</th>
-<th>Supplier</th>
-<th>Product Name</th>
-<th>Qty (Tons)</th>
-<th>Qty</th>
-<th class="text-center">Load</th>
-<th class="text-center">Actions</th>
-</tr>
+				<tr>
+				<th>Date</th>
+				<th>Supplier</th>
+				<th>Product Name</th>
+				<th>Qty (Tons)</th>
+				<th>Qty (Bags)</th>
+				<th>Net Stock</th>
+				<th class="text-center">Actions</th>
+				</tr>
 </thead>
 <tbody>
-<tr *ngFor="let bk of savedBookings">
+				<tr *ngFor="let bk of savedBookings">
 <td class="text-nowrap">{{ bk.Date }}</td>
 <td>{{ bk.CustomerName }}</td>
 <td>{{ bk.ProductName }}</td>
 <td class="text-right">{{ bk.Qty | number:'1.0-2' }}</td>
 <td class="text-right">{{ bk.Bags | number:'1.0-0' }}</td>
+<td class="text-right font-weight-bold text-success">{{ bk.NetStock | number:'1.0-0' }}</td>
 
-<td class="text-center">
-	<button class="btn btn-sm btn-primary" type="button" title="Load to Sale" (click)="loadBookingToSale(bk)"><i class="fa fa-shopping-cart"></i> Load</button>
-</td>
+
 <td class="text-center">
 	<div class="btn-group">
 		<a [routerLink]="['/purchase/booking', bk.BookingID]" class="btn btn-sm btn-light three-dot-btn" title="Open booking"><i class="fa fa-ellipsis-v"></i></a>
@@ -196,7 +195,7 @@ placeholder="Select product"
 </td>
 </tr>
 <tr *ngIf="savedBookings.length === 0">
-<td colspan="7" class="text-center text-muted">No bookings found for selected date range</td>
+<td colspan="8" class="text-center text-muted">No bookings found for selected date range</td>
 </tr>
 </tbody>
 <tfoot *ngIf="savedBookings.length > 0">
@@ -204,6 +203,7 @@ placeholder="Select product"
 <td colspan="3" class="text-right">Total:</td>
 <td class="text-right">{{ savedBookingsTotalQty | number:'1.0-2' }}</td>
 <td class="text-right">{{ savedBookingsTotalBags | number:'1.0-0' }}</td>
+<td></td>
 <td></td>
 <td></td>
 </tr>

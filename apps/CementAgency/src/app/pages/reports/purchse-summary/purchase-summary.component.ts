@@ -27,13 +27,13 @@ export class PurchasesummaryComponent implements OnInit {
   public Suppliers: any = [];
   setting = {
     Checkbox: false,
-    GroupBy: 'StoreName',
+    GroupBy: 'SupplierName',
     Columns: [
       {
         label: 'Product Name',
         fldName: 'ProductName',
       },
-      
+
       {
         label: 'Supplier',
         fldName: 'SupplierName',
@@ -47,7 +47,7 @@ export class PurchasesummaryComponent implements OnInit {
         },
       },
       {
-        label: 'Qty',
+        label: 'Tons',
         fldName: 'Qty',
         sum: true,
       },
@@ -147,9 +147,9 @@ export class PurchasesummaryComponent implements OnInit {
 
   get selectedSupplierName(): string {
     try {
-      const id = this.Filter.SupplierID;
+      const id = this.Filter?.SupplierID;
       if (!id) return '';
-      const found = (this.Suppliers || []).find((s: any) => String(s.SupplierID) === String(id) || String(s.CustomerID) === String(id) || String(s.ID) === String(id));
+      const found = (this.Suppliers || []).find((s: any) => String(s?.SupplierID) === String(id) || String(s?.CustomerID) === String(id) || String(s?.ID) === String(id));
       return (found && (found.displayName || found.SupplierName || found.CustomerName || found.AcctName)) || '';
     } catch (e) {
       return '';
@@ -200,196 +200,111 @@ export class PurchasesummaryComponent implements OnInit {
     this.router.navigateByUrl('/print/print-html');
   }
   FilterData() {
-    // tslint:disable-next-line:quotemark
-    let filter =
-      "Date between '" +
-      JSON2Date(this.Filter.FromDate) +
-      "' and '" +
-      JSON2Date(this.Filter.ToDate) +
-      "'";
+    const from = JSON2Date(this.Filter?.FromDate);
+    const to = JSON2Date(this.Filter?.ToDate);
 
-    if (this.Filter.ProductID && this.Filter.ProductID != '')
-      filter += ' And ProductID=' + this.Filter.ProductID
+    let where = `p.Date BETWEEN '${from}' AND '${to}'`;
+    if (this.Filter?.ProductID) {
+      where += ` AND p.ProductID = ${this.Filter.ProductID}`;
+    }
+    if (this.Filter?.SupplierID) {
+      where += ` AND b.SupplierID = ${this.Filter.SupplierID}`;
+    }
 
-    if (this.Filter.SupplierID && this.Filter.SupplierID != '')
-      filter += ' And SupplierID=' + this.Filter.SupplierID
+    const sql = `SELECT p.BookingID, p.ProductName, c.CustomerName AS SupplierName,
+      p.PPrice, p.Qty, (p.PPrice * p.Qty) AS Amount
+      FROM qrypurchasereport p
+      LEFT JOIN booking b ON p.BookingID = b.BookingID
+      LEFT JOIN customers c ON b.SupplierID = c.CustomerID
+      WHERE ${where}
+      ORDER BY c.CustomerName, p.ProductName`;
 
-    // fetch purchase rows first, but try to use cached Accounts as suppliers if available
-    // prepare a fallback filter without SupplierID in case backend view doesn't expose it
-    const filterNoSupplier = ("Date between '" + JSON2Date(this.Filter.FromDate) + "' and '" + JSON2Date(this.Filter.ToDate) + "'") +
-      (this.Filter.ProductID && this.Filter.ProductID != '' ? ' And ProductID=' + this.Filter.ProductID : '');
-    // request full filter first (may include SupplierID) and fallback to a safe filter without SupplierID
-    const queryUrl = 'qrypurchasereport?flds=ProductName,PPrice,Qty,Amount&filter=' + encodeURIComponent(filter);
-    const fallbackUrl = 'qrypurchasereport?flds=ProductName,PPrice,Qty,Amount&filter=' + encodeURIComponent(filterNoSupplier);
+    const fallbackUrl = 'qrypurchasereport';
 
-    this.http
-      .getData(queryUrl)
-      .then((r: any) => {
-        const process = (purchasesRaw: any) => {
-          // if user selected a supplier, filter client-side because backend query may omit SupplierID
-          let purchases = purchasesRaw || [];
+    const process = (rows: any[]) => {
+      const purchases = Array.isArray(rows) ? rows.slice() : [];
+
+      // client-side filter if SupplierID is present
+      let filtered = purchases;
+      try {
+        if (this.Filter?.SupplierID && String(this.Filter.SupplierID) !== '') {
+          const sid = String(this.Filter.SupplierID);
+          filtered = (purchases || []).filter((row: any) => {
+            const id = row?.SupplierID ?? row?.Supplier ?? row?.CustomerID ?? row?.AccountID ?? row?.Account ?? row?.Customer ?? '';
+            return id !== undefined && id !== null && String(id) === sid;
+          });
+        }
+      } catch (e) { /* ignore and use unfiltered purchases */ }
+
+      // prepare suppliers list (prefer preloaded Suppliers, fallback to Accounts)
+      let suppliersList: any[] = Array.isArray(this.Suppliers) ? this.Suppliers.slice() : [];
+      if ((!suppliersList || suppliersList.length === 0) && Array.isArray(this.Accounts) && this.Accounts.length) {
+        try {
+          suppliersList = (this.Accounts || []).map((ac: any) => {
+            const id = ac?.CustomerID ?? ac?.ID ?? ac?.Id ?? '';
+            const displayName = ac?.CustomerName || ac?.AcctName || ac?.Name || ac?.Acct || '';
+            return Object.assign({}, ac, { SupplierID: id, displayName });
+          });
+          this.Suppliers = suppliersList;
+        } catch (e) { suppliersList = []; }
+      }
+
+      const mapped = (filtered || []).map((row: any) => {
+        let name = '';
+        try {
+          const id = row?.SupplierID ?? row?.Supplier ?? row?.CustomerID ?? row?.AccountID ?? row?.Account ?? row?.Customer ?? '';
+          if (id !== undefined && id !== null && String(id) !== '') {
+            const found = (suppliersList || []).find((sup: any) => String(sup?.SupplierID) === String(id) || String(sup?.CustomerID) === String(id) || String(sup?.ID) === String(id));
+            if (found) name = found.SupplierName || found.CustomerName || found.AcctName || found.displayName || '';
+          }
+        } catch (e) { name = ''; }
+
+        if (!name && Array.isArray(this.Accounts) && this.Accounts.length) {
           try {
-            if (this.Filter && this.Filter.SupplierID && String(this.Filter.SupplierID) !== '') {
-              const sid = String(this.Filter.SupplierID);
-              purchases = (purchasesRaw || []).filter((row: any) => {
-                const id = row.SupplierID || row.Supplier || row.CustomerID || row.AccountID || row.Account || row.Customer;
-                return id !== undefined && id !== null && String(id) === sid;
-              });
+            const id = row?.CustomerID ?? row?.AccountID ?? row?.Account ?? row?.SupplierID ?? row?.Supplier ?? row?.Customer ?? '';
+            if (id !== undefined && id !== null && String(id) !== '') {
+              const foundA = (this.Accounts || []).find((ac: any) => String(ac?.CustomerID) === String(id) || String(ac?.ID) === String(id));
+              if (foundA) name = foundA.CustomerName || foundA.AcctName || '';
             }
-          } catch (e) { purchases = purchasesRaw || []; }
-          console.log('Purchase rows:', purchases);
-          // try to use cached accounts as suppliers immediately
-          let suppliers: any[] = Array.isArray(this.Suppliers) ? this.Suppliers.slice() : [];
-          if ((!suppliers || suppliers.length === 0) && this.Accounts && this.Accounts.length) {
-            try {
-              suppliers = (this.Accounts || []).map((ac: any) => {
-                const id = ac.CustomerID || ac.ID || ac.Id || '';
-                const displayName = ac.CustomerName || ac.AcctName || ac.Name || ac.Acct || '';
-                return Object.assign({}, ac, { SupplierID: id, displayName });
-              });
-              this.Suppliers = suppliers;
-              console.log('Using cached Accounts as Suppliers:', this.Suppliers);
-            } catch (e) { suppliers = []; }
-          }
-
-          const mapAndSet = (supList: any[]) => {
-            const mapped = purchases.map((row: any) => {
-              let name = '';
-              try {
-                const id = row.SupplierID || row.Supplier || row.CustomerID || row.AccountID || row.Account || row.Customer;
-                if (id !== undefined && id !== null && id !== '') {
-                  const found = (supList || []).find((sup: any) => String(sup.SupplierID) == String(id) || String(sup.CustomerID) == String(id) || String(sup.SupplierID) == String(row.SupplierID));
-                  if (found) name = found.SupplierName || found.CustomerName || found.AcctName || found.displayName || '';
-                }
-              } catch (e) { name = ''; }
-
-              // fallback to cached accounts if supplier not found
-              if (!name && this.Accounts && this.Accounts.length) {
-                try {
-                  const id = row.CustomerID || row.AccountID || row.Account || row.SupplierID || row.Supplier || row.Customer;
-                  if (id !== undefined && id !== null && id !== '') {
-                    const foundA = this.Accounts.find((ac: any) => String(ac.CustomerID) == String(id) || String(ac.ID) == String(id));
-                    if (foundA) name = foundA.CustomerName || foundA.AcctName || '';
-                  }
-                } catch (e) { name = ''; }
-              }
-
-              row.SupplierName = name || this.firstAvailable(row, [
-                'SupplierName',
-                'CustomerName',
-                'Customer',
-                'Supplier',
-                'CustName',
-                'AccountName',
-                'Account',
-                'CustomerID',
-              ]);
-              // if still missing and user has selected a supplier, show that name
-              try {
-                if ((!row.SupplierName || String(row.SupplierName).trim() === '') && this.Filter && this.Filter.SupplierID) {
-                  const rowId = row.SupplierID || row.Supplier || row.CustomerID || row.AccountID || row.Account || row.Customer || '';
-                  if (rowId !== undefined && rowId !== null && String(rowId) === String(this.Filter.SupplierID)) {
-                    row.SupplierName = this.selectedSupplierName || '';
-                  }
-                }
-              } catch (e) {}
-              try { row.Qty = Number(row.Qty || row.Quantity || row.QtyOrdered || row.QtySold || 0); } catch (e) { row.Qty = 0; }
-              return row;
-            });
-            this.data = mapped;
-          };
-
-          if (suppliers && suppliers.length) {
-            // we have suppliers from cache, map immediately
-            mapAndSet(suppliers);
-          } else {
-            // otherwise fetch suppliers from backend then map
-            this.http.getData('qrysuppliers')
-              .then((s: any) => {
-                const raw: any = s || [];
-                let backendSup: any[] = [];
-                if (Array.isArray(raw)) backendSup = raw;
-                else if (raw && Array.isArray(raw.data)) backendSup = raw.data;
-                else backendSup = [];
-                try {
-                  this.Suppliers = backendSup.map((sup: any) => {
-                    const id = sup.SupplierID || sup.CustomerID || sup.ID || sup.Id || '';
-                    const displayName = sup.SupplierName || sup.CustomerName || sup.AcctName || sup.Name || sup.Acct || '';
-                    return Object.assign({}, sup, { SupplierID: id, displayName });
-                  });
-                } catch (e) { this.Suppliers = backendSup || []; }
-                mapAndSet(this.Suppliers || backendSup);
-              })
-              .catch(() => {
-                // finally fallback to cached accounts mapping
-                mapAndSet(this.Accounts || []);
-              });
-          }
-        };
-
-        // If server returned an error structure (e.g., unknown column), retry using fallback if SupplierID was present
-        if (r && r.result && String(r.result).toLowerCase() === 'error') {
-          console.warn('qrypurchasereport returned error payload, attempting fallback', r);
-          if (this.Filter && this.Filter.SupplierID && String(this.Filter.SupplierID) !== '') {
-            this.http.getData(fallbackUrl).then((r2: any) => process(Array.isArray(r2) ? r2 : (r2 && Array.isArray(r2.data) ? r2.data : []))).catch((e: any) => { console.error('Fallback purchase query failed', e); this.data = []; });
-            return;
-          } else {
-            process([]);
-            return;
-          }
+          } catch (e) { name = ''; }
         }
 
-        // Normal path
-        process(Array.isArray(r) ? r : (r && Array.isArray(r.data) ? r.data : []));
+        row.SupplierName = name || this.firstAvailable(row, [
+          'SupplierName', 'CustomerName', 'Customer', 'Supplier', 'CustName', 'AccountName', 'Account', 'CustomerID'
+        ]);
+
+        try {
+          if ((!row.SupplierName || String(row.SupplierName).trim() === '') && this.Filter?.SupplierID) {
+            const rowId = row?.SupplierID ?? row?.Supplier ?? row?.CustomerID ?? row?.AccountID ?? row?.Account ?? row?.Customer ?? '';
+            if (rowId !== undefined && rowId !== null && String(rowId) === String(this.Filter.SupplierID)) {
+              row.SupplierName = this.selectedSupplierName || '';
+            }
+          }
+        } catch (e) { /* ignore */ }
+
+        try { row.Qty = Number(row?.Qty ?? row?.Quantity ?? row?.QtyOrdered ?? row?.QtySold ?? 0); } catch (e) { row.Qty = 0; }
+        return row;
+      });
+
+      this.data = mapped;
+    };
+
+    // Primary attempt: run SQL via MQRY
+    this.http.getData('MQRY?qrysql=' + encodeURIComponent(sql))
+      .then((r: any) => {
+        // some backends return { result: 'error', ... }
+        const payload = Array.isArray(r) ? r : (r && Array.isArray(r.data) ? r.data : []);
+        process(payload);
       })
       .catch((err: any) => {
         console.error('Purchase summary error', err);
-        // If server error and we included SupplierID in the filter, retry without SupplierID and filter client-side
-        if (err && err.status === 500 && this.Filter.SupplierID && this.Filter.SupplierID !== '') {
+        // If server error and we included SupplierID in the filter, retry using fallback and client-side filter
+        if (err && err.status === 500 && this.Filter?.SupplierID && String(this.Filter.SupplierID) !== '') {
           console.log('Retrying purchase query without SupplierID due to server error');
           this.http.getData(fallbackUrl)
             .then((r2: any) => {
-              const purchases = Array.isArray(r2) ? r2 : (r2 && Array.isArray(r2.data) ? r2.data : []);
-              // map suppliers as before then client-side filter by SupplierID
-              const supplierIdStr = String(this.Filter.SupplierID);
-              const filtered = (purchases || []).filter((row: any) => {
-                const id = row.SupplierID || row.Supplier || row.CustomerID || row.AccountID || row.Account || row.Customer;
-                return id !== undefined && id !== null && String(id) === supplierIdStr;
-              });
-              // reuse existing mapping logic to set SupplierName for rows
-              const mapped = (filtered || []).map((row: any) => {
-                let name = '';
-                try {
-                  const id = row.SupplierID || row.Supplier || row.CustomerID || row.AccountID || row.Account || row.Customer;
-                  if (id !== undefined && id !== null && id !== '') {
-                    const found = (this.Suppliers || []).find((sup: any) => String(sup.SupplierID) == String(id) || String(sup.CustomerID) == String(id) || String(sup.SupplierID) == String(row.SupplierID));
-                    if (found) name = found.SupplierName || found.CustomerName || found.AcctName || found.displayName || '';
-                  }
-                } catch (e) { name = ''; }
-                if (!name && this.Accounts && this.Accounts.length) {
-                  try {
-                    const id = row.CustomerID || row.AccountID || row.Account || row.SupplierID || row.Supplier || row.Customer;
-                    if (id !== undefined && id !== null && id !== '') {
-                      const foundA = this.Accounts.find((ac: any) => String(ac.CustomerID) == String(id) || String(ac.ID) == String(id));
-                      if (foundA) name = foundA.CustomerName || foundA.AcctName || '';
-                    }
-                  } catch (e) { name = ''; }
-                }
-                row.SupplierName = name || this.firstAvailable(row, [
-                  'SupplierName','CustomerName','Customer','Supplier','CustName','AccountName','Account','CustomerID'
-                ]);
-                try {
-                  if ((!row.SupplierName || String(row.SupplierName).trim() === '') && this.Filter && this.Filter.SupplierID) {
-                    const rowId = row.SupplierID || row.Supplier || row.CustomerID || row.AccountID || row.Account || row.Customer || '';
-                    if (rowId !== undefined && rowId !== null && String(rowId) === String(this.Filter.SupplierID)) {
-                      row.SupplierName = this.selectedSupplierName || '';
-                    }
-                  }
-                } catch (e) {}
-                try { row.Qty = Number(row.Qty || row.Quantity || row.QtyOrdered || row.QtySold || 0); } catch (e) { row.Qty = 0; }
-                return row;
-              });
-              this.data = mapped;
+              const rows = Array.isArray(r2) ? r2 : (r2 && Array.isArray(r2.data) ? r2.data : []);
+              process(rows);
             })
             .catch((e2: any) => {
               console.error('Fallback purchase query failed', e2);

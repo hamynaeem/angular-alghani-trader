@@ -5,23 +5,20 @@ import { Pipe, PipeTransform } from '@angular/core';
 })
 export class FilterPipe implements PipeTransform {
   transform(Data: any, filterString: string, columns: any): any {
-    console.warn(filterString);
-
-    if (Data) {
-      if (Data.length === 0 || ! filterString) {
-
-        return Data;
-      }
-      let filteredData: any = [];
-      for (let data of Data) {
-        for (let col of columns)
-          if (data[col.fldName] &&  data[col.fldName].toLowerCase().includes(filterString.toLowerCase())) {
-            filteredData.push(data);
-            break;
-          }
-      }
-      return filteredData;
+    if (!Data || Data.length === 0 || !filterString || !columns) {
+      return Data;
     }
-
+    const lower = filterString.toLowerCase();
+    const filteredData: any = [];
+    for (const data of Data) {
+      for (const col of columns) {
+        const val = data[col.fldName];
+        if (val !== null && val !== undefined && String(val).toLowerCase().includes(lower)) {
+          filteredData.push(data);
+          break;
+        }
+      }
+    }
+    return filteredData;
   }
 }
