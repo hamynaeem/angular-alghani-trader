@@ -105,11 +105,10 @@ export class StockAcctsComponent implements OnInit {
         console.debug('soldByProduct (sample):', Object.keys(saleMap).slice(0,20).reduce((o: any, k: any) => { o[k]=saleMap[k]; return o; }, {}));
       } catch (e) { /* ignore logging errors */ }
 
-      // Refresh NetStock and SoldBags on any already-loaded savedBookings rows
+      // Refresh SoldBags on already-loaded savedBookings rows but keep NetStock from LoadSavedBookings
       if (this.savedBookings.length) {
         this.savedBookings = this.savedBookings.map((bk: any) => ({
           ...bk,
-          NetStock: bagMap[String(bk.ProductID)] || 0,
           SoldBags: saleMap[String(bk.ProductID)] || 0,
         }));
       }
@@ -153,7 +152,7 @@ export class StockAcctsComponent implements OnInit {
     });
     this.FilterData();
     this.LoadSavedBookings();
-    this.LoadSavedSales();
+    // this.LoadSavedSales();
   }
 
   FilterData() {
@@ -174,7 +173,7 @@ export class StockAcctsComponent implements OnInit {
       }
     }
     this.LoadSavedBookings();
-    this.LoadSavedSales();
+    // this.LoadSavedSales();
     this.loadProductsAndStock();
   }
 
@@ -210,62 +209,54 @@ export class StockAcctsComponent implements OnInit {
   savedBookings: any[] = [];
 
   LoadSavedBookings() {
-    const filter =
-      "Date between '" +
-      JSON2Date(this.Filter.FromDate) +
-      "' and '" +
-      JSON2Date(this.Filter.ToDate) +
-      "' and DtCr='Dr'";
-    this.http
-      .getData('qrybooking?filter=' + filter + '&orderby=Date desc')
-      .then((r: any) => {
-        const bookings = (r || []);
-        if (!bookings.length) {
-          this.savedBookings = [];
-          return;
-        }
-        // Build a map of booking header info keyed by BookingID
-        const bookingMap: { [id: string]: any } = {};
-        bookings.forEach((b: any) => {
-          bookingMap[b.BookingID] = {
-            Date: b.Date ? b.Date.substring(0, 10) : b.Date,
-            CustomerName: b.CustomerName,
-            IsPosted: b.IsPosted,
-            Status: b.IsPosted == 1 ? 'Posted' : 'Un-Posted',
+    const from = JSON2Date(this.Filter.FromDate);
+    const to = JSON2Date(this.Filter.ToDate);
+
+    // Group by VehicleNo + ProductID across ALL dates (not just filter range) so SaleBags reflects
+    // all sales ever made against each transport. Date filter applies to purchase rows only.
+    const sql = `SELECT b.VehicleNo,
+      MAX(b.BookingID) AS BookingID,
+      MAX(b.Date) AS Date,
+      MAX(b.SupplierID) AS SupplierID,
+      bd.ProductID,
+      MAX(p.ProductName) AS ProductName,
+      SUM(CASE WHEN bd.Type=1 AND b.Date BETWEEN '${from}' AND '${to}' THEN bd.Qty ELSE 0 END) AS QtyTons,
+      SUM(CASE WHEN bd.Type=1 THEN bd.Qty * IFNULL(bd.Packing,20) ELSE 0 END) AS PurchaseBags,
+      SUM(CASE WHEN bd.Type=2 THEN bd.Qty ELSE 0 END) AS SaleBags
+      FROM booking b
+      JOIN booking_details bd ON bd.BookingID = b.BookingID
+      LEFT JOIN products p ON p.ProductID = bd.ProductID
+      WHERE b.VehicleNo IS NOT NULL AND b.VehicleNo != ''
+      GROUP BY b.VehicleNo, bd.ProductID
+      HAVING PurchaseBags > 0
+      ORDER BY Date DESC`;
+
+    this.http.getData('MQRY?qrysql=' + encodeURIComponent(sql))
+      .then((rows: any) => {
+        this.savedBookings = (rows || []).map((r: any) => {
+          const purchase = Number(r.PurchaseBags) || 0;
+          const sold = Number(r.SaleBags) || 0;
+          const net = Math.max(0, purchase - sold);
+          const supplierName = (this.lstSuppliers.find((s: any) => String(s.CustomerID) === String(r.SupplierID))?.CustomerName) || '';
+          return {
+            BookingID: r.BookingID,
+            Date: r.Date ? String(r.Date).substring(0, 10) : '',
+            TransportNo: r.VehicleNo || '',
+            SupplierID: r.SupplierID,
+            CustomerName: supplierName,
+            ProductID: r.ProductID,
+            ProductName: r.ProductName || '',
+            Qty: Number(r.QtyTons) || 0,
+            Bags: purchase,
+            NetStock: net,
+            SoldBags: sold,
+            IsPosted: 0,
+            Status: '',
           };
         });
-        const ids = bookings.map((b: any) => b.BookingID).join(',');
-        this.http
-          .getData('qrybookingpurchase?filter=BookingID IN (' + ids + ')')
-          .then((details: any) => {
-            this.savedBookings = (details || []).map((d: any) => {
-              const header = bookingMap[d.BookingID] || {};
-              const qty = Number(d.Qty) || 0;
-              const packing = Number(d.Packing) || 20;
-              const pid = d.ProductID || d.ItemID || null;
-              return {
-                BookingID: d.BookingID,
-                Date: header.Date || '',
-                CustomerName: header.CustomerName || '',
-                ProductID: pid,
-                ProductName: d.ProductName || d.ItemName || '',
-                Qty: qty,
-                Bags: qty * packing,
-                NetStock: this.stockByProduct[String(pid)] || 0,
-                SoldBags: this.soldByProduct[String(pid)] || 0,
-                IsPosted: header.IsPosted,
-                Status: header.Status || '',
-              };
-            });
-
-            // DEBUG: log a few saved bookings so we can verify ProductID keys
-            try {
-              console.debug('savedBookings loaded (sample):', this.savedBookings.slice(0,10).map(sb => ({ BookingID: sb.BookingID, ProductID: sb.ProductID, ProductName: sb.ProductName, Bags: sb.Bags, NetStock: sb.NetStock })));
-            } catch (e) { /* ignore */ }
-          })
-          .catch(() => {
-            this.savedBookings = [];
-          });
+      })
+      .catch(() => {
+        this.savedBookings = [];
       });
   }
 
@@ -285,6 +276,19 @@ export class StockAcctsComponent implements OnInit {
     return this.savedBookings.reduce((s, b) => s + (Number(b.Qty) || 0), 0);
   }
 
+  // Backwards-compatible aliases used by template (some templates expect 'purchasedBookings')
+  get purchasedBookings(): any[] {
+    return this.savedBookings;
+  }
+
+  get purchasedBookingsTotalQty(): number {
+    return this.savedBookingsTotalQty;
+  }
+
+  get purchasedBookingsTotalBags(): number {
+    return this.savedBookingsTotalBags;
+  }
+
   // Booking UI logic
   BookingDate: any = GetDateJSON();
   Booking = {
@@ -297,6 +301,7 @@ export class StockAcctsComponent implements OnInit {
     Price: 0,
     Carriage: 0,
     Amount: 0,
+    TransportVehicleNo: '',
   };
   BookingItems: any[] = [];
   BookingTotals = {
@@ -384,140 +389,7 @@ export class StockAcctsComponent implements OnInit {
     this.SaleTotals.TotalAmount = this.SaleItems.reduce((s, it) => s + (Number(it.Amount) || 0), 0);
   }
 
-  // Saved sales list
-  savedSales: any[] = [];
-
-  LoadSavedSales() {
-    const filter =
-      "Date between '" +
-      JSON2Date(this.Filter.FromDate) +
-      "' and '" +
-      JSON2Date(this.Filter.ToDate) +
-      "' and DtCr='CR'";
-    this.http
-      .getData('qrybooking?filter=' + filter + '&orderby=Date desc')
-      .then((r: any) => {
-        const bookings = (r || []);
-        if (!bookings.length) {
-          this.savedSales = [];
-          return;
-        }
-        const bookingMap: { [id: string]: any } = {};
-        bookings.forEach((b: any) => {
-          bookingMap[b.BookingID] = {
-            Date: b.Date ? b.Date.substring(0, 10) : b.Date,
-            IsPosted: b.IsPosted,
-            Status: b.IsPosted == 1 ? 'Posted' : 'Un-Posted',
-          };
-        });
-        const ids = bookings.map((b: any) => b.BookingID).join(',');
-        this.http
-          .getData('qrybookingsale?filter=BookingID IN (' + ids + ')')
-          .then((details: any) => {
-            this.savedSales = (details || []).map((d: any) => {
-              const header = bookingMap[d.BookingID] || {};
-              return {
-                BookingID: d.BookingID,
-                Date: header.Date || '',
-                CustomerName: d.CustomerName || '',
-                ProductName: d.ProductName || d.ItemName || '',
-                Bags: Number(d.Qty) || 0,
-                Price: Number(d.SPrice) || Number(d.PPrice) || 0,
-                Amount: Number(d.Amount) || 0,
-                IsPosted: header.IsPosted,
-                Status: header.Status || '',
-              };
-            });
-          })
-          .catch(() => { this.savedSales = []; });
-      });
-  }
-
-  postSale(bookingID: any) {
-    this.http.postTask('postbooking/' + bookingID, {})
-      .then(() => {
-        this.myToaster.Sucess('Sale posted successfully.', 'Success');
-        this.LoadSavedSales();
-        this.loadProductsAndStock();
-        try { this.cachedData.updateStock(); } catch (e) { /* ignore */ }
-      })
-      .catch(() => {
-        this.myToaster.Error('Failed to post sale.', 'Error');
-      });
-  }
-
-  get savedSalesTotalBags(): number {
-    const seen = new Set<any>();
-    return this.savedSales.reduce((s, b) => {
-      if (!seen.has(b.BookingID + '_' + b.ProductName)) {
-        seen.add(b.BookingID + '_' + b.ProductName);
-        return s + (Number(b.Bags) || 0);
-      }
-      return s;
-    }, 0);
-  }
-
-  SaveSale() {
-    if (!this.SaleItems.length) {
-      this.myToaster.Error('Please add at least one item before saving.', 'Validation Error');
-      return;
-    }
-    const totalBags = this.SaleItems.reduce((s, it) => s + (Number(it.Bags) || 0), 0);
-    const payload = {
-      Date: JSON2Date(this.SaleDate),
-      // SupplierID is required by the PHP booking_post — use empty string to avoid undefined errors
-      SupplierID: '',
-      DtCr: 'CR',
-      BagsPurchase: 0,
-      BagsSold: totalBags,
-      Amount: this.SaleTotals.TotalAmount,
-      Carriage: 0,
-      NetAmount: this.SaleTotals.TotalAmount,
-      // PHP booking_post does foreach($details) — must be an empty array, not missing
-      details: [],
-      sales: this.SaleItems.map(it => ({
-        ProductID: it.ProductID,
-        ProductName: it.ProductName,
-        Qty: it.Bags,
-        Price: it.Price,
-        Amount: it.Amount,
-        Packing: 1,
-        CustomerID: it.CustomerID,
-        CustomerName: it.CustomerName,
-        Discount: 0,
-        Received: 0,
-      })),
-    };
-    this.http.postTask('booking', payload)
-      .then((r: any) => {
-        this.myToaster.Sucess('Sale saved successfully.', 'Success');
-        this.SaleItems = [];
-        this.SaleTotals = { TotalBags: 0, TotalAmount: 0 };
-        this.SaleDate = GetDateJSON();
-        const bookingId = r && (r.id || r.bookingID || r.BookingID);
-        if (bookingId) {
-          this.http.postTask('postbooking/' + bookingId, {})
-            .then(() => {
-              this.LoadSavedSales();
-              setTimeout(() => this.loadProductsAndStock(), 400);
-              try { this.cachedData.updateStock(); } catch (e) { /* ignore */ }
-            })
-            .catch(() => {
-              // auto-post failed — reload sales list so the user can see & manually post
-              this.LoadSavedSales();
-              this.loadProductsAndStock();
-              try { this.cachedData.updateStock(); } catch (e) { /* ignore */ }
-            });
-        } else {
-          this.LoadSavedSales();
-          this.loadProductsAndStock();
-          try { this.cachedData.updateStock(); } catch (e) { /* ignore */ }
-        }
-      })
-      .catch((_err) => {
-        this.myToaster.Error('Failed to save sale.', 'Error');
-      });
-  }
+  // }
 
   computeBookingAmount() {
     const q = Number(this.Booking.Qty) || 0;
@@ -538,89 +410,37 @@ export class StockAcctsComponent implements OnInit {
     return false;
   }
 
-  addBookingItem(force: boolean = false) {
-    if (!this.Booking.SupplierID || !this.Booking.ProductID) {
-      this.myToaster.Error('Please select a supplier and product.', 'Validation Error');
-      return;
-    }
-    if (!this.Booking.Qty || this.Booking.Qty <= 0) {
-      this.myToaster.Error('Please enter a valid quantity.', 'Validation Error');
-      return;
-    }
-    // Prevent adding when selected product is out of stock unless forced
-    const prod = this.lstDataRource && this.lstDataRource.find((p: any) => String(p.ItemID) === String(this.Booking.ProductID));
-    if (prod && prod.disabled && !force) {
-      this.myToaster.Error('Selected product is out of stock. Use "Add Anyway" to override.', 'Out of Stock');
-      return;
-    }
-    const item = {
-      SupplierID: this.Booking.SupplierID,
-      Supplier: this.Booking.SupplierName || this.getSupplierName(this.Booking.SupplierID) || '',
-      ProductID: this.Booking.ProductID,
-      ProductName: this.Booking.ProductName || this.getProductName(this.Booking.ProductID),
-      Qty: Number(this.Booking.Qty) || 0,
-      Bags: Number(this.Booking.Bags) || 0,
-      Rate: Number(this.Booking.Price) || 0,
-      Carriage: Number(this.Booking.Carriage) || 0,
-      Amount: Number(this.Booking.Amount) || 0,
-    };
-    this.BookingItems.push(item);
-    this.computeBookingTotals();
-    // reset qty/price/amount for next entry
-    this.Booking.Qty = 0;
-    this.Booking.Bags = 0;
-    this.Booking.Price = 0;
-    this.Booking.Carriage = 0;
-    this.Booking.Amount = 0;
-  }
-
-  // Delete a booking by ID with confirmation. Respects posted status.
+  // Delete a booking by ID. Removes from UI immediately, then deletes on server.
   deleteBooking(bookingID: any, isPosted: any) {
-    if (!bookingID) {
-      this.myToaster.Error('Invalid booking ID', 'Error');
-      return;
-    }
-
-    const doDelete = () => {
-      const table = { ID: bookingID, Table: 'B' };
-      this.http.postTask('delete', table).then(() => {
-        this.myToaster.Sucess('Booking deleted', 'Deleted');
-        this.LoadSavedBookings();
-        this.loadProductsAndStock();
-      }).catch((er) => {
-        const msg = (er && er.error && er.error.message) || (er && er.message) || 'Error while deleting booking';
-        swal('Oops!', msg, 'error');
-      });
-    };
-
-    if (Number(isPosted) === 1) {
-      swal({ title: 'Delete Posted Booking', text: 'This booking is posted. Deleting it is permanent and will NOT reverse accounting entries. Are you sure?', icon: 'warning', dangerMode: true, buttons: { cancel: { text: 'Cancel', value: false, visible: true }, confirm: { text: 'Delete Permanently', value: true } } }).then((force) => {
-        if (force) doDelete();
-      });
-    } else {
-      swal({ title: 'Delete Booking', text: 'This will permanently delete the booking. Continue?', icon: 'warning', dangerMode: true, buttons: { cancel: { text: 'Cancel', value: false, visible: true }, confirm: { text: 'Delete', value: true } } }).then((willDelete) => {
-        if (willDelete) doDelete();
-      });
-    }
+    if (!bookingID) return;
+    // Remove from frontend immediately
+    this.savedBookings = this.savedBookings.filter((bk: any) => bk.BookingID !== bookingID);
+    // Delete on server
+    this.http.postTask('delete', { ID: bookingID, Table: 'B' }).then(() => {
+      this.myToaster.Sucess('Booking deleted', 'Deleted');
+      this.LoadSavedBookings();
+      this.loadProductsAndStock();
+    }).catch((er) => {
+      const msg = (er && er.error && er.error.message) || (er && er.message) || 'Error while deleting booking';
+      this.myToaster.Error(msg, 'Error');
+      this.LoadSavedBookings();
+    });
   }
 
-  SaveBooking() {
-    if (!this.BookingItems.length) {
+  PurchaseBooking() {
+    // Allow saving if there are booking items OR a single booking is filled via Booking fields
+    if (!this.BookingItems.length && (!this.Booking.ProductID || !this.Booking.Qty || Number(this.Booking.Qty) <= 0)) {
       this.myToaster.Error('Please add at least one item before saving.', 'Validation Error');
       return;
     }
-    const firstItem = this.BookingItems[0];
-    const totalBags = this.BookingItems.reduce((s, it) => s + (Number(it.Bags) || 0), 0);
-    const totalQty = this.BookingItems.reduce((s, it) => s + (Number(it.Qty) || 0), 0);
-    const payload = {
-      Date: JSON2Date(this.BookingDate),
-      SupplierID: firstItem.SupplierID,
-      Amount: this.BookingTotals.TotalAmount,
-      Carriage: this.BookingTotals.Carriage,
-      NetAmount: this.BookingTotals.NetAmount,
-      BagsPurchase: totalBags,
-      DtCr: 'Dr',
-      details: this.BookingItems.map(it => ({
+
+    let details: any[] = [];
+    let supplierId = '';
+    let totalBags = 0;
+    let totalQty = 0;
+
+    if (this.BookingItems && this.BookingItems.length > 0) {
+      details = this.BookingItems.map(it => ({
         ProductID: it.ProductID,
         ProductName: it.ProductName,
         Qty: it.Qty,
@@ -630,7 +450,46 @@ export class StockAcctsComponent implements OnInit {
         Amount: it.Amount,
         Packing: 20,
         Type: 1,
-      })),
+      }));
+      supplierId = this.BookingItems[0].SupplierID || '';
+      totalBags = this.BookingItems.reduce((s, it) => s + (Number(it.Bags) || 0), 0);
+      totalQty = this.BookingItems.reduce((s, it) => s + (Number(it.Qty) || 0), 0);
+    } else {
+      // single booking from Booking fields
+      const qty = Number(this.Booking.Qty) || 0;
+      const bags = Number(this.Booking.Bags) || qty * 20;
+      details = [
+        {
+          ProductID: this.Booking.ProductID,
+          ProductName: this.Booking.ProductName || this.getProductName(this.Booking.ProductID),
+          Qty: qty,
+          Bags: bags,
+          Price: Number(this.Booking.Price) || 0,
+          Carriage: Number(this.Booking.Carriage) || 0,
+          Amount: Number(this.Booking.Amount) || 0,
+          Packing: 20,
+          Type: 1,
+        },
+      ];
+      supplierId = this.Booking.SupplierID || '';
+      totalBags = bags;
+      totalQty = qty;
+      // ensure BookingTotals are computed in case they weren't
+      this.BookingTotals.TotalAmount = Number(this.Booking.Amount) || (qty * (Number(this.Booking.Price) || 0));
+      this.BookingTotals.Carriage = Number(this.Booking.Carriage) || 0;
+      this.BookingTotals.NetAmount = this.BookingTotals.TotalAmount + this.BookingTotals.Carriage;
+    }
+
+    const payload = {
+      Date: JSON2Date(this.BookingDate),
+      SupplierID: supplierId,
+      VehicleNo: this.Booking.TransportVehicleNo || '',
+      Amount: this.BookingTotals.TotalAmount,
+      Carriage: this.BookingTotals.Carriage,
+      NetAmount: this.BookingTotals.NetAmount,
+      BagsPurchase: totalBags,
+      DtCr: 'Dr',
+      details: details,
     };
     this.http.postTask('booking', payload)
       .then((r: any) => {
@@ -663,53 +522,8 @@ export class StockAcctsComponent implements OnInit {
       });
   }
 
-  // Refresh posted stock values from server and update lstDataRource stocks
-  refreshPostedStock() {
-    this.http.getStock()
-      .then((postedStock: any[]) => {
-        const stockMap: any = {};
-        (postedStock || []).forEach((s: any) => {
-          stockMap[s.ProductID] = Number(s.Stock) || 0;
-        });
-        this.lstDataRource = (this.lstDataRource || []).map((p: any) => ({
-          ...p,
-          Stock: stockMap[p.ItemID] || 0,
-        }));
-      })
-      .catch(() => {
-        // ignore failures - keep existing stock values
-      });
-  }
 
-  removeBookingItem(idx: number) {
-    if (idx < 0 || idx >= this.BookingItems.length) return;
-    this.BookingItems.splice(idx, 1);
-    this.computeBookingTotals();
-  }
 
-  // Load a saved booking row into SaleItems so user can create a sale from it
-  loadBookingToSale(bk: any) {
-    if (!bk || !bk.ProductID) {
-      this.myToaster.Error('Selected booking does not contain a valid product ID', 'Error');
-      return;
-    }
-    // set sale date to booking date so SaveSale uses correct date
-    if (bk.Date) this.SaleDate = bk.Date;
-    const item: any = {
-      ProductID: bk.ProductID,
-      ProductName: bk.ProductName || '',
-      Qty: Number(bk.Qty) || 0,
-      Packing: 1,
-      Bags: Number(bk.Bags) || 0,
-      Price: 0,
-      Amount: 0,
-      CustomerID: bk.CustomerID || '',
-      CustomerName: bk.CustomerName || '',
-    };
-    this.SaleItems.push(item);
-    this.computeSaleTotals();
-    this.myToaster.Sucess('Loaded booking item into sale details', 'Loaded');
-  }
 
   computeBookingTotals() {
     const total = this.BookingItems.reduce((s, it) => s + (Number(it.Amount) || 0), 0);
@@ -756,18 +570,7 @@ export class StockAcctsComponent implements OnInit {
     return p ? (Number(p.Stock) || 0) : 0;
   }
 
-  // Return NetStock for a saved booking row. Use pre-computed NetStock where available,
-  // otherwise fall back to Bags minus soldByProduct (useful when stock map misses product)
-  getNetStockForBooking(bk: any): number {
-    if (!bk) return 0;
-    const pid = String(bk.ProductID || '');
-    const fromMap = Number(bk.NetStock) || 0;
-    if (fromMap > 0) return fromMap;
-    const bags = Number(bk.Bags) || 0;
-    const sold = Number(this.soldByProduct[String(pid)]) || 0;
-    const calc = Math.max(0, bags - sold);
-    return calc;
-  }
+
   PrintReport() {
     this.ps.PrintData.HTMLData = document.getElementById('print-section');
     this.ps.PrintData.Title = 'Product Accounts';

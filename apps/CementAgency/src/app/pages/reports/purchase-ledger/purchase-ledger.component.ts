@@ -145,73 +145,64 @@ export class PurchaseLedgerComponent implements OnInit {
     let flds =
       'Date,BookingID, ProductName, Qty, PPrice, Amount';
 
-    this.http
-      .getData(
-        `qrypurchasereport?orderby=Date,BookingID&flds=${flds}&filter=${encodeURIComponent(filter)}`
-      )
-      .then((r: any) => {
-        this.data = r;
-      })
-      .catch((err) => {
-        console.error('Purchase ledger error', err);
-        // If backend fails on SupplierID filter, first try an MQRY SQL that joins booking
-        if (err && err.status === 500 && this.Filter?.SupplierID) {
-          console.log('Server returned 500 for supplier-filtered purchase query — trying MQRY SQL with booking join');
-          const sid = String(this.Filter.SupplierID);
-          const mqrySql = `SELECT p.Date, p.BookingID, p.ProductName, p.Qty, p.PPrice, p.Amount FROM qrypurchasereport p LEFT JOIN booking b ON p.BookingID = b.BookingID WHERE p.Date between '${getYMDDate(fromDate)}' and '${getYMDDate(toDate)}' AND b.SupplierID = ${sid} ORDER BY p.Date, p.BookingID`;
+    // If a SupplierID filter is present, prefer an MQRY SQL that joins booking to avoid
+    // backend 500 errors when the `qrypurchasereport` view does not accept SupplierID filter.
+    if (this.Filter?.SupplierID) {
+      const sid = String(this.Filter.SupplierID);
+      const mqrySql = `SELECT p.Date, p.BookingID, p.ProductName, p.Qty, p.PPrice, p.Amount, b.SupplierID FROM qrypurchasereport p LEFT JOIN booking b ON p.BookingID = b.BookingID WHERE p.Date between '${getYMDDate(fromDate)}' and '${getYMDDate(toDate)}' AND b.SupplierID = ${sid} ORDER BY p.Date, p.BookingID`;
+      this.http
+        .getData('MQRY?qrysql=' + encodeURIComponent(mqrySql))
+        .then((mq: any) => {
+          const rows = Array.isArray(mq) ? mq : (mq && Array.isArray(mq.data) ? mq.data : []);
+          this.data = rows;
+        })
+        .catch((mqErr) => {
+          console.error('MQRY supplier-query failed', mqErr);
+          // fallback: try the original endpoint without SupplierID and filter client-side
+          const dateOnlyFilter = "Date between '" + getYMDDate(fromDate) + "' and '" + getYMDDate(toDate) + "'";
           this.http
-            .getData('MQRY?qrysql=' + encodeURIComponent(mqrySql))
-            .then((mq: any) => {
-              const rows = Array.isArray(mq) ? mq : (mq && Array.isArray(mq.data) ? mq.data : []);
-              this.data = rows;
-            })
-            .catch((mqErr) => {
-              console.error('MQRY fallback failed', mqErr);
-              // last-resort: retry date-only and filter client-side
+            .getData(`qrypurchasereport?orderby=Date,BookingID&flds=${flds}&filter=${encodeURIComponent(dateOnlyFilter)}`)
+            .then((rows: any) => {
+              const purchases = Array.isArray(rows) ? rows : (rows && Array.isArray(rows.data) ? rows.data : []);
               try {
-                console.log('Retrying qrypurchasereport without SupplierID and filtering client-side');
-                const dateOnlyFilter = "Date between '" + getYMDDate(fromDate) + "' and '" + getYMDDate(toDate) + "'";
-                this.http
-                  .getData(`qrypurchasereport?orderby=Date,BookingID&flds=${flds}&filter=${encodeURIComponent(dateOnlyFilter)}`)
-                  .then((rows: any) => {
-                    const purchases = Array.isArray(rows) ? rows : (rows && Array.isArray(rows.data) ? rows.data : []);
-                    try {
-                      const filtered = (purchases || []).filter((row: any) => {
-                        const id = row?.SupplierID ?? row?.Supplier ?? row?.CustomerID ?? row?.AccountID ?? row?.Account ?? row?.Customer ?? '';
-                        return id !== undefined && id !== null && String(id) === sid;
-                      });
-                      this.data = filtered;
-                    } catch (e) {
-                      this.data = purchases;
-                    }
-                  })
-                  .catch((e2) => {
-                    console.error('Retry without SupplierID failed', e2);
-                    try {
-                      const msg = err.error || err.message || JSON.stringify(err);
-                      alert('Server error: ' + msg);
-                    } catch (e) {
-                      alert('Server error. Check console for details.');
-                    }
-                  });
-              } catch (ex) {
-                try {
-                  const msg = err.error || err.message || JSON.stringify(err);
-                  alert('Server error: ' + msg);
-                } catch (ee) {
-                  alert('Server error. Check console for details.');
-                }
+                const filtered = (purchases || []).filter((row: any) => {
+                  const id = row?.SupplierID ?? row?.Supplier ?? row?.CustomerID ?? row?.AccountID ?? row?.Account ?? row?.Customer ?? '';
+                  return id !== undefined && id !== null && String(id) === sid;
+                });
+                this.data = filtered;
+              } catch (e) {
+                this.data = purchases;
+              }
+            })
+            .catch((e2) => {
+              console.error('Retry without SupplierID failed', e2);
+              try {
+                const msg = mqErr.error || mqErr.message || JSON.stringify(mqErr);
+                alert('Server error: ' + msg);
+              } catch (e) {
+                alert('Server error. Check console for details.');
               }
             });
-          return;
-        }
-        try {
-          const msg = err.error || err.message || JSON.stringify(err);
-          alert('Server error: ' + msg);
-        } catch (e) {
-          alert('Server error. Check console for details.');
-        }
-      });
+        });
+    } else {
+      // No supplier filter — use the standard endpoint
+      this.http
+        .getData(
+          `qrypurchasereport?orderby=Date,BookingID&flds=${flds}&filter=${encodeURIComponent(filter)}`
+        )
+        .then((r: any) => {
+          this.data = r;
+        })
+        .catch((err) => {
+          console.error('Purchase ledger error', err);
+          try {
+            const msg = err.error || err.message || JSON.stringify(err);
+            alert('Server error: ' + msg);
+          } catch (e) {
+            alert('Server error. Check console for details.');
+          }
+        });
+    }
   }
   Clicked(e: unknown) {}
 

@@ -20,11 +20,7 @@
                 placeholder="Invoice No"
               />
             </div>
-            <div class="col-md-2">
-              <button type="button" class="btn btn-sm btn-outline-secondary" (click)="toggleStockDebug()">
-                Debug Stock
-              </button>
-            </div>
+
             <div class="col-md-4">
               <div class="form-group">
                 <button
@@ -96,6 +92,7 @@
           <ft-input-control
             [label]="'Vehicle No:'"
             [(ngModel)]="booking.VehicleNo"
+            (ngModelChange)="onVehicleNoChange($event)"
             name="VehicleNo"
           ></ft-input-control>
         </div>
@@ -148,6 +145,23 @@
                 Select Order
               </button>
             </div>
+
+             <div class="col-md-12">
+              <label for="customer">Transport No:</label>
+              <ng-select
+                [items]="Transporters"
+                bindLabel="TransporterName"
+                bindValue="TransporterID"
+                class="custom"
+                [(ngModel)]="saleDetail.TransporterID"
+                (ngModelChange)="onTransporterChange($event)"
+                name="TransporterID"
+                placeholder="Select transporter"
+                [searchable]="true"
+                [clearable]="true"
+              >
+              </ng-select>
+            </div>
             <div class="col-md-12">
               <label for="customer">Customer:</label>
               <ng-select
@@ -173,25 +187,25 @@
               </label>
 
               <ng-select
-                [items]="Products"
-                bindLabel="ProductName"
+                [items]="(FilteredProducts && FilteredProducts.length) ? FilteredProducts : Products"
+                bindLabel="DisplayName"
                 bindValue="ProductID"
                 class="custom"
                 [(ngModel)]="saleDetail.ProductID"
+                (ngModelChange)="onSaleProductChange($event)"
                 name="SaleProductID"
                 placeholder="Select product"
                 [searchable]="true"
                 [clearable]="true"
               >
                 <ng-template ng-option-tmp let-item="item">
-                  <span [class.text-muted]="item.disabled" [style.text-decoration]="item.disabled ? 'line-through' : 'none'">
-                    {{ item.ProductName }}
-                    <small class="ml-1" [class.text-danger]="item.disabled" [class.text-muted]="!item.disabled">
-                      (Stock: {{ getStock(item.ProductID) || 0 }})
-                    </small>
-                  </span>
+                  <div class="d-flex justify-content-between w-100">
+                    <div class="text-truncate" [class.text-muted]="item.disabled" [style.text-decoration]="item.disabled ? 'line-through' : 'none'">{{ item.DisplayName }}</div>
+                    <div class="text-right"><small class="text-muted">{{ (item.TransportBags || TransportProductQty[item.ProductID] || 0) | number:'1.0-0' }} bags</small></div>
+                  </div>
                 </ng-template>
               </ng-select>
+              <div class="mt-1"><small class="text-muted"> Qty Bags <strong>{{ getTransportBagsForSelected() || 0 }}</strong></small></div>
             </div>
             <div class="row no-pad">
               <div class="col-md-3">
@@ -388,26 +402,7 @@
   </div>
 </div>
 
-<div *ngIf="showStockDebug" class="m-3 p-3 bg-light border">
-  <h6>PostedStockMap (key → stock)</h6>
-  <pre style="max-height:200px; overflow:auto">{{ PostedStockMap | json }}</pre>
 
-  <h6 class="mt-2">Products (ProductID → ProductName → Stock)</h6>
-  <div style="max-height:200px; overflow:auto">
-    <table class="table table-sm table-bordered">
-      <thead>
-        <tr><th>ProductID</th><th>ProductName</th><th>Stock</th></tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let p of Products">
-          <td>{{ p.ProductID }}</td>
-          <td>{{ p.ProductName }}</td>
-          <td>{{ p.Stock }}</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-</div>
 
 <!-- Hidden Sale Invoice Print Section -->
 <div id="sale-print-section" style="display: none;">

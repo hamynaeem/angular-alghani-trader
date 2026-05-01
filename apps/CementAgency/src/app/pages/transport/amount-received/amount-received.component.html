@@ -111,6 +111,41 @@
               </div>
             </div>
 
+            <!-- Payment Method -->
+            <div class="form-group row mb-3">
+              <label class="col-md-4 col-form-label form-label text-uppercase">Payment Method</label>
+              <div class="col-md-8">
+                <select
+                  class="form-control"
+                  name="paymentMethod"
+                  [(ngModel)]="Voucher.PaymentMethod"
+                >
+                  <option value="">-- Select Payment Method --</option>
+                  <option value="AddOption">Add option</option>
+                  <option value="Easypaisa">Easypaisa</option>
+                  <option value="JazzCash">JazzCash</option>
+                  <option value="UBL">UBL</option>
+                  <option value="Bank">Bank</option>
+                  <option value="Meezan">Meezan</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Description -->
+            <div class="form-group row mb-3">
+              <label class="col-md-4 col-form-label form-label text-uppercase">Description</label>
+              <div class="col-md-8">
+                <input
+                  class="form-control"
+                  type="text"
+                  name="description"
+                  [(ngModel)]="Voucher.Description"
+                  maxlength="250"
+                  placeholder="Description (optional)"
+                />
+              </div>
+            </div>
+
             <!-- Balance Amount (Transaction Balance) -->
             <div class="form-group row mb-3">
               <label class="col-md-4 col-form-label form-label text-uppercase">Balance Amount</label>
@@ -191,27 +226,35 @@
       <div class="mt-4" *ngIf="Records.length > 0">
         <h6 class="text-muted text-uppercase mb-2">Records</h6>
         <div class="table-responsive">
-          <table class="table table-sm table-bordered table-hover">
+          <table class="table table-sm table-bordered table-hover dotted-table">
             <thead class="thead-light">
               <tr>
                 <th>#</th>
                 <th>Date</th>
                 <th>Account</th>
                 <th>Description</th>
+                <th>Payment Method</th>
                 <th class="text-right">Debit</th>
                 <th class="text-right">Credit</th>
                 <th class="text-right">Balance</th>
+                <th class="text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let rec of Records; let i = index">
+                    <tr *ngFor="let rec of Records; let i = index">
                 <td>{{ i + 1 }}</td>
                 <td>{{ rec.Date | date:'shortDate' }}</td>
                 <td>{{ getCustomerName(rec.CustomerID) }}</td>
                 <td>{{ rec.Description }}</td>
+                <td>{{ rec.PaymentMethod || '' }}</td>
                 <td class="text-right">{{ rec.Debit | number:'1.2-2' }}</td>
                 <td class="text-right">{{ rec.Credit | number:'1.2-2' }}</td>
                 <td class="text-right" [ngClass]="{'text-danger': rec.Balance < 0, 'text-success': rec.Balance >= 0}">{{ rec.Balance | number:'1.2-2' }}</td>
+                <td class="text-center">
+                  <button type="button" class="btn btn-sm btn-danger" (click)="deleteRecord(i, rec)">
+                    <i class="fa fa-trash"></i>
+                  </button>
+                </td>
               </tr>
             </tbody>
           </table>

@@ -33,6 +33,10 @@ export class PurchasesummaryComponent implements OnInit {
         label: 'Product Name',
         fldName: 'ProductName',
       },
+      {
+        label: 'Transport No',
+        fldName: 'TransportNo',
+      },
 
       {
         label: 'Supplier',
@@ -212,6 +216,7 @@ export class PurchasesummaryComponent implements OnInit {
     }
 
     const sql = `SELECT p.BookingID, p.ProductName, c.CustomerName AS SupplierName,
+      b.Transport AS Transport, b.TransportNo AS TransportNo, b.VehicleNo AS VehicleNo,
       p.PPrice, p.Qty, (p.PPrice * p.Qty) AS Amount
       FROM qrypurchasereport p
       LEFT JOIN booking b ON p.BookingID = b.BookingID
@@ -250,6 +255,10 @@ export class PurchasesummaryComponent implements OnInit {
       }
 
       const mapped = (filtered || []).map((row: any) => {
+        // Derive TransportNo from several possible fields returned by different backends
+        try {
+          row.TransportNo = this.firstAvailable(row, ['TransportNo', 'Transport', 'VehicleNo', 'TruckNo', 'Transport_No', 'Truck_No']);
+        } catch (e) { row.TransportNo = this.firstAvailable(row, ['TransportNo', 'Transport', 'VehicleNo']); }
         let name = '';
         try {
           const id = row?.SupplierID ?? row?.Supplier ?? row?.CustomerID ?? row?.AccountID ?? row?.Account ?? row?.Customer ?? '';
@@ -289,34 +298,82 @@ export class PurchasesummaryComponent implements OnInit {
       this.data = mapped;
     };
 
-    // Primary attempt: run SQL via MQRY
-    this.http.getData('MQRY?qrysql=' + encodeURIComponent(sql))
-      .then((r: any) => {
-        // some backends return { result: 'error', ... }
-        const payload = Array.isArray(r) ? r : (r && Array.isArray(r.data) ? r.data : []);
-        process(payload);
-      })
-      .catch((err: any) => {
-        console.error('Purchase summary error', err);
-        // If server error and we included SupplierID in the filter, retry using fallback and client-side filter
-        if (err && err.status === 500 && this.Filter?.SupplierID && String(this.Filter.SupplierID) !== '') {
-          console.log('Retrying purchase query without SupplierID due to server error');
-          this.http.getData(fallbackUrl)
-            .then((r2: any) => {
-              const rows = Array.isArray(r2) ? r2 : (r2 && Array.isArray(r2.data) ? r2.data : []);
-              process(rows);
-            })
-            .catch((e2: any) => {
-              console.error('Fallback purchase query failed', e2);
-              this.data = [];
+    // Primary attempt: fetch the fallback view first (safer). Only use MQRY as last-resort.
+    this.http
+      .getData(fallbackUrl)
+      .then((r2: any) => {
+        const rows = Array.isArray(r2) ? r2 : (r2 && Array.isArray(r2.data) ? r2.data : []);
+        // Enrich rows with transport fields by fetching bookings and merging
+        this.fetchBookingRows()
+          .then((bookings: any[]) => {
+            const bmap: any = {};
+            (bookings || []).forEach((b: any) => {
+              if (b && (b.BookingID !== undefined && b.BookingID !== null)) bmap[String(b.BookingID)] = b;
             });
-        } else {
-          this.data = [];
-        }
+            (rows || []).forEach((row: any) => {
+              try {
+                const bid = row?.BookingID ?? row?.BookingId ?? row?.Booking ?? '';
+                const b = bmap[String(bid)];
+                if (b) {
+                  row.Transport = row.Transport || b.Transport || '';
+                  row.TransportNo = row.TransportNo || b.TransportNo || b.Transport_No || '';
+                  row.VehicleNo = row.VehicleNo || b.VehicleNo || '';
+                  row.TruckNo = row.TruckNo || b.TruckNo || b.Truck_No || '';
+                  // Merge supplier identifier from booking so later mapping can resolve display name
+                  row.SupplierID = row.SupplierID || row.Supplier || row.CustomerID || b.SupplierID || b.Supplier || b.CustomerID || row.SupplierID;
+                }
+              } catch (e) {}
+            });
+            process(rows);
+          })
+          .catch((_bkErr: any) => {
+            // If booking fetch fails, still process base rows
+            process(rows);
+          });
+      })
+      .catch((mqErr: any) => {
+        // Fallback fetch failed; as last-resort try MQRY (some deployments support it)
+        console.warn('Fallback view failed, attempting MQRY as last-resort', mqErr);
+        this.http
+          .getData('MQRY?qrysql=' + encodeURIComponent(sql))
+          .then((r: any) => {
+            const payload = Array.isArray(r) ? r : (r && Array.isArray(r.data) ? r.data : []);
+            process(payload);
+          })
+          .catch((err: any) => {
+            console.error('Purchase summary MQRY error', err);
+            this.data = [];
+          });
       });
   }
 
   ngOnDestroy() {
     try { if (this.accountsSub && this.accountsSub.unsubscribe) this.accountsSub.unsubscribe(); } catch (e) {}
+  }
+
+  private fetchBookingRows(): Promise<any[]> {
+    // Try multiple endpoints to fetch booking rows safely
+    // Try endpoints without `flds` first (some deployments reject requested fields),
+    // then try the flds variants as a last-resort.
+    const attempts = [
+      'qrybooking',
+      'booking',
+      'qrybooking?flds=BookingID,Transport,TransportNo,VehicleNo,TruckNo',
+      'booking?flds=BookingID,Transport,TransportNo,VehicleNo,TruckNo',
+    ];
+
+    const tryNext = (idx: number): Promise<any[]> => {
+      if (idx >= attempts.length) return Promise.resolve([]);
+      const url = attempts[idx];
+      return this.http.getData(url).then((res: any) => {
+        const rows = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
+        return rows;
+      }).catch((err: any) => {
+        console.warn('fetchBookingRows endpoint failed:', attempts[idx], err && err.message ? err.message : err);
+        return tryNext(idx + 1);
+      });
+    };
+
+    return tryNext(0);
   }
 }

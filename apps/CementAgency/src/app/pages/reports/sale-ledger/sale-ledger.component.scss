@@ -1,0 +1,45 @@
+:host {
+	.dotted-table {
+		/* target table inside the dynamic table component */
+		::ng-deep table {
+			width: 100%;
+			border-collapse: separate;
+			border-spacing: 0;
+			background: #fff;
+		}
+
+		::ng-deep thead th {
+			border-bottom: 2px solid #eef2f5;
+			background: transparent;
+			color: #586777;
+			font-weight: 600;
+			padding: 10px 12px;
+		}
+
+		::ng-deep tbody tr {
+			border-bottom: 1px dotted rgba(88,103,119,0.12);
+			transition: background-color .12s ease-in-out, transform .06s;
+		}
+
+		::ng-deep tbody tr:hover {
+			background-color: rgba(88,103,119,0.03);
+			transform: translateY(-1px);
+		}
+
+		::ng-deep td, ::ng-deep th {
+			padding: 10px 12px;
+			vertical-align: middle;
+			color: #334155;
+		}
+
+		/* subtle rounded container look */
+		padding: 8px;
+		border-radius: 8px;
+	}
+
+	/* optional dotted card header style */
+	.dotted-card-header {
+		border-bottom: 1px dotted rgba(88,103,119,0.12);
+	}
+}
+

@@ -25,6 +25,29 @@ class Tasks extends REST_Controller
         $this->load->database();
         $this->load->library('utilities');
     }
+
+    // Simple API to query stock_accts table for UI/reporting
+    public function qrystockaccts_get()
+    {
+        if (! $this->checkToken()) {
+            $this->response([
+                'result'  => 'Error',
+                'message' => 'user is not authorised',
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $filter = $this->input->get('filter');
+        if (!empty($filter)) {
+            // Expecting a simple SQL WHERE fragment passed by client after validation
+            $query = "SELECT * FROM stock_accts WHERE " . $filter . " ORDER BY date DESC";
+            $rows = $this->db->query($query)->result_array();
+        } else {
+            $rows = $this->db->order_by('date','DESC')->get('stock_accts')->result_array();
+        }
+
+        $this->response($rows, REST_Controller::HTTP_OK);
+    }
     public function index_get()
     {
         header('Access-Control-Allow-Headers: X-Requested-With, content-type, access-control-allow-origin, access-control-allow-methods, access-control-allow-headers');
@@ -516,6 +539,10 @@ class Tasks extends REST_Controller
     public function postvouchers_post($id)
     {
         $this->PostVouchers($id);
+        // Only send success response if PostVouchers didn't already send an error response
+        if (! headers_sent()) {
+            $this->response(['msg' => 'Voucher posted'], REST_Controller::HTTP_OK);
+        }
     }
 
     // Public endpoint to post a single transport detail by ID (set IsPosted = 1)
@@ -601,24 +628,27 @@ class Tasks extends REST_Controller
         $InvoiceRes = $this->db->get('vouchers')->result_array();
 
         $this->db->trans_begin();
-        foreach ($InvoiceRes as $InvoiceValue) {
-            $data['CustomerID']  = $InvoiceValue['CustomerID'];
-            $data['Date']        = $InvoiceValue['Date'];
-            $data['Credit']      = $InvoiceValue['Credit'];
-            $data['Debit']       = $InvoiceValue['Debit'];
-            $data['Description'] = $InvoiceValue['Description'];
-            $data['RefID']       = $InvoiceValue['VoucherID'];
-            $data['RefType']     = 2;
+        try {
+            foreach ($InvoiceRes as $InvoiceValue) {
+                $data['CustomerID']  = $InvoiceValue['CustomerID'];
+                $data['Date']        = $InvoiceValue['Date'];
+                $data['Credit']      = $InvoiceValue['Credit'];
+                $data['Debit']       = $InvoiceValue['Debit'];
+                $data['Description'] = $InvoiceValue['Description'];
+                $data['RefID']       = $InvoiceValue['VoucherID'];
+                $data['RefType']     = 2;
 
-            // $data['BusinessID'] = $InvoiceValue['BusinessID'];
+                $this->AddToAccount($data);
 
-            $this->AddToAccount($data);
-
-            $posted['IsPosted'] = '1';
-            $this->db->where('VoucherID', $InvoiceValue['VoucherID']);
-            $this->db->update('vouchers', $posted);
+                $posted['IsPosted'] = '1';
+                $this->db->where('VoucherID', $InvoiceValue['VoucherID']);
+                $this->db->update('vouchers', $posted);
+            }
+            $this->db->trans_commit();
+        } catch (Exception $e) {
+            $this->db->trans_rollback();
+            $this->response(['status' => false, 'message' => $e->getMessage()], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
-        $this->db->trans_commit();
     }
 
     public function UpdateStock(
@@ -1152,9 +1182,10 @@ class Tasks extends REST_Controller
         $insert['Balance'] = $newBal;
 
         $this->db->insert('customeraccts', $insert);
-        $cust['Balance'] = $newBal;
+        // Only update the Balance column — passing the full row can fail on strict MySQL
+        // when the primary key (CustomerID) is included in the SET clause.
         $this->db->where('CustomerID', $cust['CustomerID']);
-        $this->db->update('customers', $cust);
+        $this->db->update('customers', ['Balance' => $newBal]);
     }
 
     public function updateload_post($loadno)
@@ -1263,6 +1294,8 @@ class Tasks extends REST_Controller
             $this->db->where('BookingID', $id);
             $this->db->update('booking', $booking);
             $this->db->query("DELETE FROM `booking_details` WHERE `BookingID`=" . $id);
+            // keep stock_accts in sync when editing a booking
+            $this->db->query("DELETE FROM `stock_accts` WHERE `booking_id`=" . $id);
             $invID = $id;
         }
 
@@ -1278,6 +1311,34 @@ class Tasks extends REST_Controller
             $pdetails['Type']      = 1; //--Purchase
 
             $this->db->insert('booking_details', $pdetails);
+        }
+
+        // Insert/update corresponding rows into stock_accts for purchase details
+        try {
+            // remove any existing rows for this booking (idempotent)
+            $this->db->where('booking_id', $invID);
+            $this->db->delete('stock_accts');
+
+            foreach ($details as $d) {
+                if (isset($d['Type']) && intval($d['Type']) !== 1) continue; // only purchases
+
+                $bags = isset($d['Packing']) && intval($d['Packing']) > 0 ? intval($d['Qty']) * intval($d['Packing']) : intval($d['Qty']) * 20;
+                $row = [
+                    'booking_id'  => $invID,
+                    'date'        => isset($booking['Date']) ? $booking['Date'] : null,
+                    'supplier_id' => isset($booking['SupplierID']) ? $booking['SupplierID'] : null,
+                    'product_id'  => isset($d['ProductID']) ? $d['ProductID'] : null,
+                    'qty_tons'    => isset($d['Qty']) ? $d['Qty'] : 0,
+                    'bags'        => $bags,
+                    'price'       => isset($d['Price']) ? $d['Price'] : 0,
+                    'carriage'    => isset($booking['Carriage']) ? $booking['Carriage'] : 0,
+                    'amount'      => (isset($d['Qty']) ? floatval($d['Qty']) : 0) * (isset($d['Price']) ? floatval($d['Price']) : 0),
+                    'vehicle_no'  => isset($booking['VehicleNo']) ? $booking['VehicleNo'] : null,
+                ];
+                $this->db->insert('stock_accts', $row);
+            }
+        } catch (Exception $e) {
+            // don't fail the entire booking save for stock_accts issues
         }
         $sales = $post_data['sales'];
         $orderIDs = [];

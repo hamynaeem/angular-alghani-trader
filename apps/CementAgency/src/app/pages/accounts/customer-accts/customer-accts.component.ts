@@ -41,15 +41,18 @@ export class CustomerAcctsComponent implements OnInit {
         label: 'Debit',
         fldName: 'Debit',
         sum: true,
+        type: 'number',
       },
       {
         label: 'Credit',
         fldName: 'Credit',
         sum: true,
+        type: 'number',
       },
       {
         label: 'Balance',
         fldName: 'Balance',
+        type: 'number',
       },
     ],
     Actions: [],
@@ -96,12 +99,17 @@ export class CustomerAcctsComponent implements OnInit {
       .getData('qrycustomeraccts?filter=' + filter + '&orderby=DetailID')
       .then((r: any) => {
         this.data = r;
+        // Format Date fields for display (fix raw datetime strings like '2026-03-08 00:00:00')
+        if (this.data && this.data.length) {
+          this.data.forEach((row: any) => {
+            row.Date = this.formatDate(row.Date);
+          });
+        }
         if (this.data.length > 0) {
           this.customer.OpenBalance =
             (this.data[0].Balance - this.data[0].Debit) * 1 +
             this.data[0].Credit * 1;
           this.customer.CloseBalance = this.data[this.data.length - 1].Balance;
-
           this.data.unshift({
             Date: this.data[0].Date,
             Description: 'Opeing Balance ...',
@@ -129,7 +137,7 @@ export class CustomerAcctsComponent implements OnInit {
                 this.customer.CloseBalance = 0;
               }
               this.data.unshift({
-                Date: JSON2Date(this.Filter.FromDate) ,
+                Date: this.formatDate(JSON2Date(this.Filter.FromDate)),
                 Description: 'Opeing Balance ...',
                 Debit: 0,
                 Credit: 0,

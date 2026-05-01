@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { BehaviorSubject } from 'rxjs';
-import { shareReplay, switchMap } from 'rxjs/operators';
+import { BehaviorSubject, merge } from 'rxjs';
+import { shareReplay, switchMap, filter } from 'rxjs/operators';
 
 import { environment } from '../../environments/environment';
 import { HttpBase } from './httpbase.service';
@@ -22,6 +22,7 @@ public routes$: any;
 
 //------ stock list
 private _stockData$ = new BehaviorSubject<void>(undefined);
+private _stockRows$ = new BehaviorSubject<any[] | null>(null);
 public apiStock$: any;
 public Stock$: any;
 
@@ -68,10 +69,11 @@ constructor(private http: HttpClient, private http2: HttpBase) {
   );
 
   this.apiStock$ = this.http.get<any[]>(this.api + 'qrystock?orderby=ProductName&bid=' + this.http2.getBusinessID());
-  this.Stock$ = this._stockData$.pipe(
-    switchMap(() => this.apiStock$),
-    shareReplay(1)
-  );
+  // Stock$ emits either pushed rows (via setStockRows) or API-fetched rows when updateStock() is triggered
+  this.Stock$ = merge(
+    this._stockRows$.pipe(filter((r: any) => r !== null)),
+    this._stockData$.pipe(switchMap(() => this.apiStock$))
+  ).pipe(shareReplay(1));
 
   this.apiSalesman$ = this.http.get<any[]>(this.api + 'salesman?bid=' + this.http2.getBusinessID());
   this.Salesman$ = this._salesmanData$.pipe(
@@ -142,5 +144,9 @@ constructor(private http: HttpClient, private http2: HttpBase) {
   }
   public updateStock() {
     this._stockData$.next();
+  }
+  // Allow explicit pushing of stock rows to shared observable
+  public setStockRows(rows: any[]) {
+    this._stockRows$.next(rows || []);
   }
 }

@@ -120,12 +120,14 @@ export class AmountReceivedComponent implements OnInit {
     // Add total amount to voucher for reference
     this.Voucher.Debit = this.totalAmount; // Record the order total as debit
 
-    // Create description with date range information
+    // Create description with date range information (use user-entered description if provided)
     const dateRangeText = this.fromDate === this.toDate
       ? this.fromDate
       : `${this.fromDate} to ${this.toDate}`;
 
-    this.Voucher.Description = `Amount Received: Rs.${this.Voucher.Credit} against Rs.${this.totalAmount} orders from ${dateRangeText}`;
+    if (!this.Voucher.Description || ('' + this.Voucher.Description).trim() === '') {
+      this.Voucher.Description = `Amount Received: Rs.${this.Voucher.Credit} against Rs.${this.totalAmount} orders from ${dateRangeText}`;
+    }
 
     try {
 
@@ -136,7 +138,7 @@ export class AmountReceivedComponent implements OnInit {
         Debit: this.totalAmount || 0,  // Record order total as debit (amount owed)
         Credit: this.Voucher.Credit || 0,  // Record payment as credit
         Date: this.fromDate || this.selectedDate,
-        Description: `Orders: Rs.${this.totalAmount} (${dateRangeText}) | Payment: Rs.${this.Voucher.Credit} | Date: ${this.fromDate || this.selectedDate}`,
+        Description: this.Voucher.Description || `Orders: Rs.${this.totalAmount} (${dateRangeText}) | Payment: Rs.${this.Voucher.Credit} | Date: ${this.fromDate || this.selectedDate}`,
         RefID: r?.id || 0,
         RefType: this.Voucher.RefType || 0,
       };
@@ -317,10 +319,56 @@ export class AmountReceivedComponent implements OnInit {
       const r: any = await this.http.getData(
         'qryvouchers?filter=' + encodeURIComponent(filter) + '&orderby=Date desc'
       );
+
+      // Some backends' `qryvouchers` view may not include `PaymentMethod`.
+      // If missing, fetch raw `vouchers` and merge PaymentMethod into the records.
+      if (r && r.length > 0 && r[0].PaymentMethod === undefined) {
+        try {
+          const v: any = await this.http.getData(
+            'vouchers?filter=' + encodeURIComponent(filter) + '&orderby=Date desc'
+          );
+          const map = new Map<any, any>();
+          for (const x of (v || [])) {
+            const vid = x.VoucherID || x.VoucherId || x.voucherid || x.id || x.RefID;
+            if (vid) map.set(vid, x);
+          }
+          for (const rec of (r || [])) {
+            const rid = rec.VoucherID || rec.VoucherId || rec.voucherid || rec.id || rec.RefID;
+            const match = rid ? map.get(rid) : null;
+            if (match) {
+              rec.PaymentMethod = match.PaymentMethod || match.paymentmethod || '';
+            }
+          }
+        } catch (mergeErr) {
+          console.warn('Failed to fetch vouchers for PaymentMethod merge', mergeErr);
+        }
+      }
+
       this.Records = r || [];
     } catch (err) {
       console.error('ShowAll error', err);
       this.alert.Error('Failed to load records', 'Error', 1);
+    }
+  }
+
+  async deleteRecord(index: number, rec: any) {
+    if (!rec) return;
+    const id = rec.VoucherID || rec.VoucherId || rec.id || rec.RefID;
+    if (!id) {
+      this.alert.Error('Cannot determine record id to delete', 'Delete Error', 1);
+      return;
+    }
+
+    if (!confirm('Delete this receipt? This action cannot be undone.')) return;
+
+    try {
+      await this.http.Delete('vouchers', id);
+      // remove from local list
+      this.Records.splice(index, 1);
+      this.alert.Sucess('Record deleted', 'Delete', 1);
+    } catch (err) {
+      console.error('Delete error', err);
+      this.alert.Error('Failed to delete record', 'Delete Error', 1);
     }
   }
 
@@ -486,6 +534,12 @@ export class AmountReceivedComponent implements OnInit {
             <span class="label">Customer Name:</span>
             <span class="value">${this.curCustomer.CustomerName || ''}</span>
         </div>
+        ${this.Voucher.Description ? `
+        <div class="row">
+          <span class="label">Description:</span>
+          <span class="value">${this.Voucher.Description}</span>
+        </div>
+        ` : ''}
         <div class="row">
             <span class="label">Address:</span>
             <span class="value">${this.curCustomer.Address || ''}</span>

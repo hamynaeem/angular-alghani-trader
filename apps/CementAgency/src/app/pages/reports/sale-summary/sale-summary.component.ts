@@ -139,7 +139,7 @@ export class SalesummaryComponent implements OnInit {
 
       const sql = `SELECT s.InvoiceID, s.CustomerName, s.ProductName, s.SPrice, s.Qty,
         s.Amount, s.Discount, COALESCE(b.Carriage, 0) AS Carriage,
-        s.Received, (s.Amount - s.Received) AS Balance,
+        s.Received, (s.Amount - s.Discount - s.Received) AS Balance,
         b.InvoiceNo AS InvoiceNo, b.VehicleNo AS VehicleNo, b.CofNo AS CofNo, b.ReceiptNo AS ReceiptNo, b.BuiltyNo AS BuiltyNo
         FROM qrysalereport s
         LEFT JOIN booking b ON s.BookingID = b.BookingID
@@ -162,7 +162,7 @@ export class SalesummaryComponent implements OnInit {
     } else {
       const sql = `SELECT s.CustomerName, s.ProductName, s.SPrice, s.Qty,
         s.Amount, s.Discount, COALESCE(b.Carriage, 0) AS Carriage,
-        s.Received, (s.Amount - s.Received) AS Balance,
+        s.Received, (s.Amount - s.Discount - s.Received) AS Balance,
         b.InvoiceNo AS InvoiceNo, b.VehicleNo AS VehicleNo, b.CofNo AS CofNo, b.ReceiptNo AS ReceiptNo, b.BuiltyNo AS BuiltyNo
         FROM qrysalereport s
         LEFT JOIN booking b ON s.BookingID = b.BookingID

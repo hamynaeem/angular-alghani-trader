@@ -17,4 +17,5 @@ export class VoucherModel {
   UserID = "";
   ProductID = "";
   ClosingID = "0";
+  PaymentMethod: string = "";
 }

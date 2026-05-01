@@ -43,11 +43,11 @@ export class CashBookComponent implements OnInit {
   saleSetting = {
     Checkbox: false,
     Columns: [
-  
+
       { label: 'Customer', fldName: 'Customer', type: 'text' },
       { label: 'Product Name', fldName: 'ProductName' },
-      { label: 'Price', fldName: 'Price', sum: true },
-      { label: 'Qty', fldName: 'Qty', sum: true },
+
+
       { label: 'Amount', fldName: 'Amount', sum: true },
       { label: 'Discount', fldName: 'Discount', sum: true },
       { label: 'Received', fldName: 'Received', sum: true },
@@ -70,6 +70,23 @@ export class CashBookComponent implements OnInit {
     Actions: [],
     Data: [] as any[],
   };
+
+  // Combined view for showing sales + purchase in one table
+  combinedSetting: any = {
+    Checkbox: false,
+    Columns: [
+      { label: 'Customer', fldName: 'Customer' },
+      { label: 'Product Name', fldName: 'ProductName' },
+      { label: 'Amount', fldName: 'Amount', type: 'number' },
+      { label: 'Discount', fldName: 'Discount', type: 'number' },
+      { label: 'Received', fldName: 'Received', type: 'number' },
+      { label: 'Balance', fldName: 'Balance', type: 'number' },
+    ],
+    Actions: [],
+    Data: [] as any[],
+  };
+
+  combinedData: any[] = [];
 
   open_balance = 0;
   constructor(
@@ -111,7 +128,7 @@ export class CashBookComponent implements OnInit {
     const customersPromise = this.http.getData('qrycustomers?flds=CustomerID,CustomerName');
     const expensesPromise = this.http.getData('qryexpenses?filter=' + dateFilter + '&orderby=Date')
       .catch(() => this.http.getData('expend?filter=' + dateFilter + '&orderby=Date'));
-    const salePromise = this.http.getData('qrysalereport?orderby=Date,BookingID&flds=CustomerName,ProductName,SPrice,Qty,Amount,Discount,Received,(Amount-Received)%20as%20Balance&filter=' + dateFilter).catch(() => []);
+    const salePromise = this.http.getData('qrysalereport?orderby=Date,BookingID&flds=CustomerName,ProductName,SPrice,Qty,Amount,Discount,Received,(Amount-Discount-Received)%20as%20Balance&filter=' + dateFilter).catch(() => []);
     const purchasePromise = this.http.getData('qrypurchasereport?orderby=Date,BookingID&flds=BookingID,ProductName,PPrice,Qty,Amount&filter=' + dateFilter).catch(() => []);
 
     Promise.all([openBalPromise, cashPromise, vouchersPromise, transportPromise, bookingPromise, expensesPromise, customersPromise, salePromise, purchasePromise])
@@ -206,6 +223,8 @@ export class CashBookComponent implements OnInit {
 
         // bookings: Amount (based on DtCr), carriage as Paid
         for (const b of bookingRows) {
+
+
           // ensure we have a customer name from customers map if not present
           try {
             if (!b.CustomerName) {
@@ -273,6 +292,13 @@ export class CashBookComponent implements OnInit {
           });
         }
 
+        // keep only vouchers for the main card (remove bookings)
+        try {
+          const filtered = (merged || []).filter((r: any) => (r.Source || '').toString().toLowerCase() === 'voucher');
+          merged.length = 0;
+          merged.push(...filtered);
+        } catch (e) {}
+
         // sort by date ascending
         merged.sort((a, b) => {
           const da = new Date(a.Date).getTime() || 0;
@@ -304,9 +330,20 @@ export class CashBookComponent implements OnInit {
           Amount: Number(row.Amount) || 0,
           Discount: Number(row.Discount) || 0,
           Received: Number(row.Received) || 0,
-          Balance: Number(row.Balance) || (Number(row.Amount) || 0) - (Number(row.Received) || 0),
+          Balance: Number(row.Balance) || (Number(row.Amount) || 0) - (Number(row.Discount) || 0) - (Number(row.Received) || 0),
         }));
         this.saleSetting.Data = this.saleData;
+
+        // build combined data (sales + purchase) for single-card view
+        this.combinedData = [];
+        this.combinedData.push(...this.saleData.map((s: any) => ({
+          Customer: s.Customer,
+          ProductName: s.ProductName,
+          Amount: s.Amount,
+          Discount: s.Discount,
+          Received: s.Received,
+          Balance: s.Balance,
+        })));
 
         // --- Purchase data ---
         const purchaseRows = Array.isArray(res[8]) ? res[8] : [];
@@ -327,6 +364,15 @@ export class CashBookComponent implements OnInit {
           };
         });
         this.purchaseSetting.Data = this.purchaseData;
+        this.combinedData.push(...this.purchaseData.map((p: any) => ({
+          Customer: p.SupplierName || '',
+          ProductName: p.ProductName,
+          Amount: p.Amount,
+          Discount: 0,
+          Received: 0,
+          Balance: 0,
+        })));
+        this.combinedSetting.Data = this.combinedData;
       })
       .catch((err) => {
         console.error('Error loading cashbook related data', err);

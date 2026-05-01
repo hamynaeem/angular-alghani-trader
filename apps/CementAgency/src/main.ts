@@ -12,4 +12,23 @@ if (environment.production) {
   enableProdMode();
 }
 
+// Suppress noisy browser "AbortError: The play() request was interrupted by a call to pause()" logs
+// which originate from interrupted media/animation play() promises. This prevents an unhandled
+// rejection from cluttering the console while the underlying animation/audio timing is harmless.
+try {
+  window.addEventListener('unhandledrejection', (evt: any) => {
+    try {
+      const r = evt && evt.reason;
+      if (!r) return;
+      const msg = String(r.message || r);
+      const isAbortPlay = (r.name === 'AbortError') && msg.indexOf('play()') !== -1;
+      if (isAbortPlay) {
+        evt.preventDefault();
+      }
+    } catch (e) {
+      // ignore handler errors
+    }
+  });
+} catch (e) { /* ignore in non-browser environments */ }
+
 platformBrowserDynamic().bootstrapModule(AppModule);

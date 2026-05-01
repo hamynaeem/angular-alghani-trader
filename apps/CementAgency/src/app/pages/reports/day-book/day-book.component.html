@@ -97,14 +97,7 @@
           </div>
         </div>
 
-        <!-- Purchase status filter, visible only when Purchase is selected -->
-        <div class="form-group col-md-3" *ngIf="nWhat === '5'">
-          <div class="btn-group btn-group-sm" role="group">
-            <button type="button" class="btn" [ngClass]="Filter.PurchaseStatus === 'all' ? 'btn-secondary' : 'btn-outline-secondary'" (click)="Filter.PurchaseStatus = 'all'; FilterData()">All</button>
-            <button type="button" class="btn" [ngClass]="Filter.PurchaseStatus === 'posted' ? 'btn-success' : 'btn-outline-success'" (click)="Filter.PurchaseStatus = 'posted'; FilterData()">Posted</button>
-            <button type="button" class="btn" [ngClass]="Filter.PurchaseStatus === 'unposted' ? 'btn-warning' : 'btn-outline-warning'" (click)="Filter.PurchaseStatus = 'unposted'; FilterData()">Un-Posted</button>
-          </div>
-        </div>
+
 
         <div class="col-md-1">
           <div class="form-group">
