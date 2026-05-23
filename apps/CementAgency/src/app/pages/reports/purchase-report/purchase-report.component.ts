@@ -31,6 +31,10 @@ export class PurchaseReportComponent implements OnInit {
         fldName: "Date",
       },
       {
+        label: "Transport No",
+        fldName: "TransportNo",
+      },
+      {
         label: "Account Name",
         fldName: "CustomerName",
       },
@@ -172,11 +176,18 @@ export class PurchaseReportComponent implements OnInit {
     }
 
     this.http.getData("qrypinvoices?filter=" + filter).then((r: any) => {
-      this.data = r.map((obj: any) => {
+      const getFirst = (o: any, keys: string[]) => {
+        for (const k of keys) {
+          if (o && o[k] !== undefined && o[k] !== null && String(o[k]).trim() !== '') return o[k];
+        }
+        return '';
+      };
+      this.data = (r || []).map((obj: any) => {
+        const transport = getFirst(obj, ['TransportNo', 'Transport', 'VehicleNo', 'TruckNo', 'Vehicle_No']);
         return {
           ...obj,
+          TransportNo: transport,
           details: [],
-
         };
       });
     });

@@ -89,7 +89,9 @@ export class SalesummaryComponent implements OnInit {
   public Items: any;
   public Accounts: any;
   public AccountsList: any[] = [];
+  public CustomersOnly: any[] = [];
   public SelectedCustomerName = '';
+  private supplierIDs: Set<string> = new Set();
   constructor(
     private http: HttpBase,
     private cachedData: CachedDataService,
@@ -99,14 +101,28 @@ export class SalesummaryComponent implements OnInit {
 
   ngOnInit() {
     this.Items = this.cachedData.Products$;
-    this.Accounts = this.cachedData.Accounts$;
+    // Subscribe to suppliers first so we can exclude them from the customer dropdown
+    this.cachedData.Suppliers$.subscribe((suppliers: any[]) => {
+      this.supplierIDs = new Set(
+        (suppliers || []).map((s: any) => String(s.CustomerID || s.SupplierID || s.ID || ''))
+      );
+      this.rebuildCustomersOnly();
+    });
     this.cachedData.Accounts$.subscribe((a: any[]) => {
       this.AccountsList = a || [];
+      this.rebuildCustomersOnly();
       if (this.Filter.CustomerID && this.Filter.CustomerID !== '') {
         this.CustomerSelected(this.Filter.CustomerID);
       }
     });
     this.FilterData();
+  }
+
+  private rebuildCustomersOnly() {
+    this.CustomersOnly = (this.AccountsList || []).filter((ac: any) => {
+      const id = String(ac.CustomerID || ac.ID || '');
+      return !this.supplierIDs.has(id);
+    });
   }
 
   CustomerSelected(evt: any) {

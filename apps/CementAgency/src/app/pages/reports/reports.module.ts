@@ -54,6 +54,7 @@ const routes:any= [
   { path: 'labourreport', component: LabourReportComponent, data: { breadcrumb: 'Labour Report' } },
   { path: 'packingreport', component: PackingReportComponent, data: { breadcrumb: 'Packing Report' } },
   { path: 'purchasereport', component: PurchaseReportComponent, data: { breadcrumb: 'Purchase Report' } },
+  { path: 'purchase-report', component: PurchaseReportComponent, data: { breadcrumb: 'Purchase Report' } },
   { path: 'stockreport', component: StockReportComponent, data: { breadcrumb: 'Stock Report' } },
   { path: 'stockreport2', component: StockReportCurrentComponent, data: { breadcrumb: 'Stock Report' } },
   { path: 'stock-transfer', component: TransferReportComponent, data: { breadcrumb: ' Transfer Report' } },

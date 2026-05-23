@@ -44,6 +44,18 @@ export class JournalvoucherComponent implements OnInit {
 
   }
 
+  showReports() {
+    // Navigate to Day Book report by default
+    this.router.navigate(['/reports/daybook']);
+  }
+
+  printVoucher() {
+    // Simple print; prints the whole page. Can be scoped to voucher area later.
+    try {
+      window.print();
+    } catch (e) { /* ignore */ }
+  }
+
   LoadCustomer(event, v) {
     if (event.itemData.AcctTypeID !== "") {
       this.http

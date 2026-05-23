@@ -441,54 +441,31 @@ export class BookingInvoiceComponent
     this.cachedData.Suppliers$.subscribe((suppliers: any[]) => {
       this.Suppliers = suppliers || [];
     });
-    // Try to build Transporters list from recent bookings (fallback when no dedicated endpoint)
+    // Build Transporters list: only vehicles that still have net stock > 0
+    // (PurchaseBags > SaleBags). This ensures zeroed-out transports don't appear.
     try {
-      // Request only VehicleNo first (safer). If server rejects requested fields,
-      // retry without `flds`. This prevents 500 errors when some DB views lack fields.
-      this.http.getData('qrybooking', { flds: 'VehicleNo', orderby: 'Date desc' })
+      const transportSql = `SELECT b.VehicleNo,
+        SUM(CASE WHEN bd.Type=1 THEN bd.Qty * IFNULL(bd.Packing,20) ELSE 0 END) AS PurchaseBags,
+        SUM(CASE WHEN bd.Type=2 THEN bd.Qty ELSE 0 END) AS SaleBags
+        FROM booking b
+        JOIN booking_details bd ON bd.BookingID = b.BookingID
+        WHERE b.VehicleNo IS NOT NULL AND b.VehicleNo != ''
+        GROUP BY b.VehicleNo
+        HAVING (PurchaseBags - SaleBags) > 0`;
+      this.http.getData('MQRY?qrysql=' + encodeURIComponent(transportSql))
         .then((rows: any) => {
-          try {
-            const seen = new Set<string>();
-            const items: any[] = [];
-            (rows || []).forEach((r: any) => {
-              const candidates = [r.VehicleNo, r.Transport, r.TruckNo];
-              for (const c of candidates) {
-                if (c && String(c).trim() !== '' && !seen.has(String(c).trim())) {
-                  const v = String(c).trim();
-                  seen.add(v);
-                  items.push({ TransporterID: v, TransporterName: v });
-                }
-              }
-            });
-            this.Transporters = items;
-          } catch (e) {
-            this.Transporters = [];
-          }
+          const seen = new Set<string>();
+          const items: any[] = [];
+          (rows || []).forEach((r: any) => {
+            const v = r.VehicleNo && String(r.VehicleNo).trim();
+            if (v && !seen.has(v)) {
+              seen.add(v);
+              items.push({ TransporterID: v, TransporterName: v });
+            }
+          });
+          this.Transporters = items;
         })
-        .catch(() => {
-          // Retry without flds if server rejected requested fields
-          this.http.getData('qrybooking', { orderby: 'Date desc' })
-            .then((rows: any) => {
-              try {
-                const seen = new Set<string>();
-                const items: any[] = [];
-                (rows || []).forEach((r: any) => {
-                  const candidates = [r.VehicleNo, r.Transport, r.TruckNo];
-                  for (const c of candidates) {
-                    if (c && String(c).trim() !== '' && !seen.has(String(c).trim())) {
-                      const v = String(c).trim();
-                      seen.add(v);
-                      items.push({ TransporterID: v, TransporterName: v });
-                    }
-                  }
-                });
-                this.Transporters = items;
-              } catch (e) {
-                this.Transporters = [];
-              }
-            })
-            .catch(() => { this.Transporters = []; });
-        });
+        .catch(() => { this.Transporters = []; });
     } catch (e) { this.Transporters = []; }
     this.activatedRoute.params.subscribe((params: Params) => {
       if (params.EditID) {

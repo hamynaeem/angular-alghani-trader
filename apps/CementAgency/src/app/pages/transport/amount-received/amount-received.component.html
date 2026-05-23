@@ -246,7 +246,7 @@
                 <td>{{ rec.Date | date:'shortDate' }}</td>
                 <td>{{ getCustomerName(rec.CustomerID) }}</td>
                 <td>{{ rec.Description }}</td>
-                <td>{{ rec.PaymentMethod || '' }}</td>
+                <td>{{ getPaymentMethod(rec) }}</td>
                 <td class="text-right">{{ rec.Debit | number:'1.2-2' }}</td>
                 <td class="text-right">{{ rec.Credit | number:'1.2-2' }}</td>
                 <td class="text-right" [ngClass]="{'text-danger': rec.Balance < 0, 'text-success': rec.Balance >= 0}">{{ rec.Balance | number:'1.2-2' }}</td>

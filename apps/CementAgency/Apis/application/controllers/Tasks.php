@@ -747,6 +747,70 @@ class Tasks extends REST_Controller
         $this->PostPurchases($InvoiceID);
         $this->response(['msg' => 'Invoice Post'], REST_Controller::HTTP_OK);
     }
+
+    // Delete a booking record (header, product details, sale details, and stock cache).
+    // Remove a booking from the Purchased Bookings list by clearing ONLY the stock_accts cache.
+    // booking_details (purchases + sales), booking header, invoices, pinvoices, and vouchers
+    // are ALL preserved so that purchase reports, sale reports, and daybook are NEVER affected.
+    public function deletebookingrecord_post()
+    {
+        $post_data = $this->post();
+        $bookingID = isset($post_data['BookingID']) ? intval($post_data['BookingID']) : 0;
+        if ($bookingID <= 0) {
+            $this->response(['msg' => 'Invalid BookingID'], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+        try {
+            $this->db->trans_begin();
+            // ONLY remove the posted stock cache. Everything else is kept intact.
+            $this->db->query('DELETE FROM `stock_accts` WHERE `booking_id`=' . $bookingID);
+            $this->db->trans_commit();
+            $this->response(['msg' => 'Booking removed from stock list'], REST_Controller::HTTP_OK);
+        } catch (Exception $e) {
+            try { $this->db->trans_rollback(); } catch (Exception $ex) { }
+            $this->response(['msg' => 'Error: ' . $e->getMessage()], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    // Zero the stock display for a transport+product by clearing ONLY the stock_accts cache.
+    // purchase rows, sale rows, products, booking header, invoices and vouchers are ALL kept.
+    public function resetbookingstock_post()
+    {
+        $post_data = $this->post();
+        $vehicleNo = isset($post_data['VehicleNo']) ? $this->db->escape_str($post_data['VehicleNo']) : '';
+        $productID = isset($post_data['ProductID']) ? intval($post_data['ProductID']) : 0;
+        if ($vehicleNo === '' || $productID <= 0) {
+            $this->response(['msg' => 'Invalid parameters'], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+        try {
+            // Find all BookingIDs for this vehicle+product
+            $rows = $this->db->query(
+                "SELECT DISTINCT b.BookingID FROM booking b
+                 JOIN booking_details bd ON bd.BookingID = b.BookingID
+                 WHERE b.VehicleNo='" . $vehicleNo . "' AND bd.ProductID=" . $productID
+            )->result_array();
+
+            if (empty($rows)) {
+                $this->response(['msg' => 'No bookings found'], REST_Controller::HTTP_OK);
+                return;
+            }
+
+            $this->db->trans_begin();
+            foreach ($rows as $row) {
+                $bid = intval($row['BookingID']);
+                // ONLY remove the posted stock cache for this booking.
+                // booking_details (purchases + sales), products, invoices, vouchers are untouched.
+                $this->db->query('DELETE FROM `stock_accts` WHERE `booking_id`=' . $bid);
+            }
+            $this->db->trans_commit();
+            $this->response(['msg' => 'Stock zeroed'], REST_Controller::HTTP_OK);
+        } catch (Exception $e) {
+            try { $this->db->trans_rollback(); } catch (Exception $ex) { }
+            $this->response(['msg' => 'Error: ' . $e->getMessage()], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
     public function delete_post()
     {
         $post_data = $this->post();

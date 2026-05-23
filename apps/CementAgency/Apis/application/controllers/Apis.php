@@ -495,16 +495,32 @@ class Apis extends REST_Controller
         $this->load->database();
         $bid = intval($this->get('bid') ?: 0);
 
-        // Build SQL safely and only apply BusinessID if the view has that field
-        // Use Amount as fallback when NetAmount is not present on the view
+        // Determine the source to query: prefer the qryinvoices view if it exists,
+        // otherwise fall back to the base `invoices` table. Then detect which
+        // amount column to use on that source.
+        $sourceInvoices = $this->db->table_exists('qryinvoices') ? 'qryinvoices' : 'invoices';
         $netAmountCol = 'NetAmount';
-        if (! $this->db->field_exists($netAmountCol, 'qryinvoices')) {
-            if ($this->db->field_exists('Amount', 'qryinvoices')) {
+        if (! $this->db->field_exists($netAmountCol, $sourceInvoices)) {
+            if ($this->db->field_exists('Amount', $sourceInvoices)) {
                 $netAmountCol = 'Amount';
+            } else {
+                // As a last resort, if neither column exists default to 0 via SQL later
+                $netAmountCol = '0';
             }
         }
 
-        $sql = "SELECT InvoiceID as INo, Date, CustomerName, Address, City, " . $netAmountCol . " AS NetAmount, ";
+        // Only the qryinvoices view reliably contains Address/City in many setups.
+        // If we're falling back to the base `invoices` table, always return empty
+        // Address/City aliases so SQL won't fail on missing columns.
+        if ($fromTable === 'qryinvoices') {
+            $addressCol = $this->db->field_exists('Address', 'qryinvoices') ? 'Address' : "'' AS Address";
+            $cityCol = $this->db->field_exists('City', 'qryinvoices') ? 'City' : "'' AS City";
+        } else {
+            $addressCol = "'' AS Address";
+            $cityCol = "'' AS City";
+        }
+
+        $sql = "SELECT InvoiceID as INo, Date, CustomerName, " . $addressCol . ", " . $cityCol . ", " . $netAmountCol . " AS NetAmount, ";
 
         // Build safe subqueries for Cost and Profit depending on available columns in qrysalereport
         $hasCost = $this->db->field_exists('Cost', 'qrysalereport');
@@ -512,32 +528,34 @@ class Apis extends REST_Controller
         $hasAmount = $this->db->field_exists('Amount', 'qrysalereport');
 
         if ($hasCost) {
-            $costSub = "(SELECT SUM(Cost) FROM qrysalereport WHERE qrysalereport.InvoiceID = qryinvoices.InvoiceID)";
+            $costSub = "(SELECT SUM(Cost) FROM qrysalereport WHERE qrysalereport.InvoiceID = " . $fromTable . ".InvoiceID)";
         } else {
             $costSub = "(SELECT 0)";
         }
 
         if ($hasNetAmount && $hasCost) {
-            $profitSub = "(SELECT SUM(NetAmount - Cost) FROM qrysalereport WHERE qrysalereport.InvoiceID = qryinvoices.InvoiceID)";
+            $profitSub = "(SELECT SUM(NetAmount - Cost) FROM qrysalereport WHERE qrysalereport.InvoiceID = " . $fromTable . ".InvoiceID)";
         } elseif ($hasAmount && $hasCost) {
-            $profitSub = "(SELECT SUM(Amount - Cost) FROM qrysalereport WHERE qrysalereport.InvoiceID = qryinvoices.InvoiceID)";
+            $profitSub = "(SELECT SUM(Amount - Cost) FROM qrysalereport WHERE qrysalereport.InvoiceID = " . $fromTable . ".InvoiceID)";
         } elseif ($hasNetAmount && ! $hasCost) {
-            $profitSub = "(SELECT SUM(NetAmount) FROM qrysalereport WHERE qrysalereport.InvoiceID = qryinvoices.InvoiceID)";
+            $profitSub = "(SELECT SUM(NetAmount) FROM qrysalereport WHERE qrysalereport.InvoiceID = " . $fromTable . ".InvoiceID)";
         } elseif ($hasAmount && ! $hasCost) {
-            $profitSub = "(SELECT SUM(Amount) FROM qrysalereport WHERE qrysalereport.InvoiceID = qryinvoices.InvoiceID)";
+            $profitSub = "(SELECT SUM(Amount) FROM qrysalereport WHERE qrysalereport.InvoiceID = " . $fromTable . ".InvoiceID)";
         } else {
             $profitSub = "(SELECT 0)";
         }
 
         $sql .= $costSub . " as Cost, ";
         $sql .= $profitSub . " as Profit, ";
-        $sql .= "DtCr from qryinvoices ";
+        // Use qryinvoices view when available; fall back to invoices table if the view is missing.
+        $fromTable = $this->db->table_exists('qryinvoices') ? 'qryinvoices' : 'invoices';
+        $sql .= "DtCr from " . $fromTable . " ";
 
         if ($filter && trim($filter) != '') {
             $sql .= " WHERE " . $filter;
         }
 
-        if ($this->db->field_exists('BusinessID', 'qryinvoices')) {
+        if ($this->db->field_exists('BusinessID', $fromTable)) {
             // append BusinessID condition
             if (stripos($sql, ' where ') !== false) {
                 $sql .= ' and (BusinessID = ' . $bid . ')';

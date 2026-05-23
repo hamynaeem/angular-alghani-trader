@@ -1,5 +1,14 @@
 <div widget class="card border-0 box-shadow">
-  <div class="card-header transparent border-0 text-muted">
+  <div class="card-header transparent border-0 text-muted d-flex justify-content-between align-items-center">
+    <div></div>
+    <div>
+      <button class="btn btn-outline-info btn-sm mr-2" type="button" title="Show Reports" (click)="showReports()">
+        <i class="fa fa-file-text"></i>
+      </button>
+      <button class="btn btn-outline-secondary btn-sm" type="button" title="Print" (click)="printVoucher()">
+        <i class="fa fa-print"></i>
+      </button>
+    </div>
   </div>
   <div class="card-block widget-body">
     <form #frmFilter="ngForm" (submit)="SaveData()">

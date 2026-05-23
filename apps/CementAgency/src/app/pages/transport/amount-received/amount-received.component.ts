@@ -321,22 +321,53 @@ export class AmountReceivedComponent implements OnInit {
       );
 
       // Some backends' `qryvouchers` view may not include `PaymentMethod`.
-      // If missing, fetch raw `vouchers` and merge PaymentMethod into the records.
-      if (r && r.length > 0 && r[0].PaymentMethod === undefined) {
+      // If missing or falsy, fetch raw `vouchers` and merge PaymentMethod into the records.
+      if (r && r.length > 0 && !r[0].PaymentMethod) {
         try {
           const v: any = await this.http.getData(
             'vouchers?filter=' + encodeURIComponent(filter) + '&orderby=Date desc'
           );
-          const map = new Map<any, any>();
+          // Build maps keyed by common id fields for robust matching.
+          const mapByVoucherID = new Map<any, any>();
+          const mapByRefID = new Map<any, any>();
           for (const x of (v || [])) {
-            const vid = x.VoucherID || x.VoucherId || x.voucherid || x.id || x.RefID;
-            if (vid) map.set(vid, x);
+            const vid = x.VoucherID || x.VoucherId || x.voucherid || x.id;
+            const ref = x.RefID || x.RefId || x.refid || x.RefId;
+            if (vid) mapByVoucherID.set(String(vid), x);
+            if (ref) mapByRefID.set(String(ref), x);
           }
+
           for (const rec of (r || [])) {
-            const rid = rec.VoucherID || rec.VoucherId || rec.voucherid || rec.id || rec.RefID;
-            const match = rid ? map.get(rid) : null;
+            let match = null;
+            const recVoucherId = rec.VoucherID || rec.VoucherId || rec.voucherid || rec.id;
+            const recRefId = rec.RefID || rec.RefId || rec.refid || rec.id;
+            if (recVoucherId && mapByVoucherID.has(String(recVoucherId))) {
+              match = mapByVoucherID.get(String(recVoucherId));
+            } else if (recRefId && mapByRefID.has(String(recRefId))) {
+              match = mapByRefID.get(String(recRefId));
+            } else if (rec.RefID && mapByRefID.has(String(rec.RefID))) {
+              match = mapByRefID.get(String(rec.RefID));
+            }
+
+            if (!match) {
+              // fallback: try matching by date + amount + customer
+              match = (v || []).find((x: any) => {
+                try {
+                  return (
+                    (rec.Date && x.Date && String(rec.Date).substring(0,10) === String(x.Date).substring(0,10)) &&
+                    (Number(rec.Credit || rec.Amount || rec.Received || 0) === Number(x.Credit || x.Amount || 0)) &&
+                    (String(rec.CustomerID || rec.CustomerName || '').trim() === String(x.CustomerID || x.CustomerName || '').trim())
+                  );
+                } catch (e) {
+                  return false;
+                }
+              }) || null;
+            }
+
             if (match) {
-              rec.PaymentMethod = match.PaymentMethod || match.paymentmethod || '';
+              rec.PaymentMethod = match.PaymentMethod || match.paymentmethod || match.PaymentType || '';
+            } else {
+              rec.PaymentMethod = rec.PaymentMethod || '';
             }
           }
         } catch (mergeErr) {
@@ -349,6 +380,14 @@ export class AmountReceivedComponent implements OnInit {
       console.error('ShowAll error', err);
       this.alert.Error('Failed to load records', 'Error', 1);
     }
+  }
+
+  // Helper to return a payment method from multiple possible field names
+  getPaymentMethod(rec: any): string {
+    if (!rec) return '';
+    return (
+      rec.PaymentMethod || rec.paymentmethod || rec.PaymentType || rec.Payment || rec.Method || ''
+    );
   }
 
   async deleteRecord(index: number, rec: any) {

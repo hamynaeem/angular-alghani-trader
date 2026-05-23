@@ -77,18 +77,23 @@ export class NavbarComponent implements OnInit, AfterViewInit, OnDestroy {
   ngOnInit() {
     this.listItems = LISTITEMS;
 
-      this.http.getData('business/' + this.http.getBusinessID()).then((b) => {
-      this.business = b;
-      this.ExpiryDate = this.business.ExpiryDate;
-      this.exp_days = datediff(new Date(), Date.parse(this.ExpiryDate));
-      if (this.exp_days >= 1 && this.exp_days <= 5) {
-        swal(
-          'Warning!',
-          'Your account is expiring on ' + this.ExpiryDate,
-          'warning'
-        );
-      }
-    });
+      this.http.getData('business/' + this.http.getBusinessID()).then((b: any) => {
+        this.business = b || {};
+        // Guard against null/undefined response
+        if (b && b.ExpiryDate) {
+          this.ExpiryDate = b.ExpiryDate;
+          const parsed = Date.parse(this.ExpiryDate);
+          if (!isNaN(parsed)) {
+            this.exp_days = datediff(new Date(), parsed);
+            if (this.exp_days >= 1 && this.exp_days <= 5) {
+              swal('Warning!', 'Your account is expiring on ' + this.ExpiryDate, 'warning');
+            }
+          }
+        }
+      }).catch((_err) => {
+        // ignore errors getting business info; keep navbar functioning
+        this.business = this.business || {};
+      });
 
 
     if (this.innerWidth < 1200) {

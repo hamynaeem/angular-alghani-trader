@@ -23,8 +23,8 @@
       <ul class="navbar-nav" (clickOutside)="toggleSearchOpenClass(false)">
         <li class="d-none d-sm-block">
           <div class="primary px-4">
-            <strong>{{ business.BusinessName }}</strong>
-            <br />{{ business.Address }} {{ business.City }}
+            <strong>{{ business?.BusinessName }}</strong>
+            <br />{{ business?.Address }} {{ business?.City }}
           </div>
         </li>
         <li class="d-none d-sm-block">

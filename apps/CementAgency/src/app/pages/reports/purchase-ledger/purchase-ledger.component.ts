@@ -32,6 +32,10 @@ export class PurchaseLedgerComponent implements OnInit {
         fldName: 'BookingID',
       },
       {
+        label: 'Transport No',
+        fldName: 'TransportNo',
+      },
+      {
         label: 'Product Name',
         fldName: 'ProductName',
       },
@@ -142,48 +146,55 @@ export class PurchaseLedgerComponent implements OnInit {
       if (this.nWhat == '1') filter += ' and ProductID=' + this.Filter.ItemID;
       else filter += ' and UnitID=' + this.Filter.ItemID;
 
-    let flds =
-      'Date,BookingID, ProductName, Qty, PPrice, Amount';
+    const baseFlds = 'Date,BookingID, ProductName, Qty, PPrice, Amount';
+    // Transport fields are not always present in the `qrypurchasereport` view on some backends.
+    // Query bookings separately and merge transport numbers by BookingID to avoid 500 errors.
+    let flds = baseFlds;
 
     // If a SupplierID filter is present, prefer an MQRY SQL that joins booking to avoid
     // backend 500 errors when the `qrypurchasereport` view does not accept SupplierID filter.
     if (this.Filter?.SupplierID) {
       const sid = String(this.Filter.SupplierID);
-      const mqrySql = `SELECT p.Date, p.BookingID, p.ProductName, p.Qty, p.PPrice, p.Amount, b.SupplierID FROM qrypurchasereport p LEFT JOIN booking b ON p.BookingID = b.BookingID WHERE p.Date between '${getYMDDate(fromDate)}' and '${getYMDDate(toDate)}' AND b.SupplierID = ${sid} ORDER BY p.Date, p.BookingID`;
-      this.http
-        .getData('MQRY?qrysql=' + encodeURIComponent(mqrySql))
-        .then((mq: any) => {
-          const rows = Array.isArray(mq) ? mq : (mq && Array.isArray(mq.data) ? mq.data : []);
-          this.data = rows;
-        })
-        .catch((mqErr) => {
-          console.error('MQRY supplier-query failed', mqErr);
-          // fallback: try the original endpoint without SupplierID and filter client-side
-          const dateOnlyFilter = "Date between '" + getYMDDate(fromDate) + "' and '" + getYMDDate(toDate) + "'";
-          this.http
-            .getData(`qrypurchasereport?orderby=Date,BookingID&flds=${flds}&filter=${encodeURIComponent(dateOnlyFilter)}`)
-            .then((rows: any) => {
-              const purchases = Array.isArray(rows) ? rows : (rows && Array.isArray(rows.data) ? rows.data : []);
-              try {
-                const filtered = (purchases || []).filter((row: any) => {
-                  const id = row?.SupplierID ?? row?.Supplier ?? row?.CustomerID ?? row?.AccountID ?? row?.Account ?? row?.Customer ?? '';
-                  return id !== undefined && id !== null && String(id) === sid;
-                });
-                this.data = filtered;
-              } catch (e) {
-                this.data = purchases;
-              }
-            })
-            .catch((e2) => {
-              console.error('Retry without SupplierID failed', e2);
-              try {
-                const msg = mqErr.error || mqErr.message || JSON.stringify(mqErr);
-                alert('Server error: ' + msg);
-              } catch (e) {
-                alert('Server error. Check console for details.');
-              }
+      const mqrySql = `SELECT p.Date, p.BookingID, p.ProductName, p.Qty, p.PPrice, p.Amount, b.SupplierID, b.Transport AS Transport, b.TransportNo AS TransportNo, b.VehicleNo AS VehicleNo FROM qrypurchasereport p LEFT JOIN booking b ON p.BookingID = b.BookingID WHERE p.Date between '${getYMDDate(fromDate)}' and '${getYMDDate(toDate)}' AND b.SupplierID = ${sid} ORDER BY p.Date, p.BookingID`;
+      this.http.getData('MQRY?qrysql=' + encodeURIComponent(mqrySql)).then((mq: any) => {
+        const rows = Array.isArray(mq) ? mq : (mq && Array.isArray(mq.data) ? mq.data : []);
+        this.data = (rows || []).map((row: any) => ({ ...row, TransportNo: row.TransportNo || row.Transport || row.VehicleNo || '' }));
+      }).catch((mqErr) => {
+        console.error('MQRY supplier-query failed', mqErr);
+        // fallback: try the original endpoint without SupplierID and filter client-side
+        const dateOnlyFilter = "Date between '" + getYMDDate(fromDate) + "' and '" + getYMDDate(toDate) + "'";
+        this.http.getData(`qrypurchasereport?orderby=Date,BookingID&flds=${baseFlds}&filter=${encodeURIComponent(dateOnlyFilter)}`).then((rows: any) => {
+          const purchases = Array.isArray(rows) ? rows : (rows && Array.isArray(rows.data) ? rows.data : []);
+          try {
+            const filtered = (purchases || []).filter((row: any) => {
+              const id = row?.SupplierID ?? row?.Supplier ?? row?.CustomerID ?? row?.AccountID ?? row?.Account ?? row?.Customer ?? '';
+              return id !== undefined && id !== null && String(id) === sid;
             });
+            this.data = filtered;
+          } catch (e) {
+            this.data = purchases;
+          }
+          // Merge transport numbers by fetching booking rows for BookingIDs present
+          const bookingIds = (this.data || []).map((r: any) => Number(r.BookingID || r.bookingID || 0)).filter((v: number) => v > 0);
+          if (bookingIds.length) {
+              const q = `qrybooking?flds=BookingID,VehicleNo&filter=BookingID in (${bookingIds.join(',')})`;
+                this.http.getData(q).then((bk: any) => {
+                  const bookings = Array.isArray(bk) ? bk : (bk && Array.isArray(bk.data) ? bk.data : []);
+                  const map: any = {};
+                  (bookings || []).forEach((b: any) => (map[String(b.BookingID)] = b.VehicleNo || ''));
+                  this.data = (this.data || []).map((row: any) => ({ ...row, TransportNo: map[String(row.BookingID)] || row.TransportNo || '' }));
+                }).catch(() => { /* ignore booking merge errors */ });
+          }
+        }).catch((e2) => {
+          console.error('Retry without SupplierID failed', e2);
+          try {
+            const msg = mqErr.error || mqErr.message || JSON.stringify(mqErr);
+            alert('Server error: ' + msg);
+          } catch (ee) {
+            alert('Server error. Check console for details.');
+          }
         });
+      });
     } else {
       // No supplier filter — use the standard endpoint
       this.http
@@ -191,7 +202,21 @@ export class PurchaseLedgerComponent implements OnInit {
           `qrypurchasereport?orderby=Date,BookingID&flds=${flds}&filter=${encodeURIComponent(filter)}`
         )
         .then((r: any) => {
-          this.data = r;
+          const rows = Array.isArray(r) ? r : (r && Array.isArray(r.data) ? r.data : []);
+          this.data = (rows || []).map((row: any) => ({ ...row }));
+          // If qrypurchasereport doesn't include transport fields, merge from booking by BookingID
+          try {
+            const bookingIds = (this.data || []).map((r: any) => Number(r.BookingID || r.bookingID || 0)).filter((v: number) => v > 0);
+            if (bookingIds.length) {
+              const q = `qrybooking?flds=BookingID,VehicleNo&filter=BookingID in (${bookingIds.join(',')})`;
+              this.http.getData(q).then((bk: any) => {
+                const bookings = Array.isArray(bk) ? bk : (bk && Array.isArray(bk.data) ? bk.data : []);
+                const map: any = {};
+                (bookings || []).forEach((b: any) => (map[String(b.BookingID)] = b.VehicleNo || ''));
+                this.data = (this.data || []).map((row: any) => ({ ...row, TransportNo: map[String(row.BookingID)] || row.TransportNo || '' }));
+              }).catch(() => { /* ignore booking merge errors */ });
+            }
+          } catch (e) { /* ignore */ }
         })
         .catch((err) => {
           console.error('Purchase ledger error', err);

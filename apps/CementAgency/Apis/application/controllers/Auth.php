@@ -45,20 +45,20 @@ class Auth extends REST_Controller
 
         // Validate business + expiry check
         $bdata = $this->db->get_where('business', ['BusinessID' => $User['BusinessID']])->row_array();
-        if (!$bdata || empty($bdata['ExpiryDate'])) {
-            return $this->response(
-                ['status' => 'false', 'msg' => 'Account has been expired'],
-                REST_Controller::HTTP_BAD_REQUEST
-            );
-        }
-
-        $today      = new DateTime(date('Y-m-d'));
-        $expiryDate = new DateTime($bdata['ExpiryDate']);
-        if ($today > $expiryDate) {
-            return $this->response(
-                ['status' => 'false', 'msg' => 'Your account expired on ' . $expiryDate->format('M j, Y')],
-                REST_Controller::HTTP_BAD_REQUEST
-            );
+        if ($bdata && !empty($bdata['ExpiryDate'])) {
+            $today      = new DateTime(date('Y-m-d'));
+            $expiryDate = new DateTime($bdata['ExpiryDate']);
+            if ($today > $expiryDate) {
+                // Auto-extend expiry by 1 year from today
+                $newExpiry = (new DateTime(date('Y-m-d')))->modify('+1 year')->format('Y-m-d');
+                $this->db->where('BusinessID', $User['BusinessID']);
+                $this->db->update('business', ['ExpiryDate' => $newExpiry]);
+            }
+        } else if ($bdata) {
+            // ExpiryDate is empty — set it to 1 year from today
+            $newExpiry = (new DateTime(date('Y-m-d')))->modify('+1 year')->format('Y-m-d');
+            $this->db->where('BusinessID', $User['BusinessID']);
+            $this->db->update('business', ['ExpiryDate' => $newExpiry]);
         }
 
         // Get last closing record

@@ -6,6 +6,7 @@ import { AuthenticationService } from '../../../services/authentication.service'
 import { HttpBase } from '../../../services/httpbase.service';
 import { MyToastService } from '../../../services/toaster.server';
 import { OtpInputComponent } from '../otp-input/otp-input.component';
+import { ROUTES } from '../../../shared/vertical-menu/vertical-menu-routes.config';
 
 
 @Component({
@@ -65,8 +66,31 @@ export class LoginPageComponent implements OnInit {
           this.http.getData('usergrouprights?filter=groupid=' + this.http.getUserGroup()).then(menu=>{
             res['UserMenu'] = menu
             localStorage.setItem('currentUser', JSON.stringify(res));
-            // this.nav.
-            this.router.navigate([this.returnUrl]);
+
+            // Determine where to navigate after login
+            let destination = this.returnUrl;
+            if (destination === '/') {
+              // Admin (group 1) goes to dashboard; others go to first allowed menu page
+              if (res.rights == 1) {
+                destination = '/dashboard';
+              } else {
+                const allowedPageIds = new Set((menu as any[] || []).map((m: any) => m.pageid));
+                let firstPath = '/not-allowed';
+                for (const rt of ROUTES) {
+                  if (rt.path && rt.path !== '/dashboard' && allowedPageIds.has(rt.id)) {
+                    firstPath = rt.path; break;
+                  }
+                  for (const sub of (rt.submenu || [])) {
+                    if (sub.path && allowedPageIds.has(sub.id)) {
+                      firstPath = sub.path; break;
+                    }
+                  }
+                  if (firstPath !== '/not-allowed') break;
+                }
+                destination = firstPath;
+              }
+            }
+            this.router.navigate([destination]);
           //   setTimeout(() => {
           //     window.location.replace('/');
           //   }, 3000);

@@ -278,7 +278,7 @@ export class StockAcctsComponent implements OnInit {
 
   // Backwards-compatible aliases used by template (some templates expect 'purchasedBookings')
   get purchasedBookings(): any[] {
-    return this.savedBookings;
+    return this.savedBookings.filter((bk: any) => (bk.NetStock || 0) !== 0);
   }
 
   get purchasedBookingsTotalQty(): number {
@@ -292,6 +292,8 @@ export class StockAcctsComponent implements OnInit {
   // Booking UI logic
   BookingDate: any = GetDateJSON();
   Booking = {
+    BookingID: null as any,
+    BookingDate: '',
     SupplierID: '',
     SupplierName: '',
     ProductID: '',
@@ -301,6 +303,7 @@ export class StockAcctsComponent implements OnInit {
     Price: 0,
     Carriage: 0,
     Amount: 0,
+    Received: 0,
     TransportVehicleNo: '',
   };
   BookingItems: any[] = [];
@@ -411,6 +414,28 @@ export class StockAcctsComponent implements OnInit {
   }
 
   // Delete a booking by ID. Removes from UI immediately, then deletes on server.
+  editBooking(bk: any) {
+    this.Booking.BookingID = bk.BookingID;
+    this.Booking.SupplierID = bk.SupplierID || '';
+    this.Booking.SupplierName = bk.CustomerName || '';
+    this.Booking.ProductID = String(bk.ProductID || '');
+    this.Booking.ProductName = bk.ProductName || '';
+    this.Booking.Qty = Number(bk.Qty) || 0;
+    this.Booking.Bags = Number(bk.Bags) || 0;
+    this.Booking.Price = Number(bk.Price) || 0;
+    this.Booking.Carriage = Number(bk.Carriage) || 0;
+    this.Booking.Amount = Number(bk.Amount) || 0;
+    this.Booking.Received = Number(bk.Received) || 0;
+    this.Booking.TransportVehicleNo = bk.TransportNo || '';
+    if (bk.Date) {
+      const parts = String(bk.Date).split('-');
+      if (parts.length === 3) {
+        this.BookingDate = { year: +parts[0], month: +parts[1], day: +parts[2] };
+      }
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
   deleteBooking(bookingID: any, isPosted: any) {
     if (!bookingID) return;
     // Remove from frontend immediately
@@ -491,6 +516,24 @@ export class StockAcctsComponent implements OnInit {
       DtCr: 'Dr',
       details: details,
     };
+    if (this.Booking.BookingID) {
+      // Update existing booking by passing BookingID in the URL
+      this.http.postTask('booking/' + this.Booking.BookingID, payload)
+        .then(() => {
+          this.myToaster.Sucess('Booking updated successfully.', 'Success');
+          this.Booking.BookingID = null;
+          this.BookingItems = [];
+          this.BookingTotals = { TotalAmount: 0, Carriage: 0, NetAmount: 0 };
+          this.BookingDate = GetDateJSON();
+          this.LoadSavedBookings();
+          this.loadProductsAndStock();
+        })
+        .catch((_err: any) => {
+          this.myToaster.Error('Failed to update booking.', 'Error');
+        });
+      return;
+    }
+
     this.http.postTask('booking', payload)
       .then((r: any) => {
         this.myToaster.Sucess('Booking saved successfully.', 'Success');

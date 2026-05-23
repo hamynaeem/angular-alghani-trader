@@ -34,7 +34,7 @@ export class PurchasesummaryComponent implements OnInit {
         fldName: 'ProductName',
       },
       {
-        label: 'Transport No',
+        label: 'Vehicle No',
         fldName: 'TransportNo',
       },
 
@@ -61,6 +61,23 @@ export class PurchasesummaryComponent implements OnInit {
         sum: true,
         valueFormatter: (d: any) => {
           return formatNumber(d['Amount']);
+        },
+      },
+      {
+        label: 'Received amount',
+        fldName: 'ReceivedAmount',
+        sum: true,
+        valueFormatter: (d: any) => {
+          return formatNumber(d['ReceivedAmount']);
+        },
+
+      },
+      {
+        label: 'Balance',
+        fldName: 'Balance',
+        sum: true,
+        valueFormatter: (d: any) => {
+          return formatNumber(d['Balance']);
         },
       },
     ],
@@ -241,6 +258,17 @@ export class PurchasesummaryComponent implements OnInit {
         }
       } catch (e) { /* ignore and use unfiltered purchases */ }
 
+      // client-side filter for ProductID when server-side SQL wasn't used
+      try {
+        if (this.Filter?.ProductID && String(this.Filter.ProductID) !== '') {
+          const pid = String(this.Filter.ProductID);
+          filtered = (filtered || []).filter((row: any) => {
+            const rid = row?.ProductID ?? row?.ProductId ?? row?.Product ?? '';
+            return rid !== undefined && rid !== null && String(rid) === pid;
+          });
+        }
+      } catch (e) { /* ignore and keep existing filtered set */ }
+
       // prepare suppliers list (prefer preloaded Suppliers, fallback to Accounts)
       let suppliersList: any[] = Array.isArray(this.Suppliers) ? this.Suppliers.slice() : [];
       if ((!suppliersList || suppliersList.length === 0) && Array.isArray(this.Accounts) && this.Accounts.length) {
@@ -292,10 +320,68 @@ export class PurchasesummaryComponent implements OnInit {
         } catch (e) { /* ignore */ }
 
         try { row.Qty = Number(row?.Qty ?? row?.Quantity ?? row?.QtyOrdered ?? row?.QtySold ?? 0); } catch (e) { row.Qty = 0; }
+        // initialize Received/Balance so table has values even before aggregation
+        try { row.ReceivedAmount = Number(row?.ReceivedAmount ?? row?.Received ?? 0); } catch (e) { row.ReceivedAmount = 0; }
+        try {
+          const amt = Number(row?.Amount || 0);
+          const rec = Number(row?.ReceivedAmount || 0);
+          row.Balance = Number(row?.Balance ?? (amt - rec));
+        } catch (e) { row.Balance = Number(row?.Amount || 0); }
         return row;
       });
 
-      this.data = mapped;
+      // Fetch booking detail Received values for the displayed BookingIDs and merge
+      try {
+        const bookingIds = (mapped || []).map((r: any) => r?.BookingID).filter((v: any) => v !== undefined && v !== null && String(v) !== '');
+        const uniq = Array.from(new Set(bookingIds));
+        if (uniq.length > 0) {
+          const idsFilter = 'BookingID in (' + uniq.join(',') + ')';
+          const flds = 'BookingID,Received';
+          // Prefer an MQRY aggregation to avoid 500s when a view doesn't expose Received
+          const mqrySql = `SELECT BookingID, IFNULL(SUM(Received),0) AS Received FROM booking_details WHERE BookingID IN (${uniq.join(',')}) GROUP BY BookingID`;
+          const attempts = [
+            `MQRY?qrysql=${encodeURIComponent(mqrySql)}`,
+            `qrybookingdetails?filter=${encodeURIComponent(idsFilter)}&flds=${flds}`,
+            `qrybookingsale?filter=${encodeURIComponent(idsFilter)}&flds=${flds}`,
+            `qrybookingpurchase?filter=${encodeURIComponent(idsFilter)}&flds=${flds}`,
+            `booking_details?filter=${encodeURIComponent(idsFilter)}&flds=${flds}`,
+          ];
+
+          const tryNext = (i: number): Promise<any[]> => {
+            if (i >= attempts.length) return Promise.resolve([]);
+            const u = attempts[i];
+            return this.http.getData(u).then((d: any) => {
+              const rowsD: any[] = Array.isArray(d) ? d : (d && Array.isArray(d.data) ? d.data : []);
+              if (rowsD && rowsD.length > 0) return rowsD;
+              // empty response -> try next
+              return tryNext(i + 1);
+            }).catch((err: any) => {
+              return tryNext(i + 1);
+            });
+          };
+
+          tryNext(0).then((rowsD: any[]) => {
+            const recvMap: any = {};
+            (rowsD || []).forEach((rd: any) => {
+              const id = rd && (rd.BookingID ?? rd.BookingId ?? rd.bookingid);
+              const val = Number(rd?.Received ?? rd?.Recvd ?? rd?.received ?? 0) || 0;
+              if (id !== undefined && id !== null) recvMap[String(id)] = (recvMap[String(id)] || 0) + val;
+            });
+            (mapped || []).forEach((m: any) => {
+              try {
+                const v = Number(recvMap[String(m.BookingID)] || 0);
+                m.ReceivedAmount = v;
+                m.Balance = Number(m.Amount || 0) - v;
+              } catch (e) {}
+            });
+            this.data = mapped;
+          }).catch(() => { this.data = mapped; });
+        } else {
+          this.data = mapped;
+        }
+      } catch (e) {
+        this.data = mapped;
+      }
     };
 
     // Primary attempt: fetch the fallback view first (safer). Only use MQRY as last-resort.

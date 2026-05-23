@@ -94,12 +94,20 @@
                 <label>AMOUNT:</label>
                 <input type="number" class="form-control" [value]="Booking.Amount" readonly />
               </div>
+               <div class="col-md-1 form-group">
+                <label>Recieved:</label>
+                <input name="bookreceived" type="number" class="form-control" [(ngModel)]="Booking.Received"
+                  (ngModelChange)="computeBookingAmount()" />
+              </div>
+              <div class="col-md-2 form-group">
+                <label>Balance:</label>
+                <input type="number" class="form-control" [value]="Booking.Amount - Booking.Received" readonly />
+              </div>
 
               <div class="col-md-12 text-right">
 
                 <button class="btn btn-success" type="button" (click)="PurchaseBooking()"><i class="fa fa-save"></i>
-
-                 Purchase Booking</button>
+                 {{ Booking.BookingID ? 'Update Booking' : 'Purchase Booking' }}</button>
               </div>
             </div>
 
@@ -145,10 +153,12 @@
                       {{ bk.NetStock | number:'1.0-0' }}
                     </td>
                     <td class="text-center">
-                      <div class="btn-group">
-                        <button class="btn btn-sm btn-light text-danger" title="Delete booking"
-                          (click)="deleteBooking(bk.BookingID, bk.IsPosted)"><i class="fa fa-trash"></i></button>
-                      </div>
+                      <button class="btn btn-sm btn-warning mr-1" title="Edit booking" (click)="editBooking(bk)">
+                        <i class="fa fa-edit"></i>
+                      </button>
+                      <!-- <button class="btn btn-sm btn-danger" title="Delete booking" (click)="deleteBooking(bk.BookingID, false)">
+                        <i class="fa fa-trash"></i>
+                      </button> -->
                     </td>
                   </tr>
                   <tr *ngIf="purchasedBookings.length === 0">
