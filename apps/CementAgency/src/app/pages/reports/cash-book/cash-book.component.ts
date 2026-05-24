@@ -330,7 +330,7 @@ export class CashBookComponent implements OnInit {
           Amount: Number(row.Amount) || 0,
           Discount: Number(row.Discount) || 0,
           Received: Number(row.Received) || 0,
-          Balance: Number(row.Balance) || (Number(row.Amount) || 0) - (Number(row.Discount) || 0) - (Number(row.Received) || 0),
+          Balance: (Number(row.Amount) || 0) - (Number(row.Discount) || 0) - (Number(row.Received) || 0),
         }));
         this.saleSetting.Data = this.saleData;
 
@@ -370,7 +370,7 @@ export class CashBookComponent implements OnInit {
           Amount: p.Amount,
           Discount: 0,
           Received: 0,
-          Balance: 0,
+          Balance: p.Amount,
         })));
         this.combinedSetting.Data = this.combinedData;
       })

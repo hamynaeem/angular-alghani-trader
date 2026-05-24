@@ -272,10 +272,25 @@ export class CustomersComponent implements OnInit {
       filter += ' AND NOT (Balance between  -1000 and 1000)';
     }
 
-    this.data = await this.http.getData(
+    const customersRaw: any = await this.http.getData(
       'qrycustomers?orderby=CustomerName&filter=' + filter
     );
+    const customers: any[] = Array.isArray(customersRaw) ? customersRaw : [];
 
+    // Sync balances from customeraccts ledger into customers.Balance before display
+    try {
+      await this.http.postTask('recalcbalances', {});
+      const refreshedRaw: any = await this.http.getData(
+        'qrycustomers?orderby=CustomerName&filter=' + filter
+      );
+      const refreshed: any[] = Array.isArray(refreshedRaw) ? refreshedRaw : [];
+      if (refreshed.length > 0) {
+        this.data = refreshed;
+        return;
+      }
+    } catch (e) { /* fallback: use already-fetched data */ }
+
+    this.data = customers;
     // this.dataList.FilterTable(filter);
   }
   Clicked(e: any) {

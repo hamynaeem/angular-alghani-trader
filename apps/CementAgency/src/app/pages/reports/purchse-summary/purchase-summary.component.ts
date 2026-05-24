@@ -232,13 +232,20 @@ export class PurchasesummaryComponent implements OnInit {
       where += ` AND b.SupplierID = ${this.Filter.SupplierID}`;
     }
 
-    const sql = `SELECT p.BookingID, p.ProductName, c.CustomerName AS SupplierName,
-      b.Transport AS Transport, b.TransportNo AS TransportNo, b.VehicleNo AS VehicleNo,
-      p.PPrice, p.Qty, (p.PPrice * p.Qty) AS Amount
-      FROM qrypurchasereport p
-      LEFT JOIN booking b ON p.BookingID = b.BookingID
+    const sql = `SELECT bd.BookingID, p.ProductName, c.CustomerName AS SupplierName,
+      b.VehicleNo AS TransportNo,
+      bd.PPrice, bd.Qty,
+      (bd.PPrice * bd.Qty) AS Amount,
+      IFNULL(bd.Received, 0) AS ReceivedAmount,
+      (bd.PPrice * bd.Qty) - IFNULL(bd.Received, 0) AS Balance
+      FROM booking_details bd
+      LEFT JOIN booking b ON bd.BookingID = b.BookingID
+      LEFT JOIN products p ON bd.ProductID = p.ProductID
       LEFT JOIN customers c ON b.SupplierID = c.CustomerID
-      WHERE ${where}
+      WHERE b.Date BETWEEN '${from}' AND '${to}'
+      AND bd.Type = 1
+      ${this.Filter?.ProductID ? `AND bd.ProductID = ${this.Filter.ProductID}` : ''}
+      ${this.Filter?.SupplierID ? `AND b.SupplierID = ${this.Filter.SupplierID}` : ''}
       ORDER BY c.CustomerName, p.ProductName`;
 
     const fallbackUrl = 'qrypurchasereport';
@@ -384,50 +391,24 @@ export class PurchasesummaryComponent implements OnInit {
       }
     };
 
-    // Primary attempt: fetch the fallback view first (safer). Only use MQRY as last-resort.
+    // Primary attempt: use MQRY with direct booking_details SQL (correct amounts).
     this.http
-      .getData(fallbackUrl)
-      .then((r2: any) => {
-        const rows = Array.isArray(r2) ? r2 : (r2 && Array.isArray(r2.data) ? r2.data : []);
-        // Enrich rows with transport fields by fetching bookings and merging
-        this.fetchBookingRows()
-          .then((bookings: any[]) => {
-            const bmap: any = {};
-            (bookings || []).forEach((b: any) => {
-              if (b && (b.BookingID !== undefined && b.BookingID !== null)) bmap[String(b.BookingID)] = b;
-            });
-            (rows || []).forEach((row: any) => {
-              try {
-                const bid = row?.BookingID ?? row?.BookingId ?? row?.Booking ?? '';
-                const b = bmap[String(bid)];
-                if (b) {
-                  row.Transport = row.Transport || b.Transport || '';
-                  row.TransportNo = row.TransportNo || b.TransportNo || b.Transport_No || '';
-                  row.VehicleNo = row.VehicleNo || b.VehicleNo || '';
-                  row.TruckNo = row.TruckNo || b.TruckNo || b.Truck_No || '';
-                  // Merge supplier identifier from booking so later mapping can resolve display name
-                  row.SupplierID = row.SupplierID || row.Supplier || row.CustomerID || b.SupplierID || b.Supplier || b.CustomerID || row.SupplierID;
-                }
-              } catch (e) {}
-            });
-            process(rows);
-          })
-          .catch((_bkErr: any) => {
-            // If booking fetch fails, still process base rows
-            process(rows);
-          });
+      .getData('MQRY?qrysql=' + encodeURIComponent(sql))
+      .then((r: any) => {
+        const rows = Array.isArray(r) ? r : (r && Array.isArray(r.data) ? r.data : []);
+        process(rows);
       })
-      .catch((mqErr: any) => {
-        // Fallback fetch failed; as last-resort try MQRY (some deployments support it)
-        console.warn('Fallback view failed, attempting MQRY as last-resort', mqErr);
+      .catch((_mqErr: any) => {
+        // Fallback: fetch from qrypurchasereport view
+        console.warn('MQRY failed, falling back to qrypurchasereport view');
         this.http
-          .getData('MQRY?qrysql=' + encodeURIComponent(sql))
-          .then((r: any) => {
-            const payload = Array.isArray(r) ? r : (r && Array.isArray(r.data) ? r.data : []);
-            process(payload);
+          .getData(fallbackUrl)
+          .then((r2: any) => {
+            const rows = Array.isArray(r2) ? r2 : (r2 && Array.isArray(r2.data) ? r2.data : []);
+            process(rows);
           })
           .catch((err: any) => {
-            console.error('Purchase summary MQRY error', err);
+            console.error('Purchase summary fetch error', err);
             this.data = [];
           });
       });

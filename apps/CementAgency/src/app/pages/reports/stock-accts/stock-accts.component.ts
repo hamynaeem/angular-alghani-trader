@@ -436,6 +436,20 @@ export class StockAcctsComponent implements OnInit {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
+  confirmDeleteBooking(bookingID: any) {
+    swal({
+      title: 'Are you sure?',
+      text: 'This booking will be permanently deleted!',
+      icon: 'warning',
+      buttons: ['Cancel', 'Delete'],
+      dangerMode: true,
+    } as any).then((confirmed: any) => {
+      if (confirmed) {
+        this.deleteBooking(bookingID, false);
+      }
+    });
+  }
+
   deleteBooking(bookingID: any, isPosted: any) {
     if (!bookingID) return;
     // Remove from frontend immediately
@@ -515,6 +529,7 @@ export class StockAcctsComponent implements OnInit {
       BagsPurchase: totalBags,
       DtCr: 'Dr',
       details: details,
+      sales: [],
     };
     if (this.Booking.BookingID) {
       // Update existing booking by passing BookingID in the URL
@@ -546,12 +561,14 @@ export class StockAcctsComponent implements OnInit {
         if (bookingId) {
           this.http.postTask('postbooking/' + bookingId, {})
             .then(() => {
-              // Reload products and stock so lstSelectable and lstDataRource reflect new booking
+              // Reload bookings and products so table and stock reflect the new booking
+              this.LoadSavedBookings();
               setTimeout(() => this.loadProductsAndStock(), 400);
               try { this.cachedData.updateStock(); } catch (e) { /* ignore */ }
             })
             .catch(() => {
-              // fallback: still reload products
+              // fallback: still reload
+              this.LoadSavedBookings();
               this.loadProductsAndStock();
               try { this.cachedData.updateStock(); } catch (e) { /* ignore */ }
             });
