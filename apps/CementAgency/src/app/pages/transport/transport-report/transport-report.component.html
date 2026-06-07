@@ -117,6 +117,16 @@
           ></ft-dynamic-table>
         </div>
       </div>
+      <div *ngIf="data && data.length > 0" class="row no-pad mt-2">
+        <div class="col-md-12">
+          <div class="d-flex justify-content-end align-items-center">
+            <span class="text-muted mr-2" style="font-size:13px; font-weight:600;">Balance:</span>
+            <span class="badge badge-primary p-2" style="font-size:15px; font-weight:700; min-width:80px; text-align:right;">
+              {{ netBalance | number:'1.0-0' }}
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>

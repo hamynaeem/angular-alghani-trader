@@ -277,18 +277,28 @@ export class CustomersComponent implements OnInit {
     );
     const customers: any[] = Array.isArray(customersRaw) ? customersRaw : [];
 
-    // Sync balances from customeraccts ledger into customers.Balance before display
+    // For suppliers, compute balance from booking (SUM of NetAmount) since
+    // the customers.Balance field is not updated when purchases are saved.
     try {
-      await this.http.postTask('recalcbalances', {});
-      const refreshedRaw: any = await this.http.getData(
-        'qrycustomers?orderby=CustomerName&filter=' + filter
-      );
-      const refreshed: any[] = Array.isArray(refreshedRaw) ? refreshedRaw : [];
-      if (refreshed.length > 0) {
-        this.data = refreshed;
-        return;
+      const supplierIds = customers
+        .filter((c: any) => c.AcctType && String(c.AcctType).toUpperCase().includes('SUPPLIER'))
+        .map((c: any) => c.CustomerID)
+        .filter((id: any) => !!id);
+
+      if (supplierIds.length > 0) {
+        const sql = `SELECT SupplierID, SUM(NetAmount) AS TotalPurchase FROM booking WHERE SupplierID IN (${supplierIds.join(',')}) GROUP BY SupplierID`;
+        const bookingTotals: any = await this.http.getData('MQRY?qrysql=' + encodeURIComponent(sql));
+        const balanceMap: any = {};
+        (bookingTotals || []).forEach((row: any) => {
+          balanceMap[String(row.SupplierID)] = Number(row.TotalPurchase) || 0;
+        });
+        customers.forEach((c: any) => {
+          if (c.AcctType && String(c.AcctType).toUpperCase().includes('SUPPLIER')) {
+            c.Balance = balanceMap[String(c.CustomerID)] || 0;
+          }
+        });
       }
-    } catch (e) { /* fallback: use already-fetched data */ }
+    } catch (e) { /* ignore, show whatever balance is stored */ }
 
     this.data = customers;
     // this.dataList.FilterTable(filter);

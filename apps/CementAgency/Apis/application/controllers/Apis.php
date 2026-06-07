@@ -604,15 +604,27 @@ class Apis extends REST_Controller
         // run query with suppressed DB debug to capture errors as JSON
         $prevDebug = isset($this->db->db_debug) ? $this->db->db_debug : true;
         $this->db->db_debug = false;
-        $sql = "select (select AcctType from accttypes where accttypes.AcctTypeID = qrycustomers.AcctTypeID) as Type , " .
-            " CustomerName, case when Balance <0 then abs(Balance) else 0 end as Debit,  case when Balance >=0 then Balance else 0 end as Credit   from qrycustomers ";
+        $sql = "SELECT
+            (SELECT AcctType FROM accttypes WHERE accttypes.AcctTypeID = c.AcctTypeID) AS Type,
+            c.CustomerName,
+            CASE
+                WHEN UPPER((SELECT AcctType FROM accttypes WHERE accttypes.AcctTypeID = c.AcctTypeID)) LIKE '%SUPPLIER%'
+                THEN IFNULL((SELECT SUM(b.NetAmount) FROM booking b WHERE b.SupplierID = c.CustomerID), 0)
+                ELSE CASE WHEN c.Balance >= 0 THEN c.Balance ELSE 0 END
+            END AS Credit,
+            CASE
+                WHEN UPPER((SELECT AcctType FROM accttypes WHERE accttypes.AcctTypeID = c.AcctTypeID)) LIKE '%SUPPLIER%'
+                THEN 0
+                ELSE CASE WHEN c.Balance < 0 THEN ABS(c.Balance) ELSE 0 END
+            END AS Debit
+            FROM customers c";
 
-        // Only apply BusinessID filter if the field exists on the view/table
-        if ($this->db->field_exists('BusinessID', 'qrycustomers')) {
-            $sql .= " where BusinessID = $bid";
+        // Only apply BusinessID filter if the field exists on the table
+        if ($this->db->field_exists('BusinessID', 'customers')) {
+            $sql .= " WHERE c.BusinessID = $bid";
         }
 
-        $sql .= " order by AcctType";
+        $sql .= " ORDER BY (SELECT AcctType FROM accttypes WHERE accttypes.AcctTypeID = c.AcctTypeID)";
         $query = $this->db->query($sql);
         $this->db->db_debug = $prevDebug;
 

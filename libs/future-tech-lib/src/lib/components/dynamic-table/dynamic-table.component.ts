@@ -270,7 +270,9 @@ export class DynamicTableComponent implements OnInit, OnDestroy, OnChanges {
   formattedValue(row: any, col: any, data: any) {
     if (col.valueFormatter) return col.valueFormatter(row);
     else if (col.type == 'number' || col.sum) {
-      return formatNumber(data || 0, 'en', '1.2-2');
+      const val = data == null || data === '' ? 0 : Number(data);
+      if (col.blankIfZero && Number(val) === 0) return '';
+      return formatNumber(val || 0, 'en', '1.2-2');
     } else return data;
   }
 

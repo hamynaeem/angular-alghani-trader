@@ -923,12 +923,18 @@ export class BookingInvoiceComponent
       this.SelectedProductStock = this.getStock(pid);
       this.NetStocks = this.SelectedProductStock || 0;
     } catch (e) { /* ignore */ }
+    const keepTransporterID = this.saleDetail.TransporterID;
+    this.saleDetail = {
+      Qty: 0,
+      Price: 0,
+      Discount: 0,
+      MRP: 0,
+      Received: 0,
+      Amount: 0,
+      DeliveryCity: '',
+      TransporterID: keepTransporterID,
+    };
     this.cmbCustomers.focus();
-    this.saleDetail.ProductID = undefined;
-    this.saleDetail.Qty = 0;
-    this.saleDetail.Price = 0;
-    this.saleDetail.Amount = 0;
-    this.saleDetail.CustomerID = undefined;
   }
   calcSaleData() {
     this.sale.TotalAmount = this.saleData.reduce(

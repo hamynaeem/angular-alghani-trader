@@ -46,8 +46,7 @@ export class CashBookComponent implements OnInit {
 
       { label: 'Customer', fldName: 'Customer', type: 'text' },
       { label: 'Product Name', fldName: 'ProductName' },
-
-
+      { label: 'Qty Bags', fldName: 'Qty', sum: true },
       { label: 'Amount', fldName: 'Amount', sum: true },
       { label: 'Discount', fldName: 'Discount', sum: true },
       { label: 'Received', fldName: 'Received', sum: true },
@@ -77,6 +76,7 @@ export class CashBookComponent implements OnInit {
     Columns: [
       { label: 'Customer', fldName: 'Customer' },
       { label: 'Product Name', fldName: 'ProductName' },
+      { label: 'Qty Bags', fldName: 'Qty', sum: true },
       { label: 'Amount', fldName: 'Amount', type: 'number' },
       { label: 'Discount', fldName: 'Discount', type: 'number' },
       { label: 'Received', fldName: 'Received', type: 'number' },
@@ -339,6 +339,7 @@ export class CashBookComponent implements OnInit {
         this.combinedData.push(...this.saleData.map((s: any) => ({
           Customer: s.Customer,
           ProductName: s.ProductName,
+          Qty: s.Qty,
           Amount: s.Amount,
           Discount: s.Discount,
           Received: s.Received,
@@ -367,6 +368,7 @@ export class CashBookComponent implements OnInit {
         this.combinedData.push(...this.purchaseData.map((p: any) => ({
           Customer: p.SupplierName || '',
           ProductName: p.ProductName,
+          Qty: p.Qty,
           Amount: p.Amount,
           Discount: 0,
           Received: 0,

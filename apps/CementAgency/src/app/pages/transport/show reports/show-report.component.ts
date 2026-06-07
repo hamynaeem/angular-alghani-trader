@@ -10,6 +10,8 @@ import { MyToastService } from '../../../services/toaster.server';
 })
 export class ShowReportComponent implements OnInit {
   public reports: any[] = [];
+  public filteredReports: any[] = [];
+  public selectedTransportID: string = '';
   Vehicles: any = [];
 
   constructor(
@@ -59,14 +61,17 @@ export class ShowReportComponent implements OnInit {
 
             return Object.assign({}, row, {
               TransportName: vehicle ? vehicle.TransportName : '',
+              VehicleNo: row.VehicleNo || (vehicle ? vehicle.VehicleNo : ''),
               Description: description,
               Categories: categories,
             });
           });
+          this.applyFilter();
         });
       })
       .catch(() => {
         this.reports = [];
+        this.filteredReports = [];
       });
   }
 
@@ -83,6 +88,20 @@ export class ShowReportComponent implements OnInit {
       .catch(() => {
         this.alert.Error('Delete failed', 'Error', 1);
       });
+  }
+
+  onTransportChange() {
+    this.applyFilter();
+  }
+
+  applyFilter() {
+    if (!this.selectedTransportID) {
+      this.filteredReports = this.reports;
+    } else {
+      this.filteredReports = this.reports.filter(
+        (r) => String(r.TransportID) === String(this.selectedTransportID)
+      );
+    }
   }
 
   editReport(r: any) {

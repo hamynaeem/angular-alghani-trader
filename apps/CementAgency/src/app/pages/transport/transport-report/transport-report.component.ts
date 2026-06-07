@@ -14,6 +14,9 @@ export class TransportReportComponent implements OnInit {
   public data: any = [];
   public Products: object[] = [];
   public Users: object[] = [];
+  public totalIncome: number = 0;
+  public totalExpense: number = 0;
+  public netBalance: number = 0;
 
   public Filter = {
     FromDate: GetDateJSON(),
@@ -36,16 +39,13 @@ export class TransportReportComponent implements OnInit {
         label: 'Income',
         fldName: 'Income',
         sum: true,
+        blankIfZero: true,
       },
       {
         label: 'Expense',
         fldName: 'Expense',
         sum: true,
-      },
-      {
-        label: 'Balance',
-        fldName: 'Balance',
-        type: 'number',
+        blankIfZero: true,
       },
     ],
     Actions: [],
@@ -98,6 +98,9 @@ export class TransportReportComponent implements OnInit {
             Description: description,
           });
         });
+        this.totalIncome = this.data.reduce((s: number, x: any) => s + (x.Income * 1 || 0), 0);
+        this.totalExpense = this.data.reduce((s: number, x: any) => s + (x.Expense * 1 || 0), 0);
+        this.netBalance = this.totalIncome - this.totalExpense;
         if (this.data.length > 0) {
           this.transport.OpenBalance =
             (this.data[0].Balance - this.data[0].Income) * 1 +

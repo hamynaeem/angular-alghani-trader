@@ -38,6 +38,7 @@ const PurchaseSetting = {
   Columns: [
     { label: 'Supplier', fldName: 'SupplierName' },
     { label: 'Product Name', fldName: 'ProductName' },
+    { label: 'Vehicle No', fldName: 'VehicleNo' },
     { label: 'Price', fldName: 'PPrice', sum: true },
     { label: 'Qty', fldName: 'Qty', sum: true },
     { label: 'Amount', fldName: 'Amount', sum: true },
@@ -182,7 +183,7 @@ export class DayBookComponent implements OnInit {
     } else if (this.nWhat === '5') {
       this.settings = PurchaseSetting;
       const purchaseFilter = "Date between '" + JSON2Date(this.Filter.FromDate) + "' and '" + JSON2Date(this.Filter.ToDate) + "'";
-      table = 'qrypurchasereport?orderby=Date,BookingID&flds=BookingID,ProductName,PPrice,Qty,Amount ';
+      table = 'qrypurchasereport?orderby=Date,BookingID&flds=BookingID,ProductName,PPrice,Qty,Amount,VehicleNo ';
       filter = purchaseFilter;
     } else if (this.nWhat === '6') {
       this.settings = TransportSetting;
