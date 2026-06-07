@@ -282,11 +282,11 @@ export class StockAcctsComponent implements OnInit {
   }
 
   get purchasedBookingsTotalQty(): number {
-    return this.savedBookingsTotalQty;
+    return this.purchasedBookings.reduce((s, b) => s + (Number(b.Qty) || 0), 0);
   }
 
   get purchasedBookingsTotalBags(): number {
-    return this.savedBookingsTotalBags;
+    return this.purchasedBookings.reduce((s, b) => s + (Number(b.Bags) || 0), 0);
   }
 
   // Booking UI logic

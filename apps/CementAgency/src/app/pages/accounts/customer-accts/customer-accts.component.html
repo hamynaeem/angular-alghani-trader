@@ -1,7 +1,7 @@
 <div widget class="card border-0 box-shadow">
   <div class="card-header transparent border-0 text-muted">
     <div class="d-flex justify-content-between align-items-start">
-      <h5 class="mb-0">Account Ledgers</h5>
+      <h5 class="mb-0">Account Ledger</h5>
       <div class="text-right">
         <div class="text-muted small">Bookings: {{ customer.BookingCount || 0 }}</div>
         <div><strong>{{ customer.BookingTotal | number:'1.2-2' }}</strong></div>
@@ -126,8 +126,7 @@
           <div><strong>Address:</strong> {{ customer.Address }}</div>
         </div>
         <div class="col-md-4 text-right">
-          <div><strong>Opening:</strong> {{ customer.OpenBalance || 0 | number:'1.2-2' }}</div>
-          <div><strong>Closing:</strong> {{ customer.CloseBalance || 0 | number:'1.2-2' }}</div>
+          <div><strong>Opening:</strong> <span class="text-danger">{{ customer.OpenBalance || 0 | number:'1.2-2' }}</span></div>
         </div>
       </div>
 
@@ -158,7 +157,7 @@
                   <td>{{ bookingProductName(b) || '-' }}</td>
                   <td class="text-right">{{ b.Qty | number:'1.0-0' }}</td>
                   <td class="text-right">{{ b.Received | number:'1.2-2' }}</td>
-                  <td class="text-right" [class.text-danger]="b.Balance > 0">{{ b.Balance | number:'1.2-2' }}</td>
+                  <td class="text-right text-danger">{{ b.Balance | number:'1.2-2' }}</td>
                   <td class="text-right">{{ b.Amount | number:'1.2-2' }}</td>
                 </tr>
               </tbody>
@@ -174,6 +173,12 @@
             [Data]="data"
             (ClickAction)="Clicked($event)"
           ></ft-dynamic-table>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-12 text-right mt-2">
+          <strong>Closing Balance:</strong>
+          <span class="text-danger">{{ customer.CloseBalance || 0 | number:'1.2-2' }}</span>
         </div>
       </div>
     </div>
