@@ -34,19 +34,86 @@ export class HttpBase {
       const headers = this.jwt(); // Replace with your authorization headers as needed
 
       return new Promise((resolve, reject) => {
-        this.http
-          .get(this.apiUrl + 'apis/' + table, { headers: this.jwt(), params })
-          .subscribe({
-            next: (res: any) => {
-              resolve(res);
-            },
-            error: (err: any) => {
-              reject(err);
-            },
-            complete: () => {
-            //  console.log('complete');
-            },
-          });
+          // Request as text so consuming code doesn't get an HttpErrorResponse
+          // when the backend returns HTML (PHP warnings) alongside JSON.
+          this.http
+            .get(this.apiUrl + 'apis/' + table, { headers: this.jwt(), params, responseType: 'text' as 'json' })
+            .subscribe({
+              next: (resRaw: any) => {
+                try {
+                  if (typeof resRaw === 'string') {
+                    const parsed = JSON.parse(resRaw);
+                    resolve(parsed);
+                    return;
+                  }
+                  resolve(resRaw);
+                } catch (ex) {
+                  try {
+                    const txt = typeof resRaw === 'string' ? resRaw : JSON.stringify(resRaw);
+                    const firstArr = txt.indexOf('[');
+                    const lastArr = txt.lastIndexOf(']');
+                    if (firstArr !== -1 && lastArr !== -1 && lastArr > firstArr) {
+                      const candidate = txt.substring(firstArr, lastArr + 1);
+                      const parsed2 = JSON.parse(candidate);
+                      resolve(parsed2);
+                      return;
+                    }
+                    const firstObj = txt.indexOf('{');
+                    const lastObj = txt.lastIndexOf('}');
+                    if (firstObj !== -1 && lastObj !== -1 && lastObj > firstObj) {
+                      const candidate = txt.substring(firstObj, lastObj + 1);
+                      const parsed3 = JSON.parse(candidate);
+                      resolve(parsed3);
+                      return;
+                    }
+                  } catch (ex2) {
+                    // ignore
+                  }
+                  try {
+                    const snippet = (typeof resRaw === 'string' ? resRaw : JSON.stringify(resRaw)).slice(0, 2000);
+                    console.error('libs.httpbase.getData: failed to parse JSON, returning raw text. snippet:', snippet);
+                  } catch (logErr) {}
+                  resolve(resRaw);
+                }
+              },
+              error: (err: any) => {
+                if (err && err.status === 200 && typeof err.error === 'string') {
+                  try {
+                    const parsed = JSON.parse(err.error);
+                    resolve(parsed);
+                    return;
+                  } catch (ex) {
+                    try {
+                      const txt = err.error;
+                      const f = txt.indexOf('[');
+                      const l = txt.lastIndexOf(']');
+                      if (f !== -1 && l !== -1 && l > f) {
+                        const candidate = txt.substring(f, l + 1);
+                        const parsed2 = JSON.parse(candidate);
+                        resolve(parsed2);
+                        return;
+                      }
+                      const fo = txt.indexOf('{');
+                      const lo = txt.lastIndexOf('}');
+                      if (fo !== -1 && lo !== -1 && lo > fo) {
+                        const candidate = txt.substring(fo, lo + 1);
+                        const parsed3 = JSON.parse(candidate);
+                        resolve(parsed3);
+                        return;
+                      }
+                    } catch (e2) {
+                      // ignore
+                    }
+                    try { console.error('libs.httpbase.getData: HttpErrorResponse with status 200. snippet:', err.error.slice(0,2000)); } catch(logErr){}
+                    resolve(err.error);
+                    return;
+                  }
+                }
+                reject(err);
+              },
+              complete: () => {
+              }
+            });
       });
     }
 
@@ -60,15 +127,78 @@ export class HttpBase {
 
     return new Promise((resolve, reject) => {
       this.http
-        .get(this.apiUrl + "tasks/" + ApiEndPoint, { headers: this.jwt(), params })
-        .subscribe(
-          (res) => {
-            resolve(res);
+        .get(this.apiUrl + 'tasks/' + ApiEndPoint, { headers: this.jwt(), params, responseType: 'text' as 'json' })
+        .subscribe({
+          next: (resRaw: any) => {
+            try {
+              if (typeof resRaw === 'string') {
+                const parsed = JSON.parse(resRaw);
+                resolve(parsed);
+                return;
+              }
+              resolve(resRaw);
+            } catch (ex) {
+              try {
+                const txt = typeof resRaw === 'string' ? resRaw : JSON.stringify(resRaw);
+                const firstArr = txt.indexOf('[');
+                const lastArr = txt.lastIndexOf(']');
+                if (firstArr !== -1 && lastArr !== -1 && lastArr > firstArr) {
+                  const candidate = txt.substring(firstArr, lastArr + 1);
+                  const parsed2 = JSON.parse(candidate);
+                  resolve(parsed2);
+                  return;
+                }
+                const firstObj = txt.indexOf('{');
+                const lastObj = txt.lastIndexOf('}');
+                if (firstObj !== -1 && lastObj !== -1 && lastObj > firstObj) {
+                  const candidate = txt.substring(firstObj, lastObj + 1);
+                  const parsed3 = JSON.parse(candidate);
+                  resolve(parsed3);
+                  return;
+                }
+              } catch (ex2) {
+                // ignore
+              }
+              try { console.error('libs.httpbase.getTask: failed to parse JSON, returning raw text. snippet:', (typeof resRaw === 'string' ? resRaw : JSON.stringify(resRaw)).slice(0,2000)); } catch(logErr){}
+              resolve(resRaw);
+            }
           },
-          (err) => {
+          error: (err) => {
+            if (err && err.status === 200 && typeof err.error === 'string') {
+              try {
+                const parsed = JSON.parse(err.error);
+                resolve(parsed);
+                return;
+              } catch (ex) {
+                try {
+                  const txt = err.error;
+                  const f = txt.indexOf('[');
+                  const l = txt.lastIndexOf(']');
+                  if (f !== -1 && l !== -1 && l > f) {
+                    const candidate = txt.substring(f, l + 1);
+                    const parsed2 = JSON.parse(candidate);
+                    resolve(parsed2);
+                    return;
+                  }
+                  const fo = txt.indexOf('{');
+                  const lo = txt.lastIndexOf('}');
+                  if (fo !== -1 && lo !== -1 && lo > fo) {
+                    const candidate = txt.substring(fo, lo + 1);
+                    const parsed3 = JSON.parse(candidate);
+                    resolve(parsed3);
+                    return;
+                  }
+                } catch (e2) {
+                  // ignore
+                }
+                try { console.error('libs.httpbase.getTask: HttpErrorResponse with status 200. snippet:', err.error.slice(0,2000)); } catch(logErr){}
+                resolve(err.error);
+                return;
+              }
+            }
             reject(err);
           }
-        );
+        });
     });
   }
 

@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, merge } from 'rxjs';
+import { BehaviorSubject, merge, from } from 'rxjs';
 import { shareReplay, switchMap, filter } from 'rxjs/operators';
 
 import { environment } from '../../environments/environment';
@@ -61,57 +61,51 @@ private _suppliers$ = new BehaviorSubject<void>(undefined);
 public apiSuppliers$: any;
 public Suppliers$: any;
 
-constructor(private http: HttpClient, private http2: HttpBase) {
-  this.apiroutes$ = this.http.get<any[]>(this.api + 'routes?bid=' + this.http2.getBusinessID());
+  constructor(private http: HttpClient, private http2: HttpBase) {
+  this.apiroutes$ = from(this.http2.getData('routes?bid=' + this.http2.getBusinessID()));
   this.routes$ = this._routesData$.pipe(
     switchMap(() => this.apiroutes$),
     shareReplay(1)
   );
 
-  this.apiStock$ = this.http.get<any[]>(this.api + 'qrystock?orderby=ProductName&bid=' + this.http2.getBusinessID());
+  this.apiStock$ = from(this.http2.getData('qrystock?orderby=ProductName&bid=' + this.http2.getBusinessID()));
   // Stock$ emits either pushed rows (via setStockRows) or API-fetched rows when updateStock() is triggered
   this.Stock$ = merge(
     this._stockRows$.pipe(filter((r: any) => r !== null)),
     this._stockData$.pipe(switchMap(() => this.apiStock$))
   ).pipe(shareReplay(1));
-
-  this.apiSalesman$ = this.http.get<any[]>(this.api + 'salesman?bid=' + this.http2.getBusinessID());
+  this.apiSalesman$ = from(this.http2.getData('salesman?bid=' + this.http2.getBusinessID()));
   this.Salesman$ = this._salesmanData$.pipe(
     switchMap(() => this.apiSalesman$),
     shareReplay(1)
   );
-
-  this.apiStores$ = this.http.get<any[]>(this.api + 'stores?bid=' + this.http2.getBusinessID());
+  this.apiStores$ = from(this.http2.getData('stores?bid=' + this.http2.getBusinessID()));
   this.Stores$ = this._storesData$.pipe(
     switchMap(() => this.apiStores$),
     shareReplay(1)
   );
 
-  this.apiAcctTypes$ = this.http.get<any[]>(this.api + 'accttypes?bid=' + this.http2.getBusinessID());
   this.AcctTypes$ = this._accttypesData$.pipe(
-    switchMap(() => this.apiAcctTypes$),
+    switchMap(() => from(this.http2.getData('accttypes?bid=' + this.http2.getBusinessID()))),
     shareReplay(1)
   );
 
-  this.apiCategories$ = this.http.get<any[]>(this.api + 'categories?bid=' + this.http2.getBusinessID());
+  this.apiCategories$ = from(this.http2.getData('categories?bid=' + this.http2.getBusinessID()));
   this.Categories$ = this._categories$.pipe(
     switchMap(() => this.apiCategories$),
     shareReplay(1)
   );
-
-  this.apiProducts$ = this.http.get<any[]>(this.api + 'products?orderby=ProductName&bid=' + this.http2.getBusinessID());
+  this.apiProducts$ = from(this.http2.getData('products?orderby=ProductName&bid=' + this.http2.getBusinessID()));
   this.Products$ = this._products$.pipe(
     switchMap(() => this.apiProducts$),
     shareReplay(1)
   );
-
-  this.apiAccounts$ = this.http.get<any[]>(this.api + 'qrycustomers?flds=CustomerID,CustomerName,AcctType,Balance&orderby=CustomerName');
+  this.apiAccounts$ = from(this.http2.getData('qrycustomers?flds=CustomerID,CustomerName,AcctType,Balance&orderby=CustomerName'));
   this.Accounts$ = this._accounts$.pipe(
     switchMap(() => this.apiAccounts$),
     shareReplay(1)
   );
-
-  this.apiSuppliers$ = this.http.get<any[]>(this.api + 'qrysuppliers?orderby=SupplierName&bid=' + this.http2.getBusinessID());
+  this.apiSuppliers$ = from(this.http2.getData('qrysuppliers?orderby=SupplierName&bid=' + this.http2.getBusinessID()));
   this.Suppliers$ = this._suppliers$.pipe(
     switchMap(() => this.apiSuppliers$),
     shareReplay(1)

@@ -208,6 +208,13 @@ export class AmountReceivedComponent implements OnInit {
 
       /* -------------------------------------- */
 
+      // Refresh records so the newly saved receipt appears in the Records table
+      try {
+        await this.ShowAll();
+      } catch (e) {
+        // ignore show errors
+      }
+
       this.alert.Sucess('Receipt Saved - Balance Updated to ' + newCustomerBalance.toFixed(2), 'Save', 1);
 
       this.Reset();
@@ -572,6 +579,10 @@ export class AmountReceivedComponent implements OnInit {
         <div class="row">
             <span class="label">Customer Name:</span>
             <span class="value">${this.curCustomer.CustomerName || ''}</span>
+        </div>
+        <div class="row">
+            <span class="label">Payment Method:</span>
+            <span class="value">${this.getPaymentMethod(this.Voucher) || this.Voucher.PaymentMethod || ''}</span>
         </div>
         ${this.Voucher.Description ? `
         <div class="row">

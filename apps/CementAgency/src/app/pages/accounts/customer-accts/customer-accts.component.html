@@ -127,6 +127,7 @@
         </div>
         <div class="col-md-4 text-right">
           <div><strong>Opening:</strong> <span class="text-danger">{{ customer.OpenBalance || 0 | number:'1.2-2' }}</span></div>
+          <div><strong>Closing:</strong> <span class="text-danger">{{ customer.CloseBalance || 0 | number:'1.2-2' }}</span></div>
         </div>
       </div>
 
@@ -142,24 +143,24 @@
               <thead>
                 <tr>
                   <th style="width:130px">Date</th>
-                  <th style="width:100px">Invoice</th>
-                  <th>Product</th>
+                   <th>Product</th>
                   <th class="text-right" style="width:90px">Qty</th>
+                                    <th class="text-right" style="width:130px"> Total Amount</th>
+
                   <th class="text-right" style="width:90px">Received</th>
                   <th class="text-right" style="width:90px">Balance</th>
-                  <th class="text-right" style="width:130px"> Total Amount</th>
-                </tr>
+                 </tr>
               </thead>
               <tbody>
                 <tr *ngFor="let b of customer.Bookings">
                   <td class="text-nowrap">{{ formatDate(b.Date) || '-' }}</td>
-                  <td>{{ b.InvoiceNo || b.BookingID }}</td>
-                  <td>{{ bookingProductName(b) || '-' }}</td>
+                   <td>{{ bookingProductName(b) || '-' }}</td>
                   <td class="text-right">{{ b.Qty | number:'1.0-0' }}</td>
+                                    <td class="text-right">{{ b.Amount | number:'1.2-2' }}</td>
+
                   <td class="text-right">{{ b.Received | number:'1.2-2' }}</td>
                   <td class="text-right text-danger">{{ b.Balance | number:'1.2-2' }}</td>
-                  <td class="text-right">{{ b.Amount | number:'1.2-2' }}</td>
-                </tr>
+                 </tr>
               </tbody>
             </table>
           </div>

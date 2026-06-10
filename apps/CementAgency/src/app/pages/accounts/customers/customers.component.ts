@@ -245,16 +245,20 @@ export class CustomersComponent implements OnInit {
     private whatsApp: WhatsAppService
   ) { }
 
-  ngOnInit() {
+  async ngOnInit() {
+    // Load dropdown data first, then load table rows.
     this.http.getData('qrycities?orderby=City').then((a) => {
       this.Cities = a;
     });
+
     this.AcctTypes = this.cached.AcctTypes$;
-    this.http.getData('qrycities?orderby=City').then((a) => {
-      this.Cities = a;
-    });
+
+    // NOTE: Load table rows immediately so user sees ALL customers without clicking Filter.
     this.FilterData();
   }
+
+
+
   async FilterData() {
     let filter = '1 = 1 ';
 
@@ -379,21 +383,31 @@ export class CustomersComponent implements OnInit {
     });
   }
 
-  async SyncBalances() {
-    const confirm = await swal({
-      text: 'Recalculate all customer balances from the account ledger? This will fix any incorrect balances.',
-      icon: 'warning',
-      buttons: { cancel: true, confirm: true },
-    });
-    if (!confirm) return;
+  async SyncBalances(silent: boolean = false) {
+    // silent=true: run without confirmation dialog
     try {
+      if (!silent) {
+        const confirm = await swal({
+          text: 'Recalculate all customer balances from the account ledger? This will fix any incorrect balances.',
+          icon: 'warning',
+          buttons: { cancel: true, confirm: true },
+        });
+        if (!confirm) return;
+      }
+
       const r: any = await this.http.postTask('recalcbalances', {});
-      swal('Done!', r.msg || 'Balances updated successfully', 'success');
+      if (!silent) swal('Done!', r.msg || 'Balances updated successfully', 'success');
       this.FilterData();
     } catch (err) {
-      swal('Error!', 'Failed to recalculate balances', 'error');
+      if (!silent) {
+        swal('Error!', 'Failed to recalculate balances', 'error');
+      } else {
+        // still load data even if sync fails
+        this.FilterData();
+      }
     }
   }
+
   PrintReport() {
     this.ps.PrintData.HTMLData = document.getElementById('print-section');
     this.ps.PrintData.Title = 'Customer List';

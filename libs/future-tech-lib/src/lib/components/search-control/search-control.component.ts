@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { NgSelectComponent } from '@ng-select/ng-select';
-import { concat, Observable, of, Subject, throwError } from 'rxjs';
+import { concat, Observable, of, Subject, throwError, from } from 'rxjs';
 import {
   catchError,
   debounceTime,
@@ -100,13 +100,13 @@ export class SearchControlComponent implements OnInit, ControlValueAccessor {
   }
 
   getData(term: string | null = null): Observable<any> {
-    return this.http.get<any>(`${INSTANCE_URL}apis/${this.Table}/${term}`).pipe(
-      map((resp) => {
-        if (resp.Error) {
+    const endpoint = `${this.Table}/${term}`;
+    return from(this.http2.getData(endpoint)).pipe(
+      map((resp: any) => {
+        if (resp && resp.Error) {
           throwError(() => new Error(resp.Error));
-        } else {
-          return resp;
         }
+        return resp;
       })
     );
   }

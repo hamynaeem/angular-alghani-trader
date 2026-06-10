@@ -17,6 +17,7 @@ export class StockAcctsComponent implements OnInit {
   @ViewChild('cmbProduct') cmbProduct: any;
   @ViewChild('cmbAccount') cmbAccount: any;
   public data: object[] = [];
+  private hasBookingDetailTransporter = false;
 
   public Filter = {
     FromDate: GetDateJSON(),
@@ -68,6 +69,23 @@ export class StockAcctsComponent implements OnInit {
     this.accounts$ = this.cachedData.Accounts$;
   }
 
+  private detectBookingDetailTransporter(): Promise<void> {
+    const sql = `SHOW COLUMNS FROM booking_details LIKE 'TransporterID'`;
+    return this.http.getData('MQRY?qrysql=' + encodeURIComponent(sql))
+      .then((rows: any) => {
+        this.hasBookingDetailTransporter = !!(rows && rows.length);
+      })
+      .catch(() => {
+        this.hasBookingDetailTransporter = false;
+      });
+  }
+
+  private saleTransportSqlExpression(): string {
+    return this.hasBookingDetailTransporter
+      ? `IFNULL(NULLIF(bd.TransporterID, ''), b.VehicleNo)`
+      : `b.VehicleNo`;
+  }
+
   // Build lstSelectable and lstDataRource with NET bags = purchased bags − sold bags.
   // Uses booking_details: Type=1 purchase (Qty tons × Packing), Type=2 sale (Qty in bags).
   loadProductsAndStock() {
@@ -105,12 +123,17 @@ export class StockAcctsComponent implements OnInit {
         console.debug('soldByProduct (sample):', Object.keys(saleMap).slice(0,20).reduce((o: any, k: any) => { o[k]=saleMap[k]; return o; }, {}));
       } catch (e) { /* ignore logging errors */ }
 
-      // Refresh SoldBags on already-loaded savedBookings rows but keep NetStock from LoadSavedBookings
+      // Refresh SoldBags on already-loaded savedBookings rows.
+      // Also reload saved bookings so per-vehicle `NetStock` is recalculated from the DB
+      // (some callers may only refresh product-level stock and we need per-vehicle nets to stay accurate).
       if (this.savedBookings.length) {
         this.savedBookings = this.savedBookings.map((bk: any) => ({
           ...bk,
           SoldBags: saleMap[String(bk.ProductID)] || 0,
         }));
+        try {
+          this.LoadSavedBookings();
+        } catch (e) { /* ignore */ }
       }
 
       this.lstSelectable = Object.keys(bagMap)
@@ -135,7 +158,9 @@ export class StockAcctsComponent implements OnInit {
 
   ngOnInit() {
     this.Filter.FromDate.day = 1;
-    this.loadProductsAndStock();
+    this.detectBookingDetailTransporter().then(() => {
+      this.FilterData();
+    });
 
     // Suppliers: filter accounts where AcctType = 'SUPPLIERS' (same approach as booking-invoice)
     this.cachedData.updateAccounts();
@@ -150,8 +175,6 @@ export class StockAcctsComponent implements OnInit {
         this.lstAccounts = accounts;
       }
     });
-    this.FilterData();
-    this.LoadSavedBookings();
     // this.LoadSavedSales();
   }
 
@@ -212,22 +235,32 @@ export class StockAcctsComponent implements OnInit {
     const from = JSON2Date(this.Filter.FromDate);
     const to = JSON2Date(this.Filter.ToDate);
 
-    // Group by VehicleNo + ProductID across ALL dates (not just filter range) so SaleBags reflects
+    // Group by transport + ProductID across ALL dates (not just filter range) so SaleBags reflects
     // all sales ever made against each transport. Date filter applies to purchase rows only.
-    const sql = `SELECT b.VehicleNo,
-      MAX(b.BookingID) AS BookingID,
-      MAX(b.Date) AS Date,
-      MAX(b.SupplierID) AS SupplierID,
+    const saleTransportExpr = this.saleTransportSqlExpression();
+    const sql = `SELECT bd.TransportNo AS VehicleNo,
+      MAX(bd.BookingID) AS BookingID,
+      MAX(bd.Date) AS Date,
+      MAX(bd.SupplierID) AS SupplierID,
       bd.ProductID,
       MAX(p.ProductName) AS ProductName,
-      SUM(CASE WHEN bd.Type=1 AND b.Date BETWEEN '${from}' AND '${to}' THEN bd.Qty ELSE 0 END) AS QtyTons,
+      SUM(CASE WHEN bd.Type=1 AND bd.Date BETWEEN '${from}' AND '${to}' THEN bd.Qty ELSE 0 END) AS QtyTons,
       SUM(CASE WHEN bd.Type=1 THEN bd.Qty * IFNULL(bd.Packing,20) ELSE 0 END) AS PurchaseBags,
       SUM(CASE WHEN bd.Type=2 THEN bd.Qty ELSE 0 END) AS SaleBags
-      FROM booking b
-      JOIN booking_details bd ON bd.BookingID = b.BookingID
+      FROM (
+        SELECT
+          b.*,
+          bd.ProductID,
+          bd.Type,
+          bd.Qty,
+          bd.Packing,
+          CASE WHEN bd.Type=2 THEN ${saleTransportExpr} ELSE b.VehicleNo END AS TransportNo
+        FROM booking b
+        JOIN booking_details bd ON bd.BookingID = b.BookingID
+      ) bd
       LEFT JOIN products p ON p.ProductID = bd.ProductID
-      WHERE b.VehicleNo IS NOT NULL AND b.VehicleNo != ''
-      GROUP BY b.VehicleNo, bd.ProductID
+      WHERE bd.TransportNo IS NOT NULL AND bd.TransportNo != ''
+      GROUP BY bd.TransportNo, bd.ProductID
       HAVING PurchaseBags > 0
       ORDER BY Date DESC`;
 
@@ -536,10 +569,7 @@ export class StockAcctsComponent implements OnInit {
       this.http.postTask('booking/' + this.Booking.BookingID, payload)
         .then(() => {
           this.myToaster.Sucess('Booking updated successfully.', 'Success');
-          this.Booking.BookingID = null;
-          this.BookingItems = [];
-          this.BookingTotals = { TotalAmount: 0, Carriage: 0, NetAmount: 0 };
-          this.BookingDate = GetDateJSON();
+          this.resetBookingForm();
           this.LoadSavedBookings();
           this.loadProductsAndStock();
         })
@@ -552,9 +582,7 @@ export class StockAcctsComponent implements OnInit {
     this.http.postTask('booking', payload)
       .then((r: any) => {
         this.myToaster.Sucess('Booking saved successfully.', 'Success');
-        this.BookingItems = [];
-        this.BookingTotals = { TotalAmount: 0, Carriage: 0, NetAmount: 0 };
-        this.BookingDate = GetDateJSON();
+        this.resetBookingForm();
         this.LoadSavedBookings();
         // Auto-post saved booking so posted-stock (bags) updates immediately
         const bookingId = r && (r.id || r.bookingID || r.BookingID);
@@ -580,6 +608,27 @@ export class StockAcctsComponent implements OnInit {
       .catch((_err) => {
         this.myToaster.Error('Failed to save booking.', 'Error');
       });
+  }
+
+  private resetBookingForm() {
+    this.Booking = {
+      BookingID: null as any,
+      BookingDate: '',
+      SupplierID: '',
+      SupplierName: '',
+      ProductID: '',
+      ProductName: '',
+      Qty: 0,
+      Bags: 0,
+      Price: 0,
+      Carriage: 0,
+      Amount: 0,
+      Received: 0,
+      TransportVehicleNo: '',
+    };
+    this.BookingItems = [];
+    this.BookingTotals = { TotalAmount: 0, Carriage: 0, NetAmount: 0 };
+    this.BookingDate = GetDateJSON();
   }
 
 

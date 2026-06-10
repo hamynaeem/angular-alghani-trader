@@ -9,6 +9,14 @@ require_once APPPATH . '/libraries/JWT.php';
 use Restserver\Libraries\REST_Controller;
 use \Firebase\JWT\JWT;
 
+// Short-term mitigation: suppress PHP deprecation notices and hide display of
+// deprecation warnings (PHP 8.2 'Creation of dynamic property' messages).
+// NOTE: This is a temporary workaround — recommended to fix the underlying
+// code by declaring needed class properties or updating libraries.
+error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
+ini_set('display_errors', '0');
+
+#[\AllowDynamicProperties]
 class Apis extends REST_Controller
 {
     public $userID = 0;

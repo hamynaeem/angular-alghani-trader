@@ -1184,6 +1184,11 @@ class Tasks extends REST_Controller
 
                 $newBalance = floatval($row['TotalDebit']) - floatval($row['TotalCredit']);
 
+                // Opening balance (seed) must be included so totals are cumulative.
+                // Column is expected on customers table as OBalance (string/number).
+                $opening = isset($cust['OBalance']) ? floatval($cust['OBalance']) : 0.0;
+                $newBalance += $opening;
+
                 $this->db->where('CustomerID', $cid);
                 $this->db->update('customers', ['Balance' => $newBalance]);
                 $updated++;
@@ -1405,6 +1410,7 @@ class Tasks extends REST_Controller
             // don't fail the entire booking save for stock_accts issues
         }
         $sales = $post_data['sales'];
+        $hasTransporterColumn = $this->db->field_exists('TransporterID', 'booking_details');
         $orderIDs = [];
 
         foreach ($sales as $value) {
@@ -1418,6 +1424,9 @@ class Tasks extends REST_Controller
             $pdetails['Discount']   = isset($value['Discount']) ? $value['Discount'] : 0;
             $pdetails['MRP']        = isset($value['MRP']) ? $value['MRP'] : 0;
             $pdetails['Received']   = isset($value['Received']) ? $value['Received'] : 0;
+            if ($hasTransporterColumn) {
+                $pdetails['TransporterID'] = isset($value['TransporterID']) ? $value['TransporterID'] : (isset($booking['VehicleNo']) ? $booking['VehicleNo'] : null);
+            }
             $pdetails['Type']       = 2; //--Sale
 
             $this->db->insert('booking_details', $pdetails);
@@ -1789,6 +1798,15 @@ class Tasks extends REST_Controller
                 [$cid]
             )->row_array();
             $newBalance = floatval($row['TotalDebit']) - floatval($row['TotalCredit']);
+            // Opening balance (seed) must be included so totals are cumulative.
+            $cust = null;
+            $custQuery = $this->db->select('OBalance')->where('CustomerID', $cid)->get('customers');
+            if ($custQuery && $custQuery->row_array()) {
+                $cust = $custQuery->row_array();
+            }
+            $opening = $cust && isset($cust['OBalance']) ? floatval($cust['OBalance']) : 0.0;
+            $newBalance += $opening;
+
             $this->db->where('CustomerID', $cid);
             $this->db->update('customers', ['Balance' => $newBalance]);
         }

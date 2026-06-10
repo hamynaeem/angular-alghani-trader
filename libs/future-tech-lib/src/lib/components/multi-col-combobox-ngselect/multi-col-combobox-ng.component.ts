@@ -11,7 +11,7 @@ import {
   forwardRef,
 } from '@angular/core';
 import { NgSelectComponent } from '@ng-select/ng-select';
-import { concat, Observable, of, Subject, throwError } from 'rxjs';
+import { concat, Observable, of, Subject, throwError, from } from 'rxjs';
 import {
   catchError,
   debounceTime,
@@ -125,26 +125,15 @@ export class MultiColComboboxNgComponent
     filter += " like '%" + term + "%' ";
     // console.log(filter);
 
-    return this.http
-      .get<any>(
-        INSTANCE_URL +
-          'apis/' +
-          this.ApiEndPoint +
-          '?bid=' +
-          this.http2.getBusinessID() +
-          '&limit=10&filter=(' +
-          filter +
-          ')'
-      )
-      .pipe(
-        map((resp) => {
-          if (resp.Error) {
-            throwError(() => new Error(resp.Error));
-          } else {
-            return resp;
-          }
-        })
-      );
+    const endpoint = this.ApiEndPoint + '?bid=' + this.http2.getBusinessID() + '&limit=10&filter=(' + filter + ')';
+    return from(this.http2.getData(endpoint)).pipe(
+      map((resp: any) => {
+        if (resp && (resp as any).Error) {
+          throwError(() => new Error((resp as any).Error));
+        }
+        return resp;
+      })
+    );
   }
 
   ItemSelected(e: any) {

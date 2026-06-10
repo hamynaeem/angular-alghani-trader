@@ -81,70 +81,68 @@ export class CustomerAcctsComponent implements OnInit {
   }
   load() {}
   FilterData() {
-    // tslint:disable-next-line:quotemark
-    let filter =
-      "Date between '" +
-      JSON2Date(this.Filter.FromDate) +
-      "' and '" +
-      JSON2Date(this.Filter.ToDate) +
-      "'";
+    // build date filter
+    let filter = "Date between '" + JSON2Date(this.Filter.FromDate) + "' and '" + JSON2Date(this.Filter.ToDate) + "'";
 
     if (this.Filter.CustomerID === '' || this.Filter.CustomerID === null) {
       return;
-    } else {
-      filter += ' and CustomerID=' + this.Filter.CustomerID;
     }
+    filter += ' and CustomerID=' + this.Filter.CustomerID;
 
     this.http
       .getData('qrycustomeraccts?filter=' + filter + '&orderby=DetailID')
-      .then((r: any) => {
-        this.data = r;
-        // Format Date fields for display (fix raw datetime strings like '2026-03-08 00:00:00')
+      .then((rows: any) => {
+        this.data = rows || [];
+        return this.http.getData('qryproducts?flds=ProductID,ProductName').catch(() => []);
+      })
+      .then((prods: any) => {
+        try {
+          const namesMap: any = {};
+          (prods || []).forEach((p: any) => {
+            const nm = String(p.ProductName || '').toLowerCase().trim();
+            if (nm) namesMap[nm] = true;
+          });
+          // Remove rows whose Description exactly matches a product name
+          this.data = (this.data || []).filter((row: any) => {
+            const desc = String(row.Description || '').toLowerCase().trim();
+            return !(desc && namesMap[desc]);
+          });
+        } catch (e) {
+          // ignore product sanitization errors
+        }
+
         if (this.data && this.data.length) {
-          this.data.forEach((row: any) => {
-            row.Date = this.formatDate(row.Date);
-          });
+          this.data.forEach((row: any) => (row.Date = this.formatDate(row.Date)));
         }
-        if (this.data.length > 0) {
-          this.customer.OpenBalance =
-            (this.data[0].Balance - this.data[0].Debit) * 1 +
-            this.data[0].Credit * 1;
+
+        if (this.data && this.data.length > 0) {
+          this.customer.OpenBalance = (this.data[0].Balance - this.data[0].Debit) * 1 + this.data[0].Credit * 1;
           this.customer.CloseBalance = this.data[this.data.length - 1].Balance;
-          this.data.unshift({
-            Date: this.data[0].Date,
-            Description: 'Opeing Balance ...',
-            Debit: 0,
-            Credit: 0,
-            Balance: this.customer.OpenBalance,
-          });
-        } else {
-          filter = " Date < '" + JSON2Date(this.Filter.FromDate) + "'";
-          filter += ' and CustomerID=' + this.Filter.CustomerID;
-
-          this.http
-            .getData(
-              'qrycustomeraccts?filter=' +
-                filter +
-                '&orderby=DetailID desc&limit=1'
-            )
-            .then((r: any) => {
-              if (r.length > 0) {
-                this.customer.OpenBalance = r[0].Balance;
-                this.customer.CloseBalance = r[0].Balance;
-
-              } else {
-                this.customer.OpenBalance = 0;
-                this.customer.CloseBalance = 0;
-              }
-              this.data.unshift({
-                Date: this.formatDate(JSON2Date(this.Filter.FromDate)),
-                Description: 'Opeing Balance ...',
-                Debit: 0,
-                Credit: 0,
-                Balance: this.customer.OpenBalance,
-              });
-            });
+          // Opening balance row intentionally removed per user request
+          return;
         }
+
+        // no rows in range: fetch last before from-date
+        const past = " Date < '" + JSON2Date(this.Filter.FromDate) + "'";
+        const pastFilter = past + ' and CustomerID=' + this.Filter.CustomerID;
+        return this.http
+          .getData('qrycustomeraccts?filter=' + pastFilter + '&orderby=DetailID desc&limit=1')
+          .then((r: any) => {
+            if (r && r.length > 0) {
+        // Previous/Open balance (Balance as of the day before FromDate)
+              this.customer.OpenBalance = r[0].Balance;
+              // If there are no transactions in the selected range, opening == closing
+              this.customer.CloseBalance = r[0].Balance;
+            } else {
+              this.customer.OpenBalance = 0;
+              this.customer.CloseBalance = 0;
+            }
+            // Opening balance row intentionally removed per user request
+          });
+      })
+      .catch((err) => {
+        console.error('Failed to load customer accounts:', err);
+        this.data = this.data || [];
       });
   }
 
@@ -170,10 +168,13 @@ export class CustomerAcctsComponent implements OnInit {
   }
   CustomerSelected(e: any): void {
     if (e.itemData) {
-      this.http.getData('customers/' + e.itemData.CustomerID).then((r) => {
+        this.http.getData('customers/' + e.itemData.CustomerID).then((r: any) => {
         this.customer = r;
-        this.customer.OpenBalance = 0;
-        this.customer.CloseBalance = 0;
+        // Use the customer list's current Balance as previous balance fallback
+        // while we load ledger-based opening/previous balance below.
+        this.customer.OpenBalance = r?.Balance ?? 0;
+        this.customer.CloseBalance = r?.Balance ?? 0;
+
         this.customer.Bookings = [];
         this.customer.BookingTotal = 0;
         this.customer.BookingCount = 0;
@@ -267,7 +268,33 @@ export class CustomerAcctsComponent implements OnInit {
               const combined = [...purchaseRows, ...saleRows];
 
               const finalize = (rows: any[]) => {
-                this.customer.Bookings = rows.sort((a: any, b: any) => (a.Date > b.Date ? 1 : -1));
+                // Deduplicate rows by BookingID + ProductName/ProductID and merge numeric fields
+                const merged: any = {};
+                (rows || []).forEach((r: any) => {
+                  const pidOrName = (r.ProductID || r.ProductName || '') + '';
+                  const key = (r.BookingID || '') + '::' + pidOrName;
+                  if (!merged[key]) {
+                    merged[key] = {
+                      BookingID: r.BookingID,
+                      Date: r.Date,
+                      InvoiceNo: r.InvoiceNo,
+                      ProductID: r.ProductID,
+                      ProductName: r.ProductName,
+                      Qty: Number(r.Qty) || 0,
+                      Amount: Number(r.Amount) || 0,
+                      Received: Number(r.Received) || 0,
+                      Balance: Number(r.Amount || 0) - Number(r.Received || 0),
+                    };
+                  } else {
+                    merged[key].Qty += Number(r.Qty) || 0;
+                    merged[key].Amount += Number(r.Amount) || 0;
+                    merged[key].Received += Number(r.Received) || 0;
+                    merged[key].Balance = merged[key].Amount - merged[key].Received;
+                  }
+                });
+
+                const deduped = Object.keys(merged).map((k) => merged[k]);
+                this.customer.Bookings = deduped.sort((a: any, b: any) => (a.Date > b.Date ? 1 : -1));
                 this.customer.BookingTotal = this.customer.Bookings.reduce((acc: number, b: any) => acc + (Number(b.Amount) || 0), 0);
                 this.customer.BookingCount = this.customer.Bookings.length;
               };

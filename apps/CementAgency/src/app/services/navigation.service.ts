@@ -23,15 +23,21 @@ export class NavigationService {
 
   private loadFilteredRoutes() {
 
-    const UserData= JSON.parse(localStorage.getItem('currentUser') || '{}')
-    if (!UserData.UserMenu) return;
-    const pageIds = UserData
-      .UserMenu.map((item: any) => Number(item.pageid));
+    const UserData = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    const userMenu = UserData && UserData.UserMenu;
+    if (!userMenu || (Array.isArray(userMenu) && userMenu.length === 0)) {
+      // Emit empty menu asynchronously to avoid ExpressionChangedAfterItHasBeenCheckedError
+      Promise.resolve().then(() => this.filteredRoutesSubject.next([]));
+      return;
+    }
+
+    const pageIds = (Array.isArray(userMenu) ? userMenu : [])
+      .map((item: any) => Number(item.pageid));
 
     const filteredRoutes = this.VROUTES.map(item => {
-      const filteredSubmenu = item.submenu.filter(sub => pageIds.includes(sub.id));
+      const filteredSubmenu = (item.submenu || []).filter(sub => pageIds.includes(Number(sub.id)));
 
-      if (pageIds.includes(item.id) || filteredSubmenu.length > 0) {
+      if (pageIds.includes(Number(item.id)) || filteredSubmenu.length > 0) {
         return {
           ...item,
           submenu: filteredSubmenu
@@ -41,7 +47,8 @@ export class NavigationService {
     }).filter(item => item !== null) as RouteInfo[];
 
     this.extractPathsFromArray(filteredRoutes);
-    this.filteredRoutesSubject.next(filteredRoutes);
+    // Emit asynchronously to avoid changing bindings during change detection
+    Promise.resolve().then(() => this.filteredRoutesSubject.next(filteredRoutes));
   }
 
   getFilteredRoutes(): Observable<RouteInfo[]> {

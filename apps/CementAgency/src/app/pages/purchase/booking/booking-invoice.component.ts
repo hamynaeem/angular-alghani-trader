@@ -125,9 +125,11 @@ export class BookingInvoiceComponent
   public Suppliers: any = [];
   public Transporters: any = [];
   // When true, users must select a transport/vehicle first before choosing products
-  public requireTransportFirst: boolean = true;
+  // Set to false to allow selecting/adding products first, then picking transporter
+  public requireTransportFirst: boolean = false;
   // UI debug helper to show stock maps on the page
   public showStockDebug = false;
+  private hasBookingDetailTransporter = false;
 
 
   // Orders modal properties
@@ -170,10 +172,25 @@ export class BookingInvoiceComponent
   }
 
   // Returns bags contributed by in-memory sale items for this product.
-  private getInMemorySaleBags(pid: string): number {
-    return (this.saleData || [])
-      .filter((item: any) => String(item.ProductID) === pid)
-      .reduce((acc: number, item: any) => acc + (Number(item.Qty) || 0), 0);
+  // When a transporter is selected, only counts sale items for that transporter.
+  private getInMemorySaleBags(pid: string, transporterId?: string | null): number {
+    try {
+      const pidStr = pid === null || pid === undefined ? '' : String(pid);
+      // If transporterId is provided and non-empty, count only items for that transporter.
+      // If transporterId is omitted or empty, count across all transporters (global in-memory sales).
+      const useTransportFilter = transporterId !== undefined && transporterId !== null && String(transporterId).trim() !== '';
+      const tId = useTransportFilter ? String(transporterId) : null;
+
+      return (this.saleData || [])
+        .filter((item: any) => {
+          if (String(item.ProductID) !== pidStr) return false;
+          if (!useTransportFilter) return true;
+          return String(item.TransporterID || '') === tId;
+        })
+        .reduce((acc: number, item: any) => acc + (Number(item.Qty) || 0), 0);
+    } catch (e) {
+      return 0;
+    }
   }
 
   applyStockToProducts() {
@@ -369,16 +386,40 @@ export class BookingInvoiceComponent
     this.buildStockFromSql();
   }
 
+  private detectBookingDetailTransporter(): Promise<void> {
+    const sql = `SHOW COLUMNS FROM booking_details LIKE 'TransporterID'`;
+    return this.http.getData('MQRY?qrysql=' + encodeURIComponent(sql))
+      .then((rows: any) => {
+        this.hasBookingDetailTransporter = !!(rows && rows.length);
+      })
+      .catch(() => {
+        this.hasBookingDetailTransporter = false;
+      });
+  }
+
+  private saleTransportSqlExpression(): string {
+    return this.hasBookingDetailTransporter
+      ? `IFNULL(NULLIF(bd.TransporterID, ''), b.VehicleNo)`
+      : `b.VehicleNo`;
+  }
+
   // Build transporters list from DB: vehicles with net positive stock
   private buildTransporters() {
     try {
-      const transportSql = `SELECT b.VehicleNo,
-        SUM(CASE WHEN bd.Type=1 THEN bd.Qty * IFNULL(bd.Packing,20) ELSE 0 END) AS PurchaseBags,
-        SUM(CASE WHEN bd.Type=2 THEN bd.Qty ELSE 0 END) AS SaleBags
-        FROM booking b
-        JOIN booking_details bd ON bd.BookingID = b.BookingID
-        WHERE b.VehicleNo IS NOT NULL AND b.VehicleNo != ''
-        GROUP BY b.VehicleNo
+      const saleTransportExpr = this.saleTransportSqlExpression();
+      const transportSql = `SELECT TransportNo AS VehicleNo,
+        SUM(PurchaseBags) AS PurchaseBags,
+        SUM(SaleBags) AS SaleBags
+        FROM (
+          SELECT
+            CASE WHEN bd.Type=2 THEN ${saleTransportExpr} ELSE b.VehicleNo END AS TransportNo,
+            CASE WHEN bd.Type=1 THEN bd.Qty * IFNULL(bd.Packing,20) ELSE 0 END AS PurchaseBags,
+            CASE WHEN bd.Type=2 THEN bd.Qty ELSE 0 END AS SaleBags
+          FROM booking b
+          JOIN booking_details bd ON bd.BookingID = b.BookingID
+        ) transport_stock
+        WHERE TransportNo IS NOT NULL AND TransportNo != ''
+        GROUP BY TransportNo
         HAVING (PurchaseBags - SaleBags) > 0`;
       this.http.getData('MQRY?qrysql=' + encodeURIComponent(transportSql))
         .then((rows: any) => {
@@ -415,6 +456,9 @@ export class BookingInvoiceComponent
 
   ngOnInit() {
     this.Cancel();
+    this.detectBookingDetailTransporter().then(() => {
+      try { this.buildTransporters(); } catch (e) { this.Transporters = []; }
+    });
     Promise.all([
       this.http.getData('products?orderby=ProductName'),
     ]).then(([products]: any[]) => {
@@ -532,37 +576,53 @@ export class BookingInvoiceComponent
     return new Promise((resolve, reject) => {
       if (this.fromBooking.valid) {
         // Save booking data
+        const sales = (this.saleData || []).map((item: any) => ({
+          ...item,
+          TransporterID: item.TransporterID || this.saleDetail?.TransporterID || this.booking?.VehicleNo || '',
+        }));
         const data = {
           ...this.booking,
           details: this.bookData,
-          sales: this.saleData,
+          sales: sales,
         };
 
         data.Date = JSON2Date(data.Date);
 
-        this.http
+          this.http
           .postTask(
             'booking' + (this.EditID != '' ? '/' + this.EditID : ''),
             data
           )
           .then((r: any) => {
-              // console.log removed
+            // console.log removed
 
             this.myToaster.Sucess('Booking saved successfully.', 'Success');
-            this.saleData = [];
-            this.bookData = [];
-            this.TransportProductQty = {};
-            this.calcBooking();
-            this.calcSaleData();
-            this.Cancel();
-            this.EditID = '';
 
-            // Auto-post the booking so stock is updated immediately.
-            // Booking POST returns { id: <BookingID> }
+            const bookingID = r?.id;
 
+            // IMPORTANT: update customer Balance by posting booking (creates customeraccts + recalculates customers.Balance)
+            const postPromise = bookingID
+              ? this.http.postTask('postbooking/' + bookingID, {})
+              : Promise.resolve(null);
 
-            this.router.navigateByUrl('/purchase/booking');
-            resolve(r);
+            postPromise
+              .then(() => {
+                this.saleData = [];
+                this.bookData = [];
+                this.TransportProductQty = {};
+                this.calcBooking();
+                this.calcSaleData();
+                this.Cancel();
+                this.EditID = '';
+                this.router.navigateByUrl('/purchase/booking');
+                resolve(r);
+              })
+              .catch((postErr) => {
+                // Save succeeded, but posting failed. Still resolve save result.
+                console.error('Posting booking failed:', postErr);
+                this.myToaster.Error('Booking saved, but posting failed (balance may not update).', 'Post Error');
+                resolve(r);
+              });
           })
           .catch((_err) => {
             this.myToaster.Error('Failed to save booking.', 'Error');
@@ -667,32 +727,51 @@ export class BookingInvoiceComponent
       const transportBags = Number(this.TransportProductQty[key] || 0);
       // Add any new in-memory purchase bags for this product and subtract in-memory sales
       const inMemoryPurchase = this.getInMemoryPurchaseBags(key);
-      const alreadySold = this.getInMemorySaleBags(key);
+      // Determine selected transporter (prefer saleDetail.TransporterID, fallback to booking.VehicleNo)
+      const selectedTransporter = (this.saleDetail && this.saleDetail.TransporterID) ? String(this.saleDetail.TransporterID) : (this.booking && this.booking.VehicleNo ? String(this.booking.VehicleNo) : null);
+      const alreadySold = this.getInMemorySaleBags(key, selectedTransporter);
       return Math.max(0, transportBags + inMemoryPurchase - alreadySold);
     } catch (e) {
       return 0;
     }
   }
 
+  private resetSaleEntryForm(transportId?: string) {
+    this.saleDetail = {
+      CustomerID: '',
+      ProductID: '',
+      ProductName: '',
+      Qty: 0,
+      Price: 0,
+      Discount: 0,
+      MRP: 0,
+      Received: 0,
+      Amount: 0,
+      DeliveryCity: '',
+      TransporterID: transportId || undefined,
+      OrderID: '0',
+    };
+    this.SelectedProductStock = 0;
+    this.NetStocks = 0;
+  }
+
   onTransporterChange(val: any) {
     const v = val ? String(val).trim() : '';
     if (!v) {
+      this.TransportProductQty = {};
       this.applyStockToProducts();
       return;
     }
-    // Sync the transport/vehicle no into booking.VehicleNo so saved sales are linked correctly
-    if (this.booking) {
-      this.booking.VehicleNo = v;
-    }
 
-    // Direct SQL: join booking_details + booking filtered by VehicleNo to get per-product bag counts
+    // Purchase rows belong to the purchase vehicle. Sale rows belong to their own selected transporter.
+    const saleTransportExpr = this.saleTransportSqlExpression();
     const sql = `SELECT bd.ProductID, p.ProductName,
       SUM(CASE WHEN bd.Type=1 THEN bd.Qty * IFNULL(bd.Packing,20) ELSE 0 END) AS PurchaseBags,
       SUM(CASE WHEN bd.Type=2 THEN bd.Qty ELSE 0 END) AS SaleBags
       FROM booking_details bd
       JOIN booking b ON b.BookingID = bd.BookingID
       JOIN products p ON p.ProductID = bd.ProductID
-      WHERE b.VehicleNo = '${v.replace(/'/g, "''")}'
+      WHERE (CASE WHEN bd.Type=2 THEN ${saleTransportExpr} ELSE b.VehicleNo END) = '${v.replace(/'/g, "''")}'
       GROUP BY bd.ProductID, p.ProductName`;
 
     this.http.getData('MQRY?qrysql=' + encodeURIComponent(sql))
@@ -882,8 +961,10 @@ export class BookingInvoiceComponent
       ? this.getTransportBagsForSelected()
       : this.getStock(this.saleDetail.ProductID);
     // getTransportBagsForSelected() already subtracts in-session sales, so only compare requested qty
-    const alreadyAdded = hasTransportData ? 0 : this.saleData
-      .filter((item: any) => String(item.ProductID) === String(this.saleDetail.ProductID))
+    // Count already added items for this product and transporter (if set)
+    const transporterForThis = this.saleDetail && this.saleDetail.TransporterID ? String(this.saleDetail.TransporterID) : (this.booking && this.booking.VehicleNo ? String(this.booking.VehicleNo) : null);
+    const alreadyAdded = this.saleData
+      .filter((item: any) => String(item.ProductID) === String(this.saleDetail.ProductID) && (transporterForThis ? String(item.TransporterID) === transporterForThis : true))
       .reduce((acc: number, item: any) => acc + item.Qty * 1, 0);
     const totalRequested = alreadyAdded + this.saleDetail.Qty * 1;
     if (totalRequested > availableStock) {
@@ -893,6 +974,9 @@ export class BookingInvoiceComponent
       );
       return;
     }
+
+    // Determine transporter to associate with this new sale item (prefer saleDetail, then booking.VehicleNo)
+    const transporterForNewItem = this.saleDetail && this.saleDetail.TransporterID ? String(this.saleDetail.TransporterID) : (this.booking && this.booking.VehicleNo ? String(this.booking.VehicleNo) : '');
 
     const product = this.Products.find(
       (p: any) => p.ProductID === this.saleDetail.ProductID
@@ -909,6 +993,7 @@ export class BookingInvoiceComponent
       Received: this.saleDetail.Received,
       Price: this.saleDetail.Price,
       Amount: this.saleDetail.Qty * this.saleDetail.Price,
+      TransporterID: transporterForNewItem || (this.saleDetail.TransporterID || ''),
       CustomerID: this.saleDetail.CustomerID || '',
       OrderID: this.saleDetail.OrderID || '0',
       DeliveryCity: this.saleDetail.DeliveryCity || '',
@@ -930,18 +1015,12 @@ export class BookingInvoiceComponent
       this.SelectedProductStock = this.getStock(pid);
       this.NetStocks = this.SelectedProductStock || 0;
     } catch (e) { /* ignore */ }
-    const keepTransporterID = this.saleDetail.TransporterID;
-    this.saleDetail = {
-      Qty: 0,
-      Price: 0,
-      Discount: 0,
-      MRP: 0,
-      Received: 0,
-      Amount: 0,
-      DeliveryCity: '',
-      TransporterID: keepTransporterID,
-    };
-    this.cmbCustomers.focus();
+    this.resetSaleEntryForm(transporterForNewItem);
+    try {
+      this.cmbCustomers.focus();
+    } catch (e) {
+      // ignore focus errors
+    }
   }
   calcSaleData() {
     this.sale.TotalAmount = this.saleData.reduce(

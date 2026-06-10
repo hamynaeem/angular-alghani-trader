@@ -66,7 +66,13 @@
 switch (ENVIRONMENT)
 {
 	case 'development':
-		error_reporting(-1);
+		// In development we still want to see errors, but suppress PHP 8.2
+		// deprecation warnings (Creation of dynamic property) because they
+		// are emitted by core libraries and break API clients that expect
+		// clean JSON responses. This is a short-term mitigation; the
+		// proper fix is to update the code to avoid dynamic property
+		// creation or upgrade libraries.
+		error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
 		ini_set('display_errors', 1);
 	break;
 

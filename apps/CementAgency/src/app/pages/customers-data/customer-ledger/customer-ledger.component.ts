@@ -13,7 +13,7 @@ import { CustomerAuthService } from '../services/customer-auth.service';
         <div class="card-header bg-gradient-primary text-white">
           <div class="d-flex align-items-center">
             <i class="fas fa-file-invoice-dollar me-2"></i>
-            <h5 class="mb-0">Account Ledger</h5>
+            <h5 class="mb-0">Account Ledgers</h5>
           </div>
         </div>
         <div class="card-body">
@@ -222,22 +222,8 @@ export class CustomerLedgerComponent implements OnInit, OnDestroy {
         fldName: 'Date',
         type: 'date'
       },
-      {
-        label: 'Invoice No',
-        fldName: 'RefID',
-        button: {
-          style: 'link',
-          callback: (e: any) => { this.InvNoClicked(e) }
-        },
-      },
-      {
-        label: 'Booking',
-        fldName: 'Booking'
-      },
-      {
-        label: 'Notes',
-        fldName: 'Notes',
-      },
+      
+  
       {
         label: 'Description',
         fldName: 'Description',
