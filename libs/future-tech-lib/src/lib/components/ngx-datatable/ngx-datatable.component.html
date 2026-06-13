@@ -34,7 +34,7 @@
         >
           <i
             class="fa fa-{{ act.icon }} text-{{ act.class || 'primary' }}"
-            *ngIf="act.icon"
+            *ngIf="act.icon && act.action !== 'delete'"
           >
           </i>
           {{ act.title }}

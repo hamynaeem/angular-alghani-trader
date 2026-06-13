@@ -29,6 +29,7 @@ const SalesSetting = {
   ],
   Actions: [
     { action: 'post', title: 'Post', icon: 'check', class: 'warning' },
+    { action: 'delete', title: 'Delete', icon: 'trash', class: 'danger' },
   ],
   Data: [],
 };
@@ -597,6 +598,8 @@ export class DayBookComponent implements OnInit {
         table = { ID: e.data.VoucherID, Table: 'V' };
       } else if (this.nWhat === '2' || this.nWhat === '5') {
         table = { ID: e.data.BookingID, Table: 'P' };
+      } else if (this.nWhat === '4') {
+        table = { ID: e.data.BookingID, Table: 'B' };
       } else if (this.nWhat === '1') {
         table = { ID: e.data.ExpendID, Table: 'E' };
       } else if (this.nWhat === '6') {
@@ -637,31 +640,62 @@ export class DayBookComponent implements OnInit {
           return;
         }
 
+      swal({
+        text: 'Are you sure you want to delete this record?',
+        icon: 'warning',
+        buttons: {
+          cancel: true,
+          confirm: true,
+        },
+      }).then((willDelete) => {
+        if (!willDelete) return;
+
+        // loading state
         swal({
-          text: 'Delete this record!',
-          icon: 'warning',
-          buttons: {
-            cancel: true,
-            confirm: true,
-          },
-        }).then((willDelete) => {
-          if (willDelete) {
-            console.log('Deleting', table);
-            this.http
-              .postTask('delete', table)
-              .then((res) => {
-                console.log('Delete response', res);
-                this.FilterData();
-                swal('Deleted!', 'Your data has been deleted!', 'success');
-              })
-              .catch((er) => {
-                console.error('Delete error', er);
-                // show server error message when available
-                const msg = (er && er.error && er.error.message) || (er && er.message) || 'Error while deleting voucher';
-                swal('Oops!', msg, 'error');
-              });
-          }
+          title: 'Deleting...',
+          text: 'Please wait while we delete this record.',
+          icon: 'info',
+          buttons: false as any,
+          closeOnClickOutside: false,
+          closeOnEsc: false,
         });
+
+        console.log('Deleting', table);
+        this.http
+          .postTask('delete', table)
+          .then((res) => {
+            (swal as any).close?.();
+
+            // Success message
+            swal('Record deleted successfully.', '', 'success');
+
+            // Optimistically remove from UI without full refresh
+            const removedID: any = (table && (table as any).ID) ?? null;
+            if (this.data && Array.isArray(this.data) && removedID !== null) {
+              this.data = (this.data as any[]).filter((row: any) => {
+                if (this.nWhat === '3') return row && row.VoucherID !== removedID;
+                // purchase uses BookingID (nWhat==='5'), sales uses BookingID (nWhat==='4')
+                if (this.nWhat === '2' || this.nWhat === '4' || this.nWhat === '5') return row && row.BookingID !== removedID;
+                if (this.nWhat === '1') return row && row.ExpendID !== removedID;
+                if (this.nWhat === '6') return row && (row.ID || row.id) !== removedID;
+                // fallback
+                return row && row.ID !== removedID;
+              });
+            }
+
+            // Optional: keep server refresh as fallback for edge cases
+            // this.FilterData();
+          })
+          .catch((er) => {
+            (swal as any).close?.();
+            console.error('Delete error', er);
+            const msg =
+              (er && er.error && er.error.message) ||
+              (er && er.message) ||
+              'Error while deleting record';
+            swal('Oops!', msg, 'error');
+          });
+      });
       };
 
       if (Number(e.data.IsPosted) === 0) {

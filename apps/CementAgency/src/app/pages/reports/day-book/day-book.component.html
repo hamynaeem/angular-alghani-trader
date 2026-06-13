@@ -52,7 +52,8 @@
             [(ngModel)]="Filter.SupplierID"
           >
             <option value="">All Suppliers</option>
-            <option *ngFor="let supplier of Suppliers | async" [value]="supplier.SupplierID || supplier.CustomerID">
+            <option *ngFor="let supplier of Suppliers | async"
+                    [value]="supplier.SupplierID || supplier.CustomerID">
               {{ supplier.SupplierName || supplier.CustomerName || supplier.AcctName || supplier.Name }}
             </option>
           </select>
@@ -62,76 +63,116 @@
       <div class="row no-pad mt-2">
         <div class="form-group col-md-2">
           <div class="custom-control custom-radio">
-            <input class="custom-control-input radio-inline" id="radioDefault" name="radio" type="radio" value="1" [(ngModel)]="nWhat" (change)="TypeChange($event)" />
+            <input class="custom-control-input"
+                   id="radioDefault"
+                   name="radio"
+                   type="radio"
+                   value="1"
+                   [(ngModel)]="nWhat"
+                   (change)="TypeChange($event)" />
             <label class="custom-control-label" for="radioDefault">Expense</label>
           </div>
         </div>
 
-
-
         <div class="form-group col-md-2">
           <div class="custom-control custom-radio">
-            <input class="custom-control-input radio-inline radio-success" id="radioSuccess" name="radio" type="radio" value="3" [(ngModel)]="nWhat" (change)="TypeChange($event)" />
+            <input class="custom-control-input"
+                   id="radioSuccess"
+                   name="radio"
+                   type="radio"
+                   value="3"
+                   [(ngModel)]="nWhat"
+                   (change)="TypeChange($event)" />
             <label class="custom-control-label" for="radioSuccess">Vouchers</label>
           </div>
         </div>
 
         <div class="form-group col-md-2">
           <div class="custom-control custom-radio">
-            <input class="custom-control-input radio-inline radio-success" id="radioTransport" name="radio" type="radio" value="6" [(ngModel)]="nWhat" (change)="TypeChange($event)" />
+            <input class="custom-control-input"
+                   id="radioTransport"
+                   name="radio"
+                   type="radio"
+                   value="6"
+                   [(ngModel)]="nWhat"
+                   (change)="TypeChange($event)" />
             <label class="custom-control-label" for="radioTransport">Transport</label>
           </div>
         </div>
 
         <div class="form-group col-md-2">
           <div class="custom-control custom-radio">
-            <input checked class="custom-control-input radio-inline radio-info" id="radioSales" name="radio" type="radio" value="4" [(ngModel)]="nWhat" (change)="TypeChange($event)" />
+            <input class="custom-control-input"
+                   id="radioSales"
+                   name="radio"
+                   type="radio"
+                   value="4"
+                   [(ngModel)]="nWhat"
+                   (change)="TypeChange($event)" />
             <label class="custom-control-label" for="radioSales">Sales</label>
           </div>
         </div>
 
         <div class="form-group col-md-2">
           <div class="custom-control custom-radio">
-            <input class="custom-control-input radio-inline radio-warning" id="radioPurchase" name="radio" type="radio" value="5" [(ngModel)]="nWhat" (change)="TypeChange($event)" />
+            <input class="custom-control-input"
+                   id="radioPurchase"
+                   name="radio"
+                   type="radio"
+                   value="5"
+                   [(ngModel)]="nWhat"
+                   (change)="TypeChange($event)" />
             <label class="custom-control-label" for="radioPurchase">Purchase</label>
           </div>
         </div>
 
-
+        <div class="col-md-1">
+          <button type="button"
+                  class="btn btn-primary form-control"
+                  (click)="FilterData()">
+            <i class="fa fa-search"></i>
+          </button>
+        </div>
 
         <div class="col-md-1">
-          <div class="form-group">
-            <button type="button" class="btn btn-primary form-control" (click)="FilterData()" accesskey="s"><i class="fa fa-search"></i></button>
-          </div>
-        </div>
-
-        <div class="col-md-1">
-          <div class="form-group">
-            <button type="button" class="btn btn-primary form-control" (click)="PrintReport()" accesskey="s"><i class="fa fa-print"></i></button>
-          </div>
-        </div>
-
-      </div>
-    </form>
-
-    <div id="print-section" class="mt-3">
-      <div class="row no-gutter">
-        <div class="col-md-12">
-          <ft-dynamic-table [Settings]="settings" [Data]="data" (ClickAction)="Clicked($event)" (RowClicked)="RowClicked($event)"></ft-dynamic-table>
-        </div>
-      </div>
-    </div>
-
-    <div class="row no-gutter mt-3">
-      <div class="col-md-10"></div>
-      <div class="col-md-2">
-        <div class="form-group">
-          <button type="button" class="btn btn-danger form-control" (click)="CloseAccounts()" accesskey="s">
-            <i class="fa fa-lock"></i>
-            Post All
+          <button type="button"
+                  class="btn btn-primary form-control"
+                  (click)="PrintReport()">
+            <i class="fa fa-print"></i>
           </button>
         </div>
       </div>
+    </form>
+
+    <!-- TABLE -->
+    <div id="print-section" class="mt-3">
+      <div class="row no-gutter">
+        <div class="col-md-12">
+
+          <!-- IMPORTANT: DELETE ICON ADDED HERE VIA SETTINGS -->
+          <ft-dynamic-table
+            [Settings]="settings"
+            [Data]="data"
+            (ClickAction)="Clicked($event)"
+            (RowClicked)="RowClicked($event)">
+          </ft-dynamic-table>
+
+        </div>
+      </div>
     </div>
+
+    <!-- POST BUTTON -->
+    <div class="row no-gutter mt-3">
+      <div class="col-md-10"></div>
+      <div class="col-md-2">
+        <button type="button"
+                class="btn btn-danger form-control"
+                (click)="CloseAccounts()">
+          <i class="fa fa-lock"></i>
+          Post All
+        </button>
+      </div>
+    </div>
+
   </div>
 </div>
